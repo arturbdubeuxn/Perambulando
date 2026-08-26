@@ -12,5 +12,11 @@ namespace Projetos___4._1___Presentation.Controllers
         {
             return Ok("Hello from the Host Controller!");
         }
+
+        [HttpGet("Artur")]
+        public IActionResult GetHostName()
+        {
+            return Ok("Host Name: Artur");
+        }
     }
 }

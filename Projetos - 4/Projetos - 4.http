@@ -4,3 +4,5 @@ GET {{Projetos___4_HostAddress}}/api/Host/
 Accept: application/json
 
 ###
+GET {{Projetos___4_HostAddress}}/api/Host/Artur
+Accept: application/json
