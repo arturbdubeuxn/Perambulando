@@ -18,5 +18,11 @@ namespace Projetos___4._1___Presentation.Controllers
         {
             return Ok("Host Name: Artur");
         }
+
+        [HttpGet("Artur/Details")]
+        public IActionResult GetHostDetails()
+        {
+            return Ok("Host Details: Artur, Age: 30, Location: Earth");
+        }
     }
 }

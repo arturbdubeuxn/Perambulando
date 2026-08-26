@@ -6,3 +6,7 @@ Accept: application/json
 ###
 GET {{Projetos___4_HostAddress}}/api/Host/Artur
 Accept: application/json
+
+###
+GET {{Projetos___4_HostAddress}}/api/Host/Artur/Details
+Accept: application/json
