@@ -1,10 +1,12 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using Projetos___4._3___Domain.Model;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
-using Projetos___4._3___Domain.Model;
+using System;
+using System.Collections.Generic;
 namespace Projetos___4._4___Data.Context
 {
-    public class Context : DbContext
+    public class Context : IdentityDbContext<IdentityUser>
     {
 
         public Context(DbContextOptions<Context> options) : base(options)
