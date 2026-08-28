@@ -5,7 +5,7 @@ namespace Projetos___4._1___Presentation.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    public class HostController : ControllerBase
+    public class USerController : ControllerBase
     {
         [HttpGet]
         public IActionResult Get()
