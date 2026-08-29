@@ -8,15 +8,9 @@ namespace Projetos___4._3___Domain.Model
     {
         public string Name { get; set; } = string.Empty;
 
-        public TypeofUser Type { get; set; }
+        public string Type { get; set; } = string.Empty;
 
-
-        public enum TypeofUser
-        {
-            Admin = 0,
-            Local = 1,
-            Turist = 2,
-            Host = 3
+        public bool IsActive { get; set; } = true;
 
         }
 

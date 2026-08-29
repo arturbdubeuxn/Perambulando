@@ -1,10 +1,9 @@
 @Projetos___4_HostAddress = http://localhost:5014
 
-GET {{Projetos___4_HostAddress}}/api/Host/
-Accept: application/json
-
 ###
-GET {{Projetos___4_HostAddress}}/api/Host/Artur
+GET {{Projetos___4_HostAddress}}/api/User/Auth/Register
+Accept: application/json
+GET {{Projetos___4_HostAddress}}/weatherforecast/
 Accept: application/json
 
 ###
