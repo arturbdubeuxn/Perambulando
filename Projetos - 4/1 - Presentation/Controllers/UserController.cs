@@ -18,7 +18,7 @@ namespace Projetos___4._1___Presentation.Controllers
             _userManager = userManager;
             _roleManager = roleManager;
         }
-        [HttpGet("auth/Register")]
+        [HttpPost("auth/Register")]
         public async Task<IActionResult> Register([FromBody] UserRegisterDTO user)
         {
             if (user == null)
