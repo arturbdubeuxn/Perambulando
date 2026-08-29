@@ -2,7 +2,7 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Projetos___4._3___Domain.Model;
-using Projetos___4._2___Application.ViewModel;
+using Projetos___4._2___Application.DTO;
 
 namespace Projetos___4._1___Presentation.Controllers
 {
@@ -67,12 +67,5 @@ namespace Projetos___4._1___Presentation.Controllers
             return Ok("Host Details: Artur, Age: 30, Location: Earth");
         }
 
-        [HttpPatch("Artur/Update")]
-        public IActionResult UpdateHostDetails([FromBody] HostDetails updatedDetails)
-        {
-            // Here you would typically update the host details in your database or service
-            // For demonstration purposes, we'll just return the updated details
-            return Ok($"Updated Host Details: Name: {updatedDetails.Name}, Age: {updatedDetails.Age}, Location: {updatedDetails.Location}");
-        }
     }
 }

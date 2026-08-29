@@ -3,8 +3,7 @@
 ###
 GET {{Projetos___4_HostAddress}}/api/User/Auth/Register
 Accept: application/json
-GET {{Projetos___4_HostAddress}}/weatherforecast/
-Accept: application/json
+
 
 ###
 GET {{Projetos___4_HostAddress}}/api/Host/Artur/Details
