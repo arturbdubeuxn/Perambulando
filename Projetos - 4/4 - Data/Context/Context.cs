@@ -12,6 +12,16 @@ namespace Projetos___4._4___Data.Context
         public Context(DbContextOptions<Context> options) : base(options)
         {
         }
+
+        public DbSet<Category> Categories => Set<Category>();
+
+        public DbSet<Product> Products => Set<Product>();
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            base.OnModelCreating(modelBuilder);
+            modelBuilder.Entity<User>().ToTable("users");
+        }
     
     }
 }
