@@ -8,9 +8,13 @@
 
         public string Password { get; set; } = string.Empty;
 
-        public string TypeofUser { get; set; } = string.Empty;
+        public TypeOfUser TypeofUser { get; set; }
 
-        public bool IsActive { get; set; } = true;
+        public enum TypeOfUser
+        {
+            Local = 0,
+            Turist = 1
+        }
 
     }
 }

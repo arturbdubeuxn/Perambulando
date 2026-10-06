@@ -2,7 +2,7 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Projetos___4._3___Domain.Model;
-using Projetos___4._2___Application.ViewModel;
+using Projetos___4._2___Application.DTO;
 
 namespace Projetos___4._1___Presentation.Controllers
 {
@@ -18,47 +18,72 @@ namespace Projetos___4._1___Presentation.Controllers
             _userManager = userManager;
             _roleManager = roleManager;
         }
-        [HttpGet("auth/Register")]
-        public async Task<IActionResult> Register([FromBody] UserRegisterDTO user)
+        [HttpPost("auth/Register")]
+        public async Task<IActionResult> Register([FromBody] UserRegisterDTO dto)
         {
-            if (user == null)
+            if (dto == null)
             {
-                return BadRequest("Invalid user data");
+                return BadRequest("O usuário é inválido");
             }
 
             var newUser = new User
             {
-                UserName = user.Name,
-                Email = user.Email,
-                IsActive = user.IsActive
+                UserName = dto.Name,
+                Email = dto.Email,
+                Typeofuser = (User.TypeofUser)dto.TypeofUser,
             };
 
-            var result = await _userManager.CreateAsync(newUser, user.Password);
+            var result = await _userManager.CreateAsync(newUser, dto.Password);
+
 
             if (!result.Succeeded)
             {
-                return BadRequest("Failed to create user");
+                return BadRequest(result.Errors);
             }
 
-            bool roleExists = await _roleManager.RoleExistsAsync(user.TypeofUser);
+            return Ok("User registered successfully");
 
-            if (roleExists)
+        }
+        [HttpPost("auth/Login")]
+        public async Task<IActionResult> Login([FromBody] UserRegisterDTO dto)
+        {
+            if (dto == null)
             {
+                return BadRequest("Inválido");
+            }
 
-                await _userManager.AddToRoleAsync(newUser, user.TypeofUser);
-                return Ok($"Usuário cadastrado com sucesso e com cargo {user.TypeofUser}");
-            }
-            else
+            var existingUser = await _userManager.FindByEmailAsync(dto.Email);
+
+            if (existingUser == null)
             {
-                return BadRequest("Role does not exist");
+                return NotFound("Usuário não encontrado");
             }
+
+            return Ok("Usuário logado com sucesso");
+
+
+
         }
 
 
-        [HttpGet("Artur")]
-        public IActionResult GetHostName()
+        [HttpDelete]
+        public async Task<IActionResult> DeleteUser([FromBody] UserRegisterDTO dto)
         {
-            return Ok("Host Name: Artur");
+            var existingUser = await _userManager.FindByEmailAsync(dto.Email);
+
+            if (existingUser == null)
+            {
+                return NotFound("User not found");
+            }
+
+            var result = await _userManager.DeleteAsync(existingUser);
+
+            if (!result.Succeeded)
+            {
+                return BadRequest("Failed to delete user");
+            }
+
+            return Ok("User deleted successfully");
         }
 
         [HttpGet("Artur/Details")]
@@ -67,12 +92,5 @@ namespace Projetos___4._1___Presentation.Controllers
             return Ok("Host Details: Artur, Age: 30, Location: Earth");
         }
 
-        [HttpPatch("Artur/Update")]
-        public IActionResult UpdateHostDetails([FromBody] HostDetails updatedDetails)
-        {
-            // Here you would typically update the host details in your database or service
-            // For demonstration purposes, we'll just return the updated details
-            return Ok($"Updated Host Details: Name: {updatedDetails.Name}, Age: {updatedDetails.Age}, Location: {updatedDetails.Location}");
-        }
     }
 }

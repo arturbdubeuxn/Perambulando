@@ -1,11 +1,18 @@
 @Projetos___4_HostAddress = http://localhost:5014
 
 ###
-GET {{Projetos___4_HostAddress}}/api/User/Auth/Register
-Accept: application/json
-GET {{Projetos___4_HostAddress}}/weatherforecast/
+POST {{Projetos___4_HostAddress}}/api/User/Auth/Register
+Content-Type: application/json
 Accept: application/json
 
+{
+  "name": "ArturBorges",
+  "email": "artur@teste.com",
+  "password": "SenhaForte123!",
+  "typeofuser": "Fabio",
+  "isActive": true
+}
+
 ###
-GET {{Projetos___4_HostAddress}}/api/Host/Artur/Details
+GET {{Projetos___4_HostAddress}}/api/User/Artur/Details
 Accept: application/json
