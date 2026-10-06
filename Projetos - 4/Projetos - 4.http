@@ -9,10 +9,10 @@ Accept: application/json
   "name": "ArturBorges",
   "email": "artur@teste.com",
   "password": "SenhaForte123!",
-  "typeofUser": "Host",
+  "typeofuser": "Fabio",
   "isActive": true
 }
 
 ###
-GET {{Projetos___4_HostAddress}}/api/Host/Artur/Details
+GET {{Projetos___4_HostAddress}}/api/User/Artur/Details
 Accept: application/json

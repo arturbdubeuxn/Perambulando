@@ -17,6 +17,8 @@ namespace Projetos___4._4___Data.Context
 
         public DbSet<Product> Products => Set<Product>();
 
+        public DbSet<Hosts> Hosts => Set<Hosts>();
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
