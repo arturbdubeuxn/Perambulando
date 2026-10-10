@@ -1,12 +1,73 @@
 @Projetos___4_HostAddress = http://localhost:5014
+@nome = Fabio
+@email = artur@teste1.com
+@senha = SenhaForte123!
 
-GET {{Projetos___4_HostAddress}}/api/Host/
+
+POST {{Projetos___4_HostAddress}}/api/User/auth/Register
+Content-Type: application/json
 Accept: application/json
+
+{
+  "name": "{{nome}}",
+  "email": "{{email}}",
+  "password": "{{senha}}",
+  "typeofUser": 0
+}
+
+### 2. Login: execute antes das chamadas que precisam do token.
+
+# @name login
+POST {{Projetos___4_HostAddress}}/api/User/auth/Login
+Content-Type: application/json
+Accept: application/json
+
+{
+  "email": "{{email}}",
+  "password": "{{senha}}"
+}
 
 ###
-GET {{Projetos___4_HostAddress}}/api/Host/Artur
+GET {{Projetos___4_HostAddress}}/api/User/Artur/Details
 Accept: application/json
+Authorization: Bearer {{login.response.body.$.accessToken}}
 
 ###
-GET {{Projetos___4_HostAddress}}/api/Host/Artur/Details
+GET {{Projetos___4_HostAddress}}/api/User/Artur/Details
 Accept: application/json
+
+### 5. Criar host: campos do HostRegisterDTO; exige token válido.
+POST {{Projetos___4_HostAddress}}/api/Host/Create
+Content-Type: application/json
+Accept: application/json
+Authorization: Bearer {{login.response.body.$.accessToken}}
+{
+  "typeofhost": 1,
+  "cnpj": "12.345.678/0001-90",
+  "logoUrl": "https://example.com/logo.png",
+  "instagranUrl": "https://www.instagram.com/host_teste",
+  "address": "Rua de Teste, 100",
+  "neighborhood": "Centro",
+  "cep": "01001-000",
+  "phone": "(11) 99999-0000",
+  "name": "Host de Teste",
+  "description": "Estabelecimento de teste da API."
+}
+
+### Read: exige token com role HOST. Faça login novamente após receber a role.
+POST {{Projetos___4_HostAddress}}/api/Host/Read
+Accept: application/json
+Authorization: Bearer {{login.response.body.$.accessToken}}
+
+### 6. Excluir o próprio usuário: execute somente quando terminar os testes.
+DELETE {{Projetos___4_HostAddress}}/api/User
+Content-Type: application/json
+Accept: application/json
+Authorization: Bearer {{login.response.body.$.accessToken}}
+
+{
+  "name": "{{nome}}",
+  "email": "{{email}}",
+  "password": "{{senha}}",
+  "typeofUser": 0
+}
