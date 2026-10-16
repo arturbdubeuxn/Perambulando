@@ -1,15 +1,14 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using Projetos___4._3___Domain.Interfaces;
-using Projetos___4._3___Domain.Model;
-using Projetos___4._4___Data.Context;
+using Projetos___4.Domain.Interfaces;
+using Projetos___4.Domain.Model;
 
-namespace Projetos___4._4___Data.Repository
+namespace Projetos___4.Data.Repository
 {
     public class UserRepository : IUserRepository
     {
-        private readonly Projetos___4._4___Data.Context.Context Db;
+        private readonly Context.Context Db;
 
-        public UserRepository(Projetos___4._4___Data.Context.Context context)
+        public UserRepository(Context.Context context)
         {
             Db = context;
         }

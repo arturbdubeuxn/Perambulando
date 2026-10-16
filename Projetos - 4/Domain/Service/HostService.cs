@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.Identity;
-using Projetos___4._2___Application.DTO;
-using Projetos___4._3___Domain.Interfaces;
-using Projetos___4._3___Domain.Model;
+using Projetos___4.Application.DTO;
+using Projetos___4.Domain.Interfaces;
+using Projetos___4.Domain.Model;
 using Projetos___4.Application.AppServices;
 using Projetos___4.Domain.Interfaces.Repository;
 using Projetos___4.Domain.Interfaces.Service;
@@ -62,6 +62,11 @@ namespace Projetos___4.Domain.Service
             }
 
             return new OperationResult<Hosts>(true, host, "Host created successfully.");
+        }
+
+        public async Task<IEnumerable<Hosts>> GetAllHostsbyUserId(string userId)
+        {
+            return await _hostRepository.GetAllHostsbyUserId(userId);
         }
 
     }

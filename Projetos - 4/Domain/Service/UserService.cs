@@ -1,8 +1,8 @@
-﻿using Projetos___4._3___Domain.Interfaces.Service;
-using Projetos___4._3___Domain.Model;
+﻿using Projetos___4.Domain.Interfaces.Service;
+using Projetos___4.Domain.Model;
 using Microsoft.AspNetCore.Identity;
 
-namespace Projetos___4._3___Domain.Service
+namespace Projetos___4.Domain.Service
 {
     public class UserService: IUserService
     {

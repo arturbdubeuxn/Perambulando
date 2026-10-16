@@ -1,8 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-using Projetos___4._3___Domain.Model;
+using Projetos___4.Domain.Model;
 
-namespace Projetos___4._4___Data.Configurations;
+namespace Projetos___4.Data.Configurations;
 
 public class CategoryConfiguration : IEntityTypeConfiguration<Category>
 {

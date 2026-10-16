@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
-using Projetos___4._4___Data.Context;
+using Projetos___4.Data.Context;
 
 #nullable disable
 
@@ -150,7 +150,7 @@ namespace Projetos___4._4Data.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
-            modelBuilder.Entity("Projetos___4._3___Domain.Model.Category", b =>
+            modelBuilder.Entity("Projetos___4.Domain.Model.Category", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -171,7 +171,7 @@ namespace Projetos___4._4Data.Migrations
                     b.ToTable("Categories", (string)null);
                 });
 
-            modelBuilder.Entity("Projetos___4._3___Domain.Model.Hosts", b =>
+            modelBuilder.Entity("Projetos___4.Domain.Model.Hosts", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -247,7 +247,7 @@ namespace Projetos___4._4Data.Migrations
                     b.ToTable("Hosts", (string)null);
                 });
 
-            modelBuilder.Entity("Projetos___4._3___Domain.Model.Product", b =>
+            modelBuilder.Entity("Projetos___4.Domain.Model.Programming", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -255,44 +255,96 @@ namespace Projetos___4._4Data.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
-                    b.Property<DateTime>("CreatedAt")
+                    b.Property<string>("Address")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("CEP")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("CreatedDate")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Description")
                         .IsRequired()
-                        .HasMaxLength(2000)
-                        .HasColumnType("character varying(2000)");
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("EndDate")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int>("HostId")
                         .HasColumnType("integer");
 
                     b.Property<string>("ImageUrl")
                         .IsRequired()
-                        .HasMaxLength(2048)
-                        .HasColumnType("character varying(2048)");
+                        .HasColumnType("text");
+
+                    b.Property<string>("InstagranUrl")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean");
 
+                    b.Property<bool>("IsFree")
+                        .HasColumnType("boolean");
+
+                    b.Property<float>("MaxPrice")
+                        .HasColumnType("real");
+
+                    b.Property<float>("MinPrice")
+                        .HasColumnType("real");
+
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasMaxLength(150)
-                        .HasColumnType("character varying(150)");
+                        .HasColumnType("text");
 
-                    b.Property<decimal>("Price")
-                        .HasColumnType("numeric");
+                    b.Property<string>("Neighborhood")
+                        .IsRequired()
+                        .HasColumnType("text");
 
-                    b.Property<DateTime>("UpdatedAt")
+                    b.Property<DateTime>("StartDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("TicketUrl")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("UpdateDate")
                         .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Id");
 
                     b.HasIndex("HostId");
 
-                    b.ToTable("Products", (string)null);
+                    b.ToTable("Programmings");
                 });
 
-            modelBuilder.Entity("Projetos___4._3___Domain.Model.User", b =>
+            modelBuilder.Entity("Projetos___4.Domain.Model.ProgrammingXCategory", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("CategoryId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("ProgrammingId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CategoryId");
+
+                    b.HasIndex("ProgrammingId");
+
+                    b.ToTable("ProgrammingXCategories");
+                });
+
+            modelBuilder.Entity("Projetos___4.Domain.Model.User", b =>
                 {
                     b.Property<string>("Id")
                         .HasColumnType("text");
@@ -351,7 +403,7 @@ namespace Projetos___4._4Data.Migrations
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserClaim<string>", b =>
                 {
-                    b.HasOne("Projetos___4._3___Domain.Model.User", null)
+                    b.HasOne("Projetos___4.Domain.Model.User", null)
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -360,7 +412,7 @@ namespace Projetos___4._4Data.Migrations
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserLogin<string>", b =>
                 {
-                    b.HasOne("Projetos___4._3___Domain.Model.User", null)
+                    b.HasOne("Projetos___4.Domain.Model.User", null)
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -375,7 +427,7 @@ namespace Projetos___4._4Data.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("Projetos___4._3___Domain.Model.User", null)
+                    b.HasOne("Projetos___4.Domain.Model.User", null)
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -384,16 +436,16 @@ namespace Projetos___4._4Data.Migrations
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserToken<string>", b =>
                 {
-                    b.HasOne("Projetos___4._3___Domain.Model.User", null)
+                    b.HasOne("Projetos___4.Domain.Model.User", null)
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("Projetos___4._3___Domain.Model.Hosts", b =>
+            modelBuilder.Entity("Projetos___4.Domain.Model.Hosts", b =>
                 {
-                    b.HasOne("Projetos___4._3___Domain.Model.User", "User")
+                    b.HasOne("Projetos___4.Domain.Model.User", "User")
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -402,15 +454,34 @@ namespace Projetos___4._4Data.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("Projetos___4._3___Domain.Model.Product", b =>
+            modelBuilder.Entity("Projetos___4.Domain.Model.Programming", b =>
                 {
-                    b.HasOne("Projetos___4._3___Domain.Model.Hosts", "Host")
+                    b.HasOne("Projetos___4.Domain.Model.Hosts", "Host")
                         .WithMany()
                         .HasForeignKey("HostId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("Host");
+                });
+
+            modelBuilder.Entity("Projetos___4.Domain.Model.ProgrammingXCategory", b =>
+                {
+                    b.HasOne("Projetos___4.Domain.Model.Category", "Category")
+                        .WithMany()
+                        .HasForeignKey("CategoryId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Projetos___4.Domain.Model.Programming", "Programming")
+                        .WithMany()
+                        .HasForeignKey("ProgrammingId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Category");
+
+                    b.Navigation("Programming");
                 });
 #pragma warning restore 612, 618
         }

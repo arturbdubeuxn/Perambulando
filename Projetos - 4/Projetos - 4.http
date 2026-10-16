@@ -1,65 +1,44 @@
 @Projetos___4_HostAddress = http://localhost:5014
-@nome = Fabio
-@email = artur@teste1.com
+@nome = Edu
+@email = edu@teste1.com
 @senha = SenhaForte123!
+@HostId = 6
+@programmingId = 2
 
+# Execute as requisições individualmente conforme o fluxo desejado.
+# Novo host: login -> createHost -> createProgrammingAfterHost.
+# Host existente: loginProgramming -> requisições com HostId.
 
+# ============================================================
+# USER
+# ============================================================
+
+### USER - Cadastrar usuário
+# @name registerUser
 POST {{Projetos___4_HostAddress}}/api/User/auth/Register
 Content-Type: application/json
 Accept: application/json
 
 {
-  "name": "{{nome}}",
-  "email": "{{email}}",
-  "password": "{{senha}}",
+  "name": "Fernanmda",
+  "email": "fernanda@gmail.com",
+  "password": "SenhaForte123@!",
   "typeofUser": 0
 }
 
-### 2. Login: execute antes das chamadas que precisam do token.
-
+### USER - Login
 # @name login
 POST {{Projetos___4_HostAddress}}/api/User/auth/Login
 Content-Type: application/json
 Accept: application/json
 
 {
-  "email": "{{email}}",
-  "password": "{{senha}}"
+  "email": "fernanda@gmail.com",
+  "password": "SenhaForte123@!"
 }
 
-###
-GET {{Projetos___4_HostAddress}}/api/User/Artur/Details
-Accept: application/json
-Authorization: Bearer {{login.response.body.$.accessToken}}
-
-###
-GET {{Projetos___4_HostAddress}}/api/User/Artur/Details
-Accept: application/json
-
-### 5. Criar host: campos do HostRegisterDTO; exige token válido.
-POST {{Projetos___4_HostAddress}}/api/Host/Create
-Content-Type: application/json
-Accept: application/json
-Authorization: Bearer {{login.response.body.$.accessToken}}
-{
-  "typeofhost": 1,
-  "cnpj": "12.345.678/0001-90",
-  "logoUrl": "https://example.com/logo.png",
-  "instagranUrl": "https://www.instagram.com/host_teste",
-  "address": "Rua de Teste, 100",
-  "neighborhood": "Centro",
-  "cep": "01001-000",
-  "phone": "(11) 99999-0000",
-  "name": "Host de Teste",
-  "description": "Estabelecimento de teste da API."
-}
-
-### Read: exige token com role HOST. Faça login novamente após receber a role.
-POST {{Projetos___4_HostAddress}}/api/Host/Read
-Accept: application/json
-Authorization: Bearer {{login.response.body.$.accessToken}}
-
-### 6. Excluir o próprio usuário: execute somente quando terminar os testes.
+### USER - Excluir usuário
+# @name deleteUser
 DELETE {{Projetos___4_HostAddress}}/api/User
 Content-Type: application/json
 Accept: application/json
@@ -71,3 +50,114 @@ Authorization: Bearer {{login.response.body.$.accessToken}}
   "password": "{{senha}}",
   "typeofUser": 0
 }
+
+
+# ============================================================
+# HOST
+# ============================================================
+
+### HOST - Criar host e receber JWT atualizado
+# @name createHost
+POST {{Projetos___4_HostAddress}}/api/Host/Create
+Content-Type: application/json
+Accept: application/json
+Authorization: Bearer {{login.response.body.$.accessToken}}
+
+{
+  "typeofhost": 2,
+  "cnpj": "12.345.678/0001-90",
+  "logoUrl": "https://example.com/logo.png",
+  "instagranUrl": "https://www.instagram.com/host_teste",
+  "address": "Rua de Teste, 100",
+  "neighborhood": "Recife",
+  "cep": "01001-000",
+  "phone": "(11) 99999-0000",
+  "name": "Novo Host",
+  "description": "Estabelecimento de teste da API."
+}
+
+### HOST - Listar hosts do usuário
+# Execute createHost antes para usar o JWT atualizado.
+# @name GetAllHostsbyUserId
+GET {{Projetos___4_HostAddress}}/api/Host/GetAllHostsbyUserId
+Accept: application/json
+Authorization: Bearer {{createHost.response.body.$.auth.accessToken}}
+
+# ============================================================
+# PROGRAMMING
+# ============================================================
+
+### PROGRAMMING - Consultar categorias ativas para o formulário (sem login)
+# @name getallCategories
+GET {{Projetos___4_HostAddress}}/api/Category/GetallCategories
+Accept: application/json
+
+### PROGRAMMING - Criar programação com o JWT retornado pelo host
+# Execute login e createHost antes. Usa o ID e o novo JWT retornados pelo cadastro.
+# @name createProgrammingAfterHost
+POST {{Projetos___4_HostAddress}}/api/Programming/{{createHost.response.body.$.host.id}}/Create
+Content-Type: application/json
+Accept: application/json
+Authorization: Bearer {{createHost.response.body.$.auth.accessToken}}
+
+{
+  "name": "Programação do novo host",
+  "description": "Cadastro usando o JWT atualizado, sem repetir o login.",
+  "startDate": "2027-12-10T18:00:00Z",
+  "endDate": "2027-12-10T22:00:00Z",
+  "isFree": true,
+  "address": "Rua de Teste, 100",
+  "neighborhood": "Recife",
+  "cep": "01001-000",
+  "imageUrl": "https://example.com/evento.png",
+  "ticketUrl": "",
+  "instagranUrl": "",
+  "minPrice": 0,
+  "maxPrice": 0,
+  "categoryIds": [1, 2]
+}
+
+### PROGRAMMING - Listar programações do host
+# Execute loginProgramming antes e ajuste HostId no início do arquivo.
+# @name getAllProgrammingsbyHostId
+GET {{Projetos___4_HostAddress}}/api/Programming/{{HostId}}/GetAllProgrammingsbyHostId
+Accept: application/json
+Authorization: Bearer {{loginProgramming.response.body.$.accessToken}}
+
+### PROGRAMMING - Detalhes públicos da programação
+# Ajuste programmingId no início do arquivo.
+# @name programmingDetails
+GET {{Projetos___4_HostAddress}}/api/Programming/Details/{{programmingId}}
+Accept: application/json
+
+### PROGRAMMING - Editar programação
+# Execute loginProgramming antes. PUT substitui todos os campos editáveis.
+# @name editProgramming
+PUT {{Projetos___4_HostAddress}}/api/Programming/{{HostId}}/Edit/{{programmingId}}
+Content-Type: application/json
+Accept: application/json
+Authorization: Bearer {{loginProgramming.response.body.$.accessToken}}
+
+{
+  "name": "Festival de música atualizado",
+  "description": "Descrição atualizada da programação.",
+  "startDate": "2027-12-10T18:00:00Z",
+  "endDate": "2027-12-10T23:00:00Z",
+  "isFree": false,
+  "address": "Rua de Teste, 200",
+  "neighborhood": "Centro",
+  "cep": "01001-000",
+  "imageUrl": "https://example.com/festival.png",
+  "ticketUrl": "https://example.com/ingressos",
+  "instagranUrl": "https://www.instagram.com/host_teste",
+  "sourceUrl": "https://example.com/festival",
+  "minPrice": 40,
+  "maxPrice": 80
+}
+
+### PROGRAMMING - Desativar programação
+# Execute loginProgramming antes e ajuste HostId e programmingId no início do arquivo.
+# @name deleteProgramming
+PATCH {{Projetos___4_HostAddress}}/api/Programming/{{HostId}}/Delete/{{programmingId}}
+Accept: application/json
+Authorization: Bearer {{loginProgramming.response.body.$.accessToken}}

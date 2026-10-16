@@ -1,6 +1,6 @@
-﻿using Projetos___4._3___Domain.Model;
+﻿using Projetos___4.Domain.Model;
 
-namespace Projetos___4._3___Domain.Interfaces
+namespace Projetos___4.Domain.Interfaces
 {
     public interface IUserRepository
     {

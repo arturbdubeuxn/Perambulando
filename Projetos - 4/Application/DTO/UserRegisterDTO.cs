@@ -1,4 +1,4 @@
-﻿namespace Projetos___4._2___Application.DTO
+﻿namespace Projetos___4.Application.DTO
 {
     public class UserRegisterDTO
     {

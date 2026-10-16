@@ -1,10 +1,10 @@
 ﻿using Microsoft.AspNetCore.Identity;
-using Projetos___4._3___Domain.Model;
-using Projetos___4._2___Application.DTO;
-using Projetos___4._2___Application.Interfaces;
-using Projetos___4._3___Domain.Interfaces.Service;
+using Projetos___4.Domain.Model;
+using Projetos___4.Application.DTO;
+using Projetos___4.Application.Interfaces;
+using Projetos___4.Domain.Interfaces.Service;
 
-namespace Projetos___4._2___Application.Services
+namespace Projetos___4.Application.AppServices
 {
 
     public class UserAppService : IUserAppService

@@ -3,9 +3,9 @@ using System.Security.Claims;
 using System.Text;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.IdentityModel.Tokens;
-using Projetos___4._3___Domain.Model;
+using Projetos___4.Domain.Model;
 
-namespace Projetos___4._3___Domain.Service;
+namespace Projetos___4.Domain.Service;
 
 public class JwtTokenService(IConfiguration configuration, UserManager<User> userManager)
 {

@@ -3,12 +3,12 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using System.Security.Claims;
-using Projetos___4._3___Domain.Model;
-using Projetos___4._2___Application.DTO;
-using Projetos___4._2___Application.Interfaces;
-using Projetos___4._3___Domain.Service;
+using Projetos___4.Domain.Model;
+using Projetos___4.Application.DTO;
+using Projetos___4.Application.Interfaces;
+using Projetos___4.Domain.Service;
 
-namespace Projetos___4._1___Presentation.Controllers
+namespace Projetos___4.Presentation.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
@@ -70,7 +70,6 @@ namespace Projetos___4._1___Presentation.Controllers
 
 
         [HttpDelete]
-        [Authorize (Roles = "ADMIN")]
         public async Task<IActionResult> DeleteUser([FromBody] UserRegisterDTO dto)
         {
             var existingUser = await _userManager.FindByEmailAsync(dto.Email);
@@ -92,13 +91,5 @@ namespace Projetos___4._1___Presentation.Controllers
 
             return Ok("User deleted successfully");
         }
-
-        [HttpGet("Artur/Details")]
-        [Authorize(Roles = "ADMIN")]
-        public IActionResult GetHostDetails()
-        {
-            return Ok("Host Details: Artur, Age: 30, Location: Earth");
-        }
-
     }
 }

@@ -1,7 +1,7 @@
-﻿using Projetos___4._2___Application.DTO;
+﻿using Projetos___4.Application.DTO;
 using Projetos___4.Application.Interfaces;
 using System.Net.WebSockets;
-using Projetos___4._3___Domain.Model;
+using Projetos___4.Domain.Model;
 using Projetos___4.Domain.Interfaces.Service;
 
 namespace Projetos___4.Application.AppServices
@@ -14,11 +14,11 @@ namespace Projetos___4.Application.AppServices
             _hostService = hostService;
         }
 
-        public async Task<OperationResult<HostRegisterDTO>> Create(HostRegisterDTO dto, string userId)
+        public async Task<OperationResult<HostCreatedDTO>> Create(HostRegisterDTO dto, string userId)
         {
             if(dto == null || string.IsNullOrEmpty(userId))
             {
-                return new OperationResult<HostRegisterDTO>(false, null, "Invalid input data.");
+                return new OperationResult<HostCreatedDTO>(false, null, "Invalid input data.");
             }
 
             var host = new Hosts
@@ -37,11 +37,19 @@ namespace Projetos___4.Application.AppServices
 
             var result = await _hostService.Create(host, userId);
 
-            return new OperationResult<HostRegisterDTO>(result.Succeeded,
-                result.Succeeded ? dto : null, result.Message);
+            if (!result.Succeeded || result.Data == null)
+                return new OperationResult<HostCreatedDTO>(false, null, result.Message);
+
+            return new OperationResult<HostCreatedDTO>(true,
+                new HostCreatedDTO { Id = result.Data.Id, Name = result.Data.Name }, result.Message);
 
 
 
+        }
+
+        public async Task<IEnumerable<Hosts>> GetAllHostsbyUserId(string userid)
+        {
+            return await _hostService.GetAllHostsbyUserId(userid);
         }
     }
 }
