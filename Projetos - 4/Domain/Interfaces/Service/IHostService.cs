@@ -8,7 +8,13 @@ namespace Projetos___4.Domain.Interfaces.Service
     public interface IHostService
     {
 
-        Task<OperationResult<Hosts>> Create(Hosts host,string userId);
+        Task<Hosts?> Create(Hosts host,string userId);
+
+        Task<Hosts?> GetByIdAsync(int hostId);
+
+        Task<Hosts?> EditHostAsync(Hosts host, string userId);
+
+        Task<Hosts?> DeleteHostAsync(int hostId, string userId);
 
         Task<IEnumerable<Hosts>> GetAllHostsbyUserId(string userId);
 

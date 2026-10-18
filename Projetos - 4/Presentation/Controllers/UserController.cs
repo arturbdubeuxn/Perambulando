@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
@@ -31,17 +31,19 @@ namespace Projetos___4.Presentation.Controllers
         {
             if (dto == null)
             {
-                return BadRequest("O usuário é inválido");
+                return Problem(statusCode: StatusCodes.Status400BadRequest, title: "Dados inválidos", detail: "O usuário é inválido");
             }
-            
+
             var result = await _userAppService.Create(dto);
 
             if (!result.Succeeded)
             {
-                return BadRequest(result.Errors);
+                foreach (var error in result.Errors)
+                    ModelState.AddModelError(error.Code, error.Description);
+                return ValidationProblem(ModelState);
             }
 
-            return Ok("User registered successfully");
+            return StatusCode(StatusCodes.Status201Created, new { message = "Usuário cadastrado com sucesso." });
 
         }
         [HttpPost("auth/Login")]
@@ -49,19 +51,23 @@ namespace Projetos___4.Presentation.Controllers
         {
             if (dto == null)
             {
-                return BadRequest("Inválido");
+                return Problem(statusCode: StatusCodes.Status400BadRequest, title: "Dados inválidos", detail: "Inválido");
             }
 
             var existingUser = await _userManager.FindByEmailAsync(dto.Email);
 
             if (existingUser == null || !existingUser.IsActive)
             {
-                return Unauthorized("E-mail ou senha inválidos.");
+                return Problem(statusCode: StatusCodes.Status401Unauthorized, title: "Autenticação inválida", detail: "E-mail ou senha inválidos.");
             }
 
             var result = await _signInManager.CheckPasswordSignInAsync(existingUser, dto.Password, lockoutOnFailure: true);
+
             if (!result.Succeeded)
-                return Unauthorized("E-mail ou senha inválidos.");
+            {
+                return Problem(statusCode: StatusCodes.Status401Unauthorized, title: "Autenticação inválida", detail: "E-mail ou senha inválidos.");
+            }
+
             return Ok(await _tokenService.CreateAsync(existingUser));
 
 
@@ -69,27 +75,102 @@ namespace Projetos___4.Presentation.Controllers
         }
 
 
+        [Authorize]
+        [HttpGet("Profile")]
+        public async Task<IActionResult> Profile()
+        {
+            var userId = _userManager.GetUserId(User);
+
+            if (string.IsNullOrWhiteSpace(userId))
+            {
+                return Problem(statusCode: StatusCodes.Status401Unauthorized,
+                    title: "Usuário não autenticado");
+            }
+
+            var profile = await _userAppService.GetProfileAsync(userId);
+
+            if (profile == null)
+            {
+                return Problem(statusCode: StatusCodes.Status404NotFound,
+                    title: "Usuário indisponível",
+                    detail: "Usuário não encontrado ou inativo.");
+            }
+
+            return Ok(profile);
+        }
+
+        [Authorize]
+        [HttpPut("Edit")]
+        public async Task<IActionResult> Edit([FromBody] UserEditDTO dto)
+        {
+            var userId = _userManager.GetUserId(User);
+
+            if (string.IsNullOrWhiteSpace(userId))
+            {
+                return Problem(statusCode: StatusCodes.Status401Unauthorized,
+                    title: "Usuário não autenticado");
+            }
+
+            var result = await _userAppService.EditUserAsync(dto, userId);
+
+            if (result == null)
+            {
+                return Problem(statusCode: StatusCodes.Status404NotFound,
+                    title: "Usuário indisponível",
+                    detail: "Usuário não encontrado ou inativo.");
+            }
+
+            if (!result.Succeeded)
+            {
+                foreach (var error in result.Errors)
+                {
+                    ModelState.AddModelError(error.Code, error.Description);
+                }
+
+                return ValidationProblem(ModelState);
+            }
+
+            var profile = await _userAppService.GetProfileAsync(userId);
+            var user = await _userManager.FindByIdAsync(userId);
+
+            if (profile == null || user == null || !user.IsActive)
+            {
+                return Problem(statusCode: StatusCodes.Status404NotFound,
+                    title: "Usuário indisponível",
+                    detail: "Usuário não encontrado ou inativo.");
+            }
+
+            var auth = await _tokenService.CreateAsync(user);
+
+            return Ok(new { user = profile, auth });
+        }
+
+        [Authorize]
         [HttpDelete]
         public async Task<IActionResult> DeleteUser([FromBody] UserRegisterDTO dto)
         {
             var existingUser = await _userManager.FindByEmailAsync(dto.Email);
 
             if (existingUser != null && existingUser.Id != User.FindFirstValue("sub"))
-                return Forbid();
+            {
+                return Problem(statusCode: StatusCodes.Status403Forbidden, title: "Acesso negado", detail: "Você só pode excluir a própria conta.");
+            }
 
             if (existingUser == null)
             {
-                return NotFound("User not found");
+                return Problem(statusCode: StatusCodes.Status404NotFound, title: "Usuário não encontrado");
             }
 
             var result = await _userManager.DeleteAsync(existingUser);
 
             if (!result.Succeeded)
             {
-                return BadRequest("Failed to delete user");
+                foreach (var error in result.Errors)
+                    ModelState.AddModelError(error.Code, error.Description);
+                return ValidationProblem(ModelState);
             }
 
-            return Ok("User deleted successfully");
+            return NoContent();
         }
     }
 }

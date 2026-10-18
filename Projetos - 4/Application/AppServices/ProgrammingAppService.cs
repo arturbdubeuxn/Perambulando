@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Projetos___4.Application.DTO;
 using Projetos___4.Application.Interfaces;
@@ -19,13 +19,13 @@ namespace Projetos___4.Application.AppServices
         {
             var programming = await _programmingService.GetByIdAsync(programmingId);
             if (programming == null)
+            {
                 return null;
+            }
 
             return new ProgrammingDetailsDTO
             {
-                Id = programming.Id,
                 Name = programming.Name,
-                IsActive = programming.IsActive,
                 Description = programming.Description,
                 StartDate = programming.StartDate,
                 EndDate = programming.EndDate,
@@ -36,27 +36,27 @@ namespace Projetos___4.Application.AppServices
                 ImageUrl = programming.ImageUrl,
                 TicketUrl = programming.TicketUrl,
                 InstagranUrl = programming.InstagranUrl,
-                HostId = programming.HostId,
                 HostName = programming.Host.Name,
                 HostLogoUrl = programming.Host.LogoUrl,
                 CreatedDate = programming.CreatedDate,
                 UpdateDate = programming.UpdateDate,
                 MinPrice = programming.MinPrice,
-                MaxPrice = programming.MaxPrice
+                MaxPrice = programming.MaxPrice,
+                Categories = await _programmingService.GetAllCategoriesbyProgrammingId(programmingId)
             };
         }
 
-        public Task<OperationResult<Programming>> DeleteProgrammingAsync(int id, int hostId, string userId)
+        public Task<Programming?> DeleteProgrammingAsync(int id, int hostId, string userId)
         {
             return _programmingService.DeleteProgrammingAsync(id, hostId, userId);
         }
 
-        public Task<OperationResult<IEnumerable<Programming>>> GetAllProgrammingsbyHostId(int hostId, string userId)
+        public Task<IEnumerable<Programming>> GetAllProgrammingsbyHostId(int hostId, string userId)
         {
             return _programmingService.GetAllProgrammingsbyHostId(hostId, userId);
         }
 
-        public Task<OperationResult<Programming>> EditProgrammingAsync(ProgrammingEditDTO dto, int id, int hostId, string userId)
+        public Task<Programming?> EditProgrammingAsync(ProgrammingEditDTO dto, int id, int hostId, string userId)
         {
             var programming = new Programming
             {
@@ -77,7 +77,17 @@ namespace Projetos___4.Application.AppServices
                 MaxPrice = dto.MaxPrice!.Value
             };
 
-            return _programmingService.EditProgrammingAsync(programming, userId);
+            var links = new List<ProgrammingXCategory>();
+            foreach (var categoryId in dto.categoryIds)
+            {
+                links.Add(new ProgrammingXCategory
+                {
+                    Programming = programming,
+                    CategoryId = categoryId
+                });
+            }
+
+            return _programmingService.EditProgrammingAsync(programming, links, userId);
         }
 
         public async Task<Programming> CreateProgrammingAsync(ProgrammingCreateDTO dto, int hostId,string userId)

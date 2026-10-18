@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Projetos___4.Domain.Model;
 using Projetos___4.Data.Context;
@@ -14,7 +14,7 @@ namespace Projetos___4.Data.Repository
             Db = db;
         }
 
-        public async Task<OperationResult<Hosts>>Create(Hosts hosts)
+        public async Task<Hosts?> Create(Hosts hosts)
         {
             if(hosts == null)
             {
@@ -23,11 +23,25 @@ namespace Projetos___4.Data.Repository
 
             Db.Set<Hosts>().Add(hosts);
             var result = await Db.SaveChangesAsync() > 0;
-            return new OperationResult<Hosts>(
-                result,
-                result ? hosts : null,
-                result ? "Host created successfully." : "Failed to create host."
-            );
+            return result ? hosts : null;
+        }
+
+        public Task<Hosts?> GetByIdAsync(int hostId)
+        {
+            return Db.Hosts.AsNoTracking()
+                .FirstOrDefaultAsync(host => host.Id == hostId && host.IsActive);
+        }
+
+        public Task<Hosts?> GetByIdAsync(int hostId, string userId)
+        {
+            return Db.Hosts.FirstOrDefaultAsync(h =>
+                h.Id == hostId && h.UserId == userId && h.IsActive);
+        }
+
+        public async Task<Hosts> EditAsync(Hosts host)
+        {
+            await Db.SaveChangesAsync();
+            return host;
         }
 
         public async Task<bool> UserOwnsActiveHostAsync(Programming programming, string userId)

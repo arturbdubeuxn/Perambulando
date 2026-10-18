@@ -1,4 +1,4 @@
-﻿using Projetos___4.Domain.Interfaces.Repository;
+using Projetos___4.Domain.Interfaces.Repository;
 using Projetos___4.Domain.Model;
 using Microsoft.EntityFrameworkCore;
 
@@ -15,7 +15,7 @@ namespace Projetos___4.Data.Repository
         {
             return await Db.Programmings
                 .AsNoTracking()
-                .Where(p => p.HostId == hostId && p.IsActive == true)
+                .Where(p => p.HostId == hostId && p.IsActive && p.Host.IsActive)
                 .OrderBy(p => p.StartDate)
                 .ToListAsync();
         }
@@ -24,11 +24,31 @@ namespace Projetos___4.Data.Repository
         {
             return Db.Programmings
                 .Include(p => p.Host)
-                .FirstOrDefaultAsync(p => p.Id == programmingId && p.IsActive && p.Host.IsActive);
+                .FirstOrDefaultAsync(p => p.Id == programmingId &&
+                    (!hostId.HasValue || p.HostId == hostId.Value) &&
+                    p.IsActive && p.Host.IsActive);
         }
 
         public async Task<Programming> EditAsync(Programming programming)
         {
+            await Db.SaveChangesAsync();
+            return programming;
+        }
+
+        public async Task<Programming> EditWithCategoriesAsync(Programming programming, List<ProgrammingXCategory> linksToAdd, List<int> categoryIdsToRemove)
+        {
+            var linksToRemove = await Db.ProgrammingXCategories
+                .Where(link => link.ProgrammingId == programming.Id && categoryIdsToRemove.Contains(link.CategoryId))
+                .ToListAsync();
+
+            Db.ProgrammingXCategories.RemoveRange(linksToRemove);
+
+            foreach (var link in linksToAdd)
+            {
+                link.Programming = programming;
+                Db.ProgrammingXCategories.Add(link);
+            }
+
             await Db.SaveChangesAsync();
             return programming;
         }

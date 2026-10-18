@@ -17,7 +17,18 @@ namespace Projetos___4.Data.Repository
             return await Db.Categories
                 .AsNoTracking()
                 .Where(c => c.IsActive)
-                .OrderBy(c => c.Name)
+                .OrderBy(c => c.Id)
+                .ToListAsync();
+        }
+
+        public async Task<List<Category>> GetAllCategoriesbyProgrammingId(int programmingId)
+        {
+            return await Db.ProgrammingXCategories
+                .AsNoTracking()
+                .Where(p => p.ProgrammingId == programmingId)
+                .Select(c => c.Category)
+                .Distinct()
+                .OrderBy(c => c.Id)
                 .ToListAsync();
         }
 

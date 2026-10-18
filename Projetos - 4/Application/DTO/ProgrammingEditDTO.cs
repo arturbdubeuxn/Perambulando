@@ -28,4 +28,7 @@ public class ProgrammingEditDTO
     [Required]
     public float? MaxPrice { get; set; }
 
+    [Required, MinLength(1)]
+    public List<int> categoryIds { get; set; } = new();
+
 }

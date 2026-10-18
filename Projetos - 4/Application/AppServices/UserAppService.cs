@@ -15,6 +15,38 @@ namespace Projetos___4.Application.AppServices
             _userService = userService;
         }
 
+        public async Task<UserProfileDTO?> GetProfileAsync(string userId)
+        {
+            var user = await _userService.GetProfileAsync(userId);
+
+            if (user == null)
+            {
+                return null;
+            }
+
+            return new UserProfileDTO
+            {
+                Id = user.Id,
+                Name = user.UserName ?? string.Empty,
+                Email = user.Email ?? string.Empty,
+                TypeofUser = user.Typeofuser,
+                IsPro = user.isPro,
+                CreatedAt = user.CreatedAt
+            };
+        }
+
+        public Task<IdentityResult?> EditUserAsync(UserEditDTO dto, string userId)
+        {
+            var user = new User
+            {
+                UserName = dto.Name.Trim(),
+                Email = dto.Email.Trim(),
+                Typeofuser = dto.TypeofUser!.Value
+            };
+
+            return _userService.EditUserAsync(user, userId);
+        }
+
         public async Task<IdentityResult> Create(UserRegisterDTO dto)
         {
             if (dto == null)

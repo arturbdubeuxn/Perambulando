@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Projetos___4.Domain.Interfaces;
 using Projetos___4.Domain.Interfaces.Repository;
 using Projetos___4.Domain.Interfaces.Service;
@@ -11,29 +11,36 @@ namespace Projetos___4.Domain.Service
         private readonly IProgrammingRepository _programmingRepository;
         private readonly IUserRepository _userRepository;
         private readonly IHostRepository _hostRepository;
+        private readonly ICategoryRepository _categoryRepository;
 
-        public ProgrammingService(IProgrammingRepository programmingRepository, IUserRepository userRepository, IHostRepository hostRepository)
+        public ProgrammingService(IProgrammingRepository programmingRepository, IUserRepository userRepository, IHostRepository hostRepository, ICategoryRepository categoryRepository)
         {
             _programmingRepository = programmingRepository;
             _userRepository = userRepository;
             _hostRepository = hostRepository;
+            _categoryRepository = categoryRepository;
         }
         public Task<Programming?> GetByIdAsync(int programmingId)
         {
             return _programmingRepository.GetByIdAsync(programmingId);
         }
 
-        public async Task<OperationResult<Programming>> DeleteProgrammingAsync(int id, int hostId, string userId)
+        public Task<List<Category>> GetAllCategoriesbyProgrammingId(int programmingId)
+        {
+            return _categoryRepository.GetAllCategoriesbyProgrammingId(programmingId);
+        }
+
+        public async Task<Programming?> DeleteProgrammingAsync(int id, int hostId, string userId)
         {
             if (string.IsNullOrWhiteSpace(userId) ||
                 !await _hostRepository.UserOwnsActiveHostAsync(new Programming { HostId = hostId }, userId))
             {
-                return new(false, null, "Programação não encontrada ou indisponível.");
+                return null;
             }
 
             var programming = await _programmingRepository.GetByIdAsync(id, hostId);
             if (programming == null)
-                return new(false, null, "Programação não encontrada ou indisponível.");
+                return null;
 
             if (programming.IsActive)
             {
@@ -42,32 +49,45 @@ namespace Projetos___4.Domain.Service
                 await _programmingRepository.EditAsync(programming);
             }
 
-            return new(true, programming, "Programação desativada com sucesso.");
+            return programming;
         }
 
-        public async Task<OperationResult<IEnumerable<Programming>>> GetAllProgrammingsbyHostId(int hostId, string userId)
+        public Task<IEnumerable<Programming>> GetAllProgrammingsbyHostId(int hostId)
+        {
+            return _programmingRepository.GetAllProgrammingsbyHostId(hostId);
+        }
+
+        public async Task<IEnumerable<Programming>> GetAllProgrammingsbyHostId(int hostId, string userId)
         {
             if (string.IsNullOrWhiteSpace(userId) ||
                 !await _hostRepository.UserOwnsActiveHostAsync(new Programming { HostId = hostId }, userId))
             {
-                return new(false, null, "Host não encontrado ou indisponível.");
+                return Enumerable.Empty<Programming>();
             }
 
             var programmings = await _programmingRepository.GetAllProgrammingsbyHostId(hostId);
-            return new(true, programmings, "Programações consultadas com sucesso.");
+            return programmings;
         }
 
-        public async Task<OperationResult<Programming>> EditProgrammingAsync(Programming programming, string userId)
+        public async Task<Programming?> EditProgrammingAsync(Programming programming, List<ProgrammingXCategory> links, string userId)
         {
             if (string.IsNullOrWhiteSpace(userId) ||
                 !await _hostRepository.UserOwnsActiveHostAsync(programming, userId))
             {
-                return new(false, null, "Programação não encontrada ou indisponível.");
+                return null;
             }
 
             var existing = await _programmingRepository.GetByIdAsync(programming.Id, programming.HostId);
             if (existing == null)
-                return new(false, null, "Programação não encontrada ou indisponível.");
+            {
+                return null;
+            }
+
+            var currentCategories = await _categoryRepository.GetAllCategoriesbyProgrammingId(existing.Id);
+            var currentCategoryIds = currentCategories.Select(category => category.Id).ToHashSet();
+            var desiredCategoryIds = links.Select(link => link.CategoryId).ToHashSet();
+            var categoryIdsToRemove = currentCategoryIds.Except(desiredCategoryIds).ToList();
+            var linksToAdd = links.Where(link => !currentCategoryIds.Contains(link.CategoryId)).ToList();
 
             existing.Name = programming.Name;
             existing.Description = programming.Description;
@@ -84,8 +104,8 @@ namespace Projetos___4.Domain.Service
             existing.MaxPrice = programming.MaxPrice;
             existing.UpdateDate = DateTime.UtcNow;
 
-            var edited = await _programmingRepository.EditAsync(existing);
-            return new(true, edited, "Programação atualizada com sucesso.");
+            var edited = await _programmingRepository.EditWithCategoriesAsync(existing, linksToAdd, categoryIdsToRemove);
+            return edited;
         }
 
         public async Task<Programming> CreateProgrammingAsync(Programming programming, List<ProgrammingXCategory> links, string userId)
