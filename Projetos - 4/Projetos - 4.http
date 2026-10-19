@@ -1,9 +1,26 @@
 @Projetos___4_HostAddress = http://localhost:5014
-@nome = Fabio
-@email = artur@teste1.com
-@senha = SenhaForte123!
+@nome = Maria
+@email = maria@gmail.com
+@senha = SenhaForte123@!
+@CategoryId = 1
+@EditCategoryId = 2
 
+# Execute cada requisição individualmente.
+# Fluxo: registerUser (conta nova) -> login -> createHost -> getallCategories
+# -> createProgrammingAfterHost -> consultas/edições -> limpeza no final do arquivo.
+# registerUser e login usam as mesmas credenciais acima.
+# Escolha CategoryId e EditCategoryId entre os IDs ativos retornados por getallCategories.
+# A criação do host retorna um JWT com a role HOST: não é necessário repetir o login.
+# Para registros existentes, substitua os IDs das respostas nas URLs pelos IDs desejados
+# e use login.response.body.$.accessToken no lugar do JWT de createHost.
+# As datas de criação precisam estar no futuro; ajuste os exemplos se necessário.
 
+# ============================================================
+# USER
+# ============================================================
+
+### USER - Cadastrar usuário (201)
+# @name registerUser
 POST {{Projetos___4_HostAddress}}/api/User/auth/Register
 Content-Type: application/json
 Accept: application/json
@@ -15,8 +32,7 @@ Accept: application/json
   "typeofUser": 0
 }
 
-### 2. Login: execute antes das chamadas que precisam do token.
-
+### USER - Login (200 com accessToken)
 # @name login
 POST {{Projetos___4_HostAddress}}/api/User/auth/Login
 Content-Type: application/json
@@ -27,39 +43,198 @@ Accept: application/json
   "password": "{{senha}}"
 }
 
-###
-GET {{Projetos___4_HostAddress}}/api/User/Artur/Details
+### USER - Consultar o próprio perfil (200)
+# Execute login antes. O ID do usuário vem do JWT.
+# @name userProfile
+GET {{Projetos___4_HostAddress}}/api/User/Profile
 Accept: application/json
 Authorization: Bearer {{login.response.body.$.accessToken}}
 
-###
-GET {{Projetos___4_HostAddress}}/api/User/Artur/Details
+### USER - Editar o próprio usuário (200 com user e auth)
+# Execute login antes. Substitui nome, e-mail e tipo; não altera senha ou roles.
+# A resposta também contém um JWT atualizado em auth.accessToken.
+# O e-mail é mantido neste exemplo para preservar as credenciais e a limpeza abaixo.
+# @name editUser
+PUT {{Projetos___4_HostAddress}}/api/User/Edit
+Content-Type: application/json
 Accept: application/json
+Authorization: Bearer {{login.response.body.$.accessToken}}
 
-### 5. Criar host: campos do HostRegisterDTO; exige token válido.
+{
+  "name": "{{nome}}Atualizado",
+  "email": "{{email}}",
+  "typeofUser": 1
+}
+
+# ============================================================
+# HOST
+# ============================================================
+
+### HOST - Criar host e receber JWT atualizado (201 com host e auth)
+# Execute login antes. O ID do host fica em host.id; o JWT fica em auth.accessToken.
+# @name createHost
 POST {{Projetos___4_HostAddress}}/api/Host/Create
 Content-Type: application/json
 Accept: application/json
 Authorization: Bearer {{login.response.body.$.accessToken}}
+
 {
-  "typeofhost": 1,
+  "typeofhost": 2,
   "cnpj": "12.345.678/0001-90",
   "logoUrl": "https://example.com/logo.png",
   "instagranUrl": "https://www.instagram.com/host_teste",
   "address": "Rua de Teste, 100",
-  "neighborhood": "Centro",
+  "neighborhood": "Recife",
   "cep": "01001-000",
   "phone": "(11) 99999-0000",
-  "name": "Host de Teste",
+  "name": "Novo Host",
   "description": "Estabelecimento de teste da API."
 }
 
-### Read: exige token com role HOST. Faça login novamente após receber a role.
-POST {{Projetos___4_HostAddress}}/api/Host/Read
+### HOST - Listar hosts ativos do usuário (200, inclusive [])
+# Execute createHost antes para usar o JWT com a role HOST.
+# @name GetAllHostsbyUserId
+GET {{Projetos___4_HostAddress}}/api/Host/GetAllHostsbyUserId
 Accept: application/json
-Authorization: Bearer {{login.response.body.$.accessToken}}
+Authorization: Bearer {{createHost.response.body.$.auth.accessToken}}
 
-### 6. Excluir o próprio usuário: execute somente quando terminar os testes.
+### HOST - Consultar o perfil e as programações ativas (200)
+# O controller atual exige autenticação nesta action.
+# Execute createHost antes. Antes de criar programações, programmings deve ser [].
+# @name hostDetails
+GET {{Projetos___4_HostAddress}}/api/Host/Details/{{createHost.response.body.$.host.id}}
+Accept: application/json
+Authorization: Bearer {{createHost.response.body.$.auth.accessToken}}
+
+### HOST - Editar host (200)
+# Execute createHost antes. PUT substitui todos os campos editáveis do host.
+# @name editHost
+PUT {{Projetos___4_HostAddress}}/api/Host/{{createHost.response.body.$.host.id}}/Edit
+Content-Type: application/json
+Accept: application/json
+Authorization: Bearer {{createHost.response.body.$.auth.accessToken}}
+
+{
+  "typeofhost": 2,
+  "cnpj": "12.345.678/0001-90",
+  "logoUrl": "https://example.com/logo-atualizado.png",
+  "instagranUrl": "https://www.instagram.com/host_teste",
+  "address": "Rua de Teste, 200",
+  "neighborhood": "Centro",
+  "cep": "01001-000",
+  "phone": "(11) 99999-1111",
+  "name": "Host atualizado",
+  "description": "Dados do host atualizados pelo endpoint de edição."
+}
+
+# ============================================================
+# CATEGORY
+# ============================================================
+
+### CATEGORY - Consultar categorias ativas (200, sem login)
+# Use um ID retornado nesta consulta na variável CategoryId do início do arquivo.
+# @name getallCategories
+GET {{Projetos___4_HostAddress}}/api/Category/GetallCategories
+Accept: application/json
+
+# ============================================================
+# PROGRAMMING
+# ============================================================
+
+### PROGRAMMING - Criar programação (201 com id e Location)
+# Execute createHost e getallCategories antes. Usa o JWT atualizado do host.
+# @name createProgrammingAfterHost
+POST {{Projetos___4_HostAddress}}/api/Programming/{{createHost.response.body.$.host.id}}/Create
+Content-Type: application/json
+Accept: application/json
+Authorization: Bearer {{createHost.response.body.$.auth.accessToken}}
+
+{
+  "name": "Programação do novo host",
+  "description": "Cadastro usando o JWT atualizado, sem repetir o login.",
+  "startDate": "2027-12-10T18:00:00Z",
+  "endDate": "2027-12-10T22:00:00Z",
+  "isFree": true,
+  "address": "Rua de Teste, 100",
+  "neighborhood": "Recife",
+  "cep": "01001-000",
+  "imageUrl": "https://example.com/evento.png",
+  "ticketUrl": "",
+  "instagranUrl": "",
+  "minPrice": 0,
+  "maxPrice": 0,
+  "categoryIds": [{{CategoryId}}]
+}
+
+### PROGRAMMING - Listar programações ativas do host (200, inclusive [])
+# Execute createHost antes. Pode executar antes da criação para verificar a lista vazia.
+# @name getAllProgrammingsbyHostId
+GET {{Projetos___4_HostAddress}}/api/Programming/{{createHost.response.body.$.host.id}}/GetAllProgrammingsbyHostId
+Accept: application/json
+Authorization: Bearer {{createHost.response.body.$.auth.accessToken}}
+
+### PROGRAMMING - Consultar detalhes públicos (200, sem login)
+# Execute createProgrammingAfterHost antes. Usa o ID da programação criada.
+# @name programmingDetails
+GET {{Projetos___4_HostAddress}}/api/Programming/Details/{{createProgrammingAfterHost.response.body.$.id}}
+Accept: application/json
+
+### PROGRAMMING - Editar programação e categorias (200)
+# Execute createProgrammingAfterHost antes. PUT substitui todos os campos editáveis.
+# Envie a lista final de categorias. Vínculos retirados são removidos; novos IDs são adicionados.
+# Ajuste EditCategoryId no início do arquivo para uma categoria existente.
+# @name editProgramming
+PUT {{Projetos___4_HostAddress}}/api/Programming/{{createHost.response.body.$.host.id}}/Edit/{{createProgrammingAfterHost.response.body.$.id}}
+Content-Type: application/json
+Accept: application/json
+Authorization: Bearer {{createHost.response.body.$.auth.accessToken}}
+
+{
+  "name": "Festival música atualizado",
+  "description": "Descrição atualizada da programação.",
+  "startDate": "2027-12-10T18:00:00Z",
+  "endDate": "2027-12-10T23:00:00Z",
+  "isFree": false,
+  "address": "Rua de Teste, 200",
+  "neighborhood": "Centro",
+  "cep": "01001-000",
+  "imageUrl": "https://example.com/festival.png",
+  "ticketUrl": "https://example.com/ingressos",
+  "instagranUrl": "https://www.instagram.com/host_teste",
+  "minPrice": 40,
+  "maxPrice": 80,
+  "categoryIds": [{{EditCategoryId}}]
+}
+
+### PROGRAMMING - Conferir programação e categorias após editar (200, sem login)
+# Execute editProgramming antes. Confira os campos alterados e a lista categories na resposta.
+# @name programmingDetailsAfterEdit
+GET {{Projetos___4_HostAddress}}/api/Programming/Details/{{editProgramming.response.body.$.id}}
+Accept: application/json
+
+# ============================================================
+# LIMPEZA - executar somente depois de concluir as consultas e edições
+# ============================================================
+
+### PROGRAMMING - Desativar programação (204, sem corpo)
+# Execute createProgrammingAfterHost antes. Depois disso, os detalhes devem retornar 404.
+# @name deleteProgramming
+PATCH {{Projetos___4_HostAddress}}/api/Programming/{{createHost.response.body.$.host.id}}/Delete/{{createProgrammingAfterHost.response.body.$.id}}
+Accept: application/json
+Authorization: Bearer {{createHost.response.body.$.auth.accessToken}}
+
+### HOST - Desativar host (204, sem corpo)
+# Execute após testar suas programações. O host deixará de aparecer nas consultas ativas.
+# @name deleteHost
+PATCH {{Projetos___4_HostAddress}}/api/Host/{{createHost.response.body.$.host.id}}/Delete
+Accept: application/json
+Authorization: Bearer {{createHost.response.body.$.auth.accessToken}}
+
+### USER - Excluir a própria conta (204, sem corpo)
+# Execute por último, somente para encerrar os testes desta conta.
+# A action atual recebe o DTO de cadastro, busca pelo e-mail e confere o dono pelo JWT.
+# Se editar o e-mail, ajuste este corpo para usar o novo endereço.
+# @name deleteUser
 DELETE {{Projetos___4_HostAddress}}/api/User
 Content-Type: application/json
 Accept: application/json

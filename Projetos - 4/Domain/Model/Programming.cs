@@ -1,0 +1,25 @@
+﻿namespace Projetos___4.Domain.Model
+{
+    public class Programming
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public bool IsActive { get; set; } = true;
+        public string Description { get; set; } = string.Empty;
+        public DateTime StartDate { get; set; }
+        public DateTime EndDate { get; set; }
+        public bool IsFree { get; set; }
+        public string Address { get; set; } = string.Empty;
+        public string Neighborhood { get; set; } = string.Empty;
+        public string CEP { get; set; } = string.Empty;
+        public string ImageUrl { get; set; } = string.Empty;
+        public string TicketUrl { get; set; } = string.Empty;
+        public string InstagranUrl { get; set; } = string.Empty;
+        public Hosts Host { get; set; }
+        public int HostId { get; set; }
+        public DateTime CreatedDate { get; set; } = DateTime.UtcNow;
+        public DateTime UpdateDate { get; set; } = DateTime.UtcNow;
+        public float MinPrice { get; set; }
+        public float MaxPrice { get; set; }
+    }
+}

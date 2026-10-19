@@ -1,10 +1,11 @@
-﻿using Microsoft.AspNetCore.Identity;
-using Projetos___4._2___Application.DTO;
-using Projetos___4._3___Domain.Interfaces;
-using Projetos___4._3___Domain.Model;
+using Microsoft.AspNetCore.Identity;
+using Projetos___4.Application.DTO;
+using Projetos___4.Domain.Interfaces;
+using Projetos___4.Domain.Model;
 using Projetos___4.Application.AppServices;
 using Projetos___4.Domain.Interfaces.Repository;
 using Projetos___4.Domain.Interfaces.Service;
+using Microsoft.AspNetCore.Http.HttpResults;
 
 namespace Projetos___4.Domain.Service
 {
@@ -23,7 +24,7 @@ namespace Projetos___4.Domain.Service
         }
 
 
-        public async Task<OperationResult<Hosts>> Create(Hosts host, string userId)
+        public async Task<Hosts?> Create(Hosts host, string userId)
         {
             if (host == null)
             {
@@ -41,27 +42,84 @@ namespace Projetos___4.Domain.Service
 
             if (user == null)
             {
-                return new OperationResult<Hosts>(false, null, "User not found.");
+                throw new InvalidOperationException("User not found.");
             }
 
             if (!await _roleManager.RoleExistsAsync("HOST"))
-                return new OperationResult<Hosts>(false, null, "Role HOST is not registered.");
+                throw new InvalidOperationException("Role HOST is not registered.");
 
             var result = await _hostRepository.Create(host);
 
-            if (!result.Succeeded)
-                return new OperationResult<Hosts>(false, null, result.Message);
+            if (result == null)
+                throw new InvalidOperationException("Failed to create host.");
 
             if (!await _userManager.IsInRoleAsync(user, "HOST"))
             {
                 var roleResult = await _userManager.AddToRoleAsync(user, "HOST");
                 if (!roleResult.Succeeded)
-                    return new OperationResult<Hosts>(false, null,
-                        "Host was saved, but role assignment failed: " +
-                        string.Join("; ", roleResult.Errors.Select(error => error.Description)));
+                    throw new InvalidOperationException("Host was saved, but role assignment failed.");
             }
 
-            return new OperationResult<Hosts>(true, host, "Host created successfully.");
+            return (host);
+        }
+
+        public Task<Hosts?> GetByIdAsync(int hostId)
+        {
+            return _hostRepository.GetByIdAsync(hostId);
+        }
+
+        public async Task<Hosts?> EditHostAsync(Hosts host, string userId)
+        {
+            if (string.IsNullOrWhiteSpace(userId))
+            {
+                return null;
+            }
+
+            var existing = await _hostRepository.GetByIdAsync(host.Id, userId);
+
+            if (existing == null)
+            {
+                return null;
+            }
+
+            existing.Typeofhost = host.Typeofhost;
+            existing.CNPJ = host.CNPJ;
+            existing.LogoUrl = host.LogoUrl;
+            existing.InstagranUrl = host.InstagranUrl;
+            existing.Address = host.Address;
+            existing.Neighborhood = host.Neighborhood;
+            existing.CEP = host.CEP;
+            existing.Phone = host.Phone;
+            existing.Name = host.Name;
+            existing.Description = host.Description;
+            existing.UpdatedAt = DateTime.UtcNow;
+
+            return await _hostRepository.EditAsync(existing);
+        }
+
+        public async Task<Hosts?> DeleteHostAsync(int hostId, string userId)
+        {
+            if (hostId <= 0 || string.IsNullOrWhiteSpace(userId))
+            {
+                return null;
+            }
+
+            var host = await _hostRepository.GetByIdAsync(hostId, userId);
+
+            if (host == null)
+            {
+                return null;
+            }
+
+            host.IsActive = false;
+            host.UpdatedAt = DateTime.UtcNow;
+
+            return await _hostRepository.EditAsync(host);
+        }
+
+        public async Task<IEnumerable<Hosts>> GetAllHostsbyUserId(string userId)
+        {
+            return await _hostRepository.GetAllHostsbyUserId(userId);
         }
 
     }

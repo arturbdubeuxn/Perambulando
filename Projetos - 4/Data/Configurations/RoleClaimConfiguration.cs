@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
-namespace Projetos___4._4___Data.Configurations;
+namespace Projetos___4.Data.Configurations;
 
 public class RoleClaimConfiguration : IEntityTypeConfiguration<IdentityRoleClaim<string>>
 {

@@ -1,10 +1,10 @@
-﻿using Projetos___4._3___Domain.Model;
+﻿using Projetos___4.Domain.Model;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
-namespace Projetos___4._4___Data.Context
+namespace Projetos___4.Data.Context
 {
     public class Context : IdentityDbContext<User>
     {
@@ -15,9 +15,11 @@ namespace Projetos___4._4___Data.Context
 
         public DbSet<Category> Categories => Set<Category>();
 
-        public DbSet<Product> Products => Set<Product>();
-
         public DbSet<Hosts> Hosts => Set<Hosts>();
+
+        public DbSet<Programming> Programmings => Set<Programming>();
+
+        public DbSet<ProgrammingXCategory> ProgrammingXCategories => Set<ProgrammingXCategory>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

@@ -1,7 +1,7 @@
-﻿using Projetos___4._3___Domain.Model;
-using static Projetos___4._3___Domain.Model.Hosts;
+﻿using Projetos___4.Domain.Model;
+using static Projetos___4.Domain.Model.Hosts;
 
-namespace Projetos___4._2___Application.DTO
+namespace Projetos___4.Application.DTO
 {
     public class HostRegisterDTO
     {
