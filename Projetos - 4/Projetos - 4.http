@@ -6,6 +6,17 @@
 @EditCategoryId = 2
 
 # Execute cada requisição individualmente.
+# Geocodificação: configure Geoapify:ApiKey no backend (ou Geoapify__ApiKey no ambiente).
+# Create/edit de host e programação calculam Location no servidor; não envie latitude/longitude.
+# MVP: busca no Brasil sem estado fixo.
+# Aceita aproximação pelo nome da via e três primeiros dígitos do CEP. Bairro opcional; sem ViaCEP.
+# Sem candidato aceitável, tenta sem número; até duas consultas em 15 s no total.
+# Resultados apenas de bairro, CEP ou cidade continuam sendo recusados.
+# Troque os endereços fictícios abaixo por endereços reais do Brasil antes de cadastrar/editar.
+# Endereço não localizado/baixa precisão => 422; provedor indisponível/chave ausente => 503.
+# Edição sem mudança de endereço e com Location já preenchida não consulta o provedor.
+# neighborhood é opcional no create/edit de host e programação: pode ser omitido, null ou vazio.
+# No PUT, omitir neighborhood limpa o bairro anterior.
 # Fluxo: registerUser (conta nova) -> login -> createHost -> getallCategories
 # -> createProgrammingAfterHost -> consultas/edições -> limpeza no final do arquivo.
 # registerUser e login usam as mesmas credenciais acima.
@@ -83,9 +94,11 @@ Authorization: Bearer {{login.response.body.$.accessToken}}
   "cnpj": "12.345.678/0001-90",
   "logoUrl": "https://example.com/logo.png",
   "instagranUrl": "https://www.instagram.com/host_teste",
-  "address": "Rua de Teste, 100",
-  "neighborhood": "Recife",
-  "cep": "01001-000",
+  "address": "Avenida Cais do Apolo",
+  "addressNumber": "77",
+  "addressComplement": "Entrada principal",
+  "neighborhood": "Bairro do Recife",
+  "cep": "50030-220",
   "phone": "(11) 99999-0000",
   "name": "Novo Host",
   "description": "Estabelecimento de teste da API."
@@ -119,9 +132,11 @@ Authorization: Bearer {{createHost.response.body.$.auth.accessToken}}
   "cnpj": "12.345.678/0001-90",
   "logoUrl": "https://example.com/logo-atualizado.png",
   "instagranUrl": "https://www.instagram.com/host_teste",
-  "address": "Rua de Teste, 200",
-  "neighborhood": "Centro",
-  "cep": "01001-000",
+  "address": "Avenida Cais do Apolo",
+  "addressNumber": "77",
+  "addressComplement": "Entrada principal",
+  "neighborhood": "Bairro do Recife",
+  "cep": "50030-220",
   "phone": "(11) 99999-1111",
   "name": "Host atualizado",
   "description": "Dados do host atualizados pelo endpoint de edição."
@@ -155,9 +170,11 @@ Authorization: Bearer {{createHost.response.body.$.auth.accessToken}}
   "startDate": "2027-12-10T18:00:00Z",
   "endDate": "2027-12-10T22:00:00Z",
   "isFree": true,
-  "address": "Rua de Teste, 100",
-  "neighborhood": "Recife",
-  "cep": "01001-000",
+  "address": "Avenida Cais do Apolo",
+  "addressNumber": "77",
+  "addressComplement": "Entrada principal",
+  "neighborhood": "Bairro do Recife",
+  "cep": "50030-220",
   "imageUrl": "https://example.com/evento.png",
   "ticketUrl": "",
   "instagranUrl": "",
@@ -195,9 +212,11 @@ Authorization: Bearer {{createHost.response.body.$.auth.accessToken}}
   "startDate": "2027-12-10T18:00:00Z",
   "endDate": "2027-12-10T23:00:00Z",
   "isFree": false,
-  "address": "Rua de Teste, 200",
-  "neighborhood": "Centro",
-  "cep": "01001-000",
+  "address": "Avenida Cais do Apolo",
+  "addressNumber": "77",
+  "addressComplement": "Entrada principal",
+  "neighborhood": "Bairro do Recife",
+  "cep": "50030-220",
   "imageUrl": "https://example.com/festival.png",
   "ticketUrl": "https://example.com/ingressos",
   "instagranUrl": "https://www.instagram.com/host_teste",

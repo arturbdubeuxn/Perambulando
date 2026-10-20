@@ -1,5 +1,6 @@
-﻿using Projetos___4.Domain.Model;
+using Projetos___4.Domain.Model;
 using static Projetos___4.Domain.Model.Hosts;
+using System.ComponentModel.DataAnnotations;
 
 namespace Projetos___4.Application.DTO
 {
@@ -17,9 +18,13 @@ namespace Projetos___4.Application.DTO
 
         public string Address { get; set; } = string.Empty;
 
-        public string Neighborhood { get; set; } = string.Empty;
+        public string? Neighborhood { get; set; } = string.Empty;
 
         public string CEP { get; set; } = string.Empty;
+
+        public string AddressComplement { get; set; } = string.Empty;
+
+        public string AddressNumber { get; set; } = string.Empty;
         public string Phone { get; set; } = string.Empty;
 
         public string Name { get; set; } = string.Empty;

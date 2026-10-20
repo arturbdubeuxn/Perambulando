@@ -20,8 +20,14 @@ public class HostEditDTO
     [Required, MaxLength(300)]
     public string Address { get; set; } = string.Empty;
 
-    [Required, MaxLength(150)]
-    public string Neighborhood { get; set; } = string.Empty;
+    [Required, MaxLength(20)]
+    public string AddressNumber { get; set; } = string.Empty;
+
+    [MaxLength(200)]
+    public string AddressComplement { get; set; } = string.Empty;
+
+    [MaxLength(150)]
+    public string? Neighborhood { get; set; } = string.Empty;
 
     [Required, MaxLength(9)]
     public string CEP { get; set; } = string.Empty;

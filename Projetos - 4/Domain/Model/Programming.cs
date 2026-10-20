@@ -1,4 +1,7 @@
-﻿namespace Projetos___4.Domain.Model
+﻿using NetTopologySuite.Geometries;
+using System.Text.Json.Serialization;
+
+namespace Projetos___4.Domain.Model
 {
     public class Programming
     {
@@ -12,6 +15,14 @@
         public string Address { get; set; } = string.Empty;
         public string Neighborhood { get; set; } = string.Empty;
         public string CEP { get; set; } = string.Empty;
+
+        public string AddressComplement { get; set; } = string.Empty;
+
+        public string AddressNumber { get; set; } = string.Empty;
+
+        [JsonIgnore]
+        public Point? Location { get; set; }
+
         public string ImageUrl { get; set; } = string.Empty;
         public string TicketUrl { get; set; } = string.Empty;
         public string InstagranUrl { get; set; } = string.Empty;

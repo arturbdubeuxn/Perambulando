@@ -1,5 +1,11 @@
 # Perambulando: manter o painel de testes atualizado
 
+## Documentação contínua
+
+Mantenha os documentos Markdown afetados em `docs/` atualizados junto com cada mudança no sistema. Consulte a matriz de `docs/README.md`. Diferencie implementação, validações realizadas e pendências; atualize a data. Por solicitação do usuário, atualize ou regenere PDFs somente quando ele pedir explicitamente. Não exporte PDFs automaticamente. Essa regra se soma à manutenção do protótipo abaixo.
+
+## Protótipo
+
 Por solicitação do usuário, ao alterar funcionalidades desta API, atualize também o protótipo em `C:/Users/Artur/Documents/ChatGPT/Perambulando/prototipo-api`.
 
 - Confira rotas, verbos HTTP, autorização, DTOs e respostas ao terminar cada alteração. Mantenha os formulários e os fluxos de autenticação/JWT e seleção de IDs coerentes com o backend.

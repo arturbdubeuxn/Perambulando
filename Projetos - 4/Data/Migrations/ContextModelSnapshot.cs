@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
+using NetTopologySuite.Geometries;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Projetos___4.Data.Context;
 
@@ -20,6 +21,7 @@ namespace Projetos___4._4Data.Migrations
                 .HasAnnotation("ProductVersion", "10.0.11")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
+            NpgsqlModelBuilderExtensions.HasPostgresExtension(modelBuilder, "postgis");
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>
@@ -184,6 +186,16 @@ namespace Projetos___4._4Data.Migrations
                         .HasMaxLength(300)
                         .HasColumnType("character varying(300)");
 
+                    b.Property<string>("AddressComplement")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("AddressNumber")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
                     b.Property<string>("CEP")
                         .IsRequired()
                         .HasMaxLength(9)
@@ -209,6 +221,9 @@ namespace Projetos___4._4Data.Migrations
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean");
+
+                    b.Property<Point>("Location")
+                        .HasColumnType("geography(Point,4326)");
 
                     b.Property<string>("LogoUrl")
                         .IsRequired()
@@ -242,6 +257,10 @@ namespace Projetos___4._4Data.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("Location");
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("Location"), "gist");
+
                     b.HasIndex("UserId");
 
                     b.ToTable("Hosts", (string)null);
@@ -258,6 +277,16 @@ namespace Projetos___4._4Data.Migrations
                     b.Property<string>("Address")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<string>("AddressComplement")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("AddressNumber")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
 
                     b.Property<string>("CEP")
                         .IsRequired()
@@ -290,6 +319,9 @@ namespace Projetos___4._4Data.Migrations
                     b.Property<bool>("IsFree")
                         .HasColumnType("boolean");
 
+                    b.Property<Point>("Location")
+                        .HasColumnType("geography(Point,4326)");
+
                     b.Property<float>("MaxPrice")
                         .HasColumnType("real");
 
@@ -317,6 +349,10 @@ namespace Projetos___4._4Data.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("HostId");
+
+                    b.HasIndex("Location");
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("Location"), "gist");
 
                     b.ToTable("Programmings");
                 });
