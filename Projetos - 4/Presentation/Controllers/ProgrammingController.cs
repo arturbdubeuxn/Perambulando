@@ -1,3 +1,4 @@
+using Projetos___4.Domain.Exceptions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
@@ -141,6 +142,13 @@ namespace Projetos___4.Presentation.Controllers
 
                 return Ok(result);
             }
+            catch (GeocodingException ex)
+            {
+                return Problem(statusCode: ex.ServiceUnavailable
+                        ? StatusCodes.Status503ServiceUnavailable : StatusCodes.Status422UnprocessableEntity,
+                    title: ex.ServiceUnavailable ? "Serviço de localização indisponível" : "Endereço não localizado",
+                    detail: ex.Message);
+            }
             catch (DbUpdateException ex) when (ex.InnerException is PostgresException postgres &&
                 postgres.SqlState == PostgresErrorCodes.ForeignKeyViolation &&
                 postgres.ConstraintName?.Contains("CategoryId", StringComparison.OrdinalIgnoreCase) == true)
@@ -222,6 +230,13 @@ namespace Projetos___4.Presentation.Controllers
                 return Problem(statusCode: StatusCodes.Status404NotFound,
                     title: "Host indisponível",
                     detail: "Host não encontrado ou indisponível para este usuário.");
+            }
+            catch (GeocodingException ex)
+            {
+                return Problem(statusCode: ex.ServiceUnavailable
+                        ? StatusCodes.Status503ServiceUnavailable : StatusCodes.Status422UnprocessableEntity,
+                    title: ex.ServiceUnavailable ? "Serviço de localização indisponível" : "Endereço não localizado",
+                    detail: ex.Message);
             }
             catch (DbUpdateException ex) when (ex.InnerException is PostgresException postgres &&
                 postgres.SqlState == PostgresErrorCodes.ForeignKeyViolation &&

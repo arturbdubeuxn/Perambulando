@@ -1,6 +1,6 @@
 # Regras de negócio
 
-Perambulando | Atualização: 18/10/2026
+Perambulando | Atualização: 19/10/2026
 
 Este documento descreve o código atual de controllers, app services, serviços e repositórios. Uma pendência registrada aqui não significa que a regra já tenha sido implementada.
 
@@ -89,11 +89,47 @@ O código de gravação não revalida se uma categoria está ativa. O GET de sel
 - Create de programação sem rejeição de categorias repetidas; não existe índice único do par de vínculo no snapshot.
 - `[Required]` sobre bool/float não anuláveis no create não identifica a ausência desses campos no JSON.
 - Create e edit possuem diferenças nas verificações de datas e de preços finitos.
-- Nenhuma busca por distância, geocodificação, limite de raio ou coordenadas foi encontrada.
+- Hosts e Programming possuem Location opcional, armazenada em geography(Point,4326), com índices GiST. A migration já foi aplicada ao banco local. Os registros existentes permanecem com Location NULL. A geocodificação via Geoapify está integrada e depende da chave configurada. O endpoint de proximidade ainda não existe.
 - Compartilhamento pode usar a consulta pública existente, mas a página e o botão de compartilhar dependem do frontend.
 - O perfil do host não inclui IDs nas programações mapeadas e não carrega suas categorias.
 - Não há métricas de visualização, favoritos ou engajamento implementadas nos fluxos analisados.
 
 ## Fontes de implementação
 
-`Presentation/Controllers`, `Application/AppServices`, `Domain/Service`, `Data/Repository` e DTOs. O estado real do banco e os fluxos completos não foram exercitados para esta documentação.
+A Location é interna à persistência e possui JsonIgnore nas duas entidades. O Geoapify ainda não é chamado no cadastro/edição. Foram adicionados AddressNumber e AddressComplement às entidades, DTOs e mapeamentos de create/edit/detalhes, incluindo programações no perfil do host. Os nomes AdrressNumber e AdrressComplement foram corrigidos antes da criação das colunas.
+
+Número é string opcional de até 20 caracteres, aceitando 175A e s/n; complemento é opcional, até 200 caracteres. Os campos iniciam vazios. A edição completa substitui os valores, e a omissão no PUT os limpa. Não se extrai número automaticamente do endereço antigo. A migration AddAddressNumberAndComplement foi aplicada com preservação de registros e do texto de Address.
+
+Presentation/Controllers, Application/AppServices, Domain/Service, Data/Repository e DTOs. A etapa de endereço teve 48 verificações offline de mapeamento/validação/propriedade e conferência do esquema real; não foram executados cadastros ou exclusões contra dados reais como teste.
+
+Bairro (`neighborhood`) é opcional no cadastro e na edição de hosts e programações. O campo pode ser omitido, vazio ou nulo; o app service converte nulo em string vazia antes da persistência. As entidades e colunas permanecem não anuláveis, sem necessidade de migration. No PUT, omitir o bairro remove o valor anterior (salva vazio).
+
+## Geocodificação via Geoapify — 19/10/2026
+
+HostService e ProgrammingService usam IGeocodingService após verificar usuário/propriedade e antes de salvar. A edição geocodifica se Location é nula ou se logradouro, número, bairro ou CEP mudar; apenas complemento não exige nova consulta. O ponto é obtido antes de modificar a entidade rastreada. Falha bloqueia a gravação, preservando os dados anteriores. Critério atual do MVP: resultado brasileiro building/street/amenity, nome de logradouro compatível e mesmos três primeiros dígitos do CEP. Veja os limites de confiança e as duas tentativas na seção de tolerância abaixo. Resultados somente de bairro/cidade/CEP são recusados. O ponto de rua pode ser aproximado. Não há repetição automática nem atualização em lote dos registros existentes.
+
+Veja a [configuração e os critérios da integração](README.md). Validação: build sem erros (três avisos CS8618 preexistentes), 63 verificações com HTTP/repositórios simulados e 17 testes do protótipo. Consulta HTTPS real ao Geoapify validada em 19/10/2026, com resultado building no Brasil e confiança 1. A chave foi configurada em Geoapify__ApiKey no ambiente do usuário Windows, sem inclusão nos arquivos. O fluxo completo via API/banco ainda precisa ser exercitado após reiniciar o processo que inicia a aplicação. PDFs não regenerados.
+
+### Tolerância ampliada do MVP — 19/10/2026
+
+A busca continua somente com Geoapify e aceita localização aproximada. Mantém coordenadas finitas, país brasileiro, tipo building/street/amenity, cidade/estado presentes e correspondência do nome da via. O prefixo exigido do CEP passa de cinco para três dígitos, ampliando a região possível. São priorizados o CEP completo, depois os cinco primeiros dígitos, o número do imóvel, o tipo building e a confiança. Isso não comprova cidade/UF do usuário nem garante erro máximo em metros.
+
+Na regra geral, a confiança mínima é 0,25; abaixo de 0,7 exige também confiança de rua e de cidade >= 0,5. Com confiança geral >= 0,7, indicadores específicos ausentes não impedem aceitação. Exceção de aproximação: se o CEP completo coincide e a confiança da rua é >= 0,8, aceita pontuação geral baixa ou zero, desde que ela seja válida e todos os demais critérios de país, tipo, nome da via, cidade/estado e coordenadas passem. Isso atende resultados do provedor que reconhecem fortemente a rua mas não confirmam o imóvel. Não há conversão dessas pontuações em porcentagem garantida de acerto.
+
+Na comparação, ignora acentos, pontuação, caixa, artigos/preposições de/da/do/das/dos e o tipo inicial da via (rua, avenida, praça, largo etc.). Reconhece abreviações Mal/Gen/Dr/Prof/Pres. Praças e largos podem ser identificados por name/address_line1 se street não vier preenchido. Não usa comparação difusa livre de nomes.
+
+São feitas até duas consultas sequenciais, somente se a anterior não tiver candidato aceitável: primeiro com número; depois sem número. Se já não há número (vazio/s/n), a segunda usa texto com rua, bairro opcional e CEP. O modo estruturado nunca é misturado com text. Preserva número e demais dados originais no banco. Resultados somente de bairro/CEP/cidade continuam rejeitados. Falhas do provedor não provocam novas tentativas.
+
+Limites: HttpClient de 10 s por requisição e prazo de 15 s para as duas consultas juntas, inferior ao timeout de 20 s do protótipo. Erro de endereço permanece 422 e indisponibilidade permanece 503. Não muda autenticação, rotas, DTOs, entidades ou schema. Não adiciona ViaCEP, geocodificação em lote ou mapa. O protótipo mantém o aviso de localização aproximada. PDFs não foram regenerados.
+
+Validação da tolerância ampliada: compilação sem erros (três avisos CS8618 preexistentes), 53 verificações simuladas aprovadas e 17 testes do protótipo aprovados, com node --check em app.js e catalog.mjs. Os testes simulados cobrem os dois modos de fallback, limite de duas consultas, aceitação aproximada, rejeição de bairro/CEP/cidade, erros do provedor, coordenadas inválidas e cancelamento. Não houve gravação de registros nem alteração de schema nesta etapa.
+
+Comparação real no Geoapify em 19/10/2026: antes 6/10 endereços de teste aceitos; depois 10/10. Conjunto: MASP, Sesc Pompeia, Pinacoteca Luz, Pinacoteca Estação, Pinacoteca Contemporânea, Museu do Amanhã, CCBB Rio, Paço do Frevo, CESAR School e Museu Oscar Niemeyer. Consultas realizadas pelo adapter .NET, sem passar pelo CRUD nem gravar no banco; aceitação do resultado não comprova precisão do imóvel. Reinicie a API para carregar a implementação nova.
+
+### Abrangência atual — 19/10/2026
+
+A pedido do usuário, foi retirada a restrição temporária por estado: as consultas não enviam state=Pernambuco nem incluem um estado fixo no texto. A validação por sigla/nome de Pernambuco foi removida. A busca volta a considerar todo o Brasil, mantendo o filtro countrycode:br, o prefixo de três dígitos do CEP, o nome da via, a exigência de cidade/estado identificáveis no retorno e as demais regras de aproximação e fallback. Portanto não aceita indiscriminadamente ruas homônimas distantes.
+
+Protótipo e comentários do .http foram ajustados. Os exemplos podem continuar usando endereços de Pernambuco, mas não representam limite de cobertura. Sem alterações em DTOs, endpoints, autorização, entidades ou banco. PDFs preservados.
+
+Validação da retirada da restrição: compilação sem erros (três avisos CS8618 preexistentes), 10 verificações simuladas aprovadas (PE/CE/SP, ausência de estado fixo nas duas modalidades de consulta e manutenção de país/CEP/estado identificável), 17 testes do protótipo aprovados e sintaxe JavaScript verificada. Nenhuma nova consulta real ao Geoapify nem gravação no banco nesta retirada.

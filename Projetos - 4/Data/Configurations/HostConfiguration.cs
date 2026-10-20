@@ -9,6 +9,9 @@ public class HostConfiguration : IEntityTypeConfiguration<Hosts>
     public void Configure(EntityTypeBuilder<Hosts> builder)
     {
         builder.ToTable("Hosts");
+        builder.Property(host => host.Location).HasColumnType("geography(Point,4326)");
+        builder.HasIndex(host => host.Location).HasMethod("gist");
+
         builder.Property(host => host.Name).HasMaxLength(150).IsRequired();
 
         builder.Property(host => host.Description).HasMaxLength(2000).IsRequired();
@@ -20,8 +23,10 @@ public class HostConfiguration : IEntityTypeConfiguration<Hosts>
         builder.Property(host => host.Phone).HasMaxLength(30).IsRequired();
 
         builder.Property(host => host.Address).HasMaxLength(300).IsRequired();
+        builder.Property(host => host.AddressNumber).HasMaxLength(20).IsRequired();
+        builder.Property(host => host.AddressComplement).HasMaxLength(200);
 
-        builder.Property(host => host.Neighborhood).HasMaxLength(150).IsRequired();
+        builder.Property(host => host.Neighborhood).HasMaxLength(150);
 
         builder.Property(host => host.LogoUrl).HasMaxLength(2048).IsRequired();
 

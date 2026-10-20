@@ -1,3 +1,4 @@
+using Projetos___4.Domain.Exceptions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -69,6 +70,13 @@ namespace Projetos___4.Presentation.Controllers
             {
                 result = await _hostAppService.Create(dto, userId);
             }
+            catch (GeocodingException ex)
+            {
+                return Problem(statusCode: ex.ServiceUnavailable
+                        ? StatusCodes.Status503ServiceUnavailable : StatusCodes.Status422UnprocessableEntity,
+                    title: ex.ServiceUnavailable ? "Serviço de localização indisponível" : "Endereço não localizado",
+                    detail: ex.Message);
+            }
             catch (InvalidOperationException ex) when (ex.Message == "Role HOST is not registered." ||
                 ex.Message == "Failed to create host." || ex.Message == "Host was saved, but role assignment failed.")
             {
@@ -117,7 +125,19 @@ namespace Projetos___4.Presentation.Controllers
                     title: "Dados inválidos", detail: "O ID do host deve ser maior que zero.");
             }
 
-            var result = await _hostAppService.EditHostAsync(dto, hostId, userId);
+            Hosts? result;
+            try
+            {
+                result = await _hostAppService.EditHostAsync(dto, hostId, userId);
+            }
+            catch (GeocodingException ex)
+            {
+                return Problem(statusCode: ex.ServiceUnavailable
+                        ? StatusCodes.Status503ServiceUnavailable : StatusCodes.Status422UnprocessableEntity,
+                    title: ex.ServiceUnavailable ? "Serviço de localização indisponível" : "Endereço não localizado",
+                    detail: ex.Message);
+            }
+
 
             if (result == null)
             {

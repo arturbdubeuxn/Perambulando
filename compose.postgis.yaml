@@ -1,0 +1,23 @@
+# Configuração para o volume EXISTENTE deste ambiente de desenvolvimento.
+# Não inicia uma instalação vazia nem cria/substitui volumes automaticamente.
+services:
+  database:
+    build:
+      context: ./docker/postgres
+    image: perambulando/postgres-postgis:17
+    container_name: perambulando-postgres
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-h", "127.0.0.1", "-p", "5432"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+    external: true
+    name: perambulando_pgdata
