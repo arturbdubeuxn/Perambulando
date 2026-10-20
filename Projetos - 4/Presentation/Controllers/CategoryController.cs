@@ -22,4 +22,5 @@ public class CategoryController : ControllerBase
         var categories = await _categoryAppService.GetallCategories();
         return Ok(categories);
     }
+
 }

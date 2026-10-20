@@ -21,6 +21,8 @@ namespace Projetos___4.Data.Context
 
         public DbSet<ProgrammingXCategory> ProgrammingXCategories => Set<ProgrammingXCategory>();
 
+        public DbSet<UserXCategory> UserXCategories => Set<UserXCategory>();
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);

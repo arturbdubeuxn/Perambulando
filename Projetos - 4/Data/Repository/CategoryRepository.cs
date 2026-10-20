@@ -32,6 +32,17 @@ namespace Projetos___4.Data.Repository
                 .ToListAsync();
         }
 
+        public async Task<List<Category>> GetAllCategoriesbyUserId(string userId)
+        {
+            return await Db.UserXCategories
+                .AsNoTracking()
+                .Where(u => u.UserId == userId)
+                .Select(c => c.Category)
+                .Distinct()
+                .OrderBy(c => c.Id)
+                .ToListAsync();
+        }
+
         public Task<Category> GetbyId (int categoryId)
         {
           

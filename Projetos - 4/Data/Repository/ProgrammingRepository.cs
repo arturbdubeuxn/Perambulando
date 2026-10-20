@@ -63,5 +63,19 @@ namespace Projetos___4.Data.Repository
             await Db.SaveChangesAsync();
             return programming;
         }
+
+        public async Task<List<Programming>> GetAllProgrammingsByUserCategories(List<int> categoryIds)
+        {
+
+            return await Db.Programmings
+                .AsNoTracking()
+                .Where(p => p.IsActive && p.Host.IsActive)
+                .Where(p => Db.ProgrammingXCategories.Any(link =>
+                    link.ProgrammingId == p.Id &&
+                    categoryIds.Contains(link.CategoryId) &&
+                    link.Category.IsActive))
+                .OrderBy(p => p.StartDate)
+                .ToListAsync();
+        }
     }
 }

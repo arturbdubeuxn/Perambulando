@@ -21,5 +21,6 @@
         public DateTime UpdateDate { get; set; } = DateTime.UtcNow;
         public float MinPrice { get; set; }
         public float MaxPrice { get; set; }
+        public object ProgrammingXCategories { get; internal set; }
     }
 }

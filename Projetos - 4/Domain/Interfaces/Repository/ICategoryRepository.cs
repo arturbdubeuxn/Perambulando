@@ -6,6 +6,9 @@ namespace Projetos___4.Domain.Interfaces.Repository
     {
         Task<IEnumerable<Category>> GetallCategories();
         Task<List<Category>> GetAllCategoriesbyProgrammingId(int programmingId);
-        public Task<Category> GetbyId(int categoryId);
+
+        Task<List<Category>> GetAllCategoriesbyUserId(string userId);
+
+        Task<Category> GetbyId(int categoryId);
     }
 }

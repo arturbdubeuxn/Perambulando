@@ -13,6 +13,7 @@ namespace Projetos___4.Domain.Service
         private readonly IHostRepository _hostRepository;
         private readonly ICategoryRepository _categoryRepository;
 
+
         public ProgrammingService(IProgrammingRepository programmingRepository, IUserRepository userRepository, IHostRepository hostRepository, ICategoryRepository categoryRepository)
         {
             _programmingRepository = programmingRepository;
@@ -118,6 +119,33 @@ namespace Projetos___4.Domain.Service
            }
 
            return await _programmingRepository.CreateWithCategoriesAsync(programming, links);
+        }
+
+        public async Task<List<Programming>> GetAllProgrammingsByUserCategories(string userId)
+        {
+            if (string.IsNullOrWhiteSpace(userId))
+            {
+                return new List<Programming>();
+            }
+
+            List<Category> userCategories = await _categoryRepository.GetAllCategoriesbyUserId(userId);
+
+            List<int> userCategoryIds = userCategories.Select(c => c.Id).ToList();
+
+            if (userCategories == null || userCategories.Count == 0)
+            {
+                return new List<Programming>();
+            }
+
+            List<Programming> programmings = await _programmingRepository.GetAllProgrammingsByUserCategories(userCategoryIds);
+
+            if (programmings == null || programmings.Count == 0)
+            {
+                return new List<Programming>();
+            }
+
+
+            return programmings;
         }
     }
 }
