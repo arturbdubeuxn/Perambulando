@@ -67,15 +67,26 @@ namespace Projetos___4.Data.Repository
         public async Task<List<Programming>> GetAllProgrammingsByUserCategories(List<int> categoryIds)
         {
 
-            return await Db.Programmings
-                .AsNoTracking()
-                .Where(p => p.IsActive && p.Host.IsActive)
-                .Where(p => Db.ProgrammingXCategories.Any(link =>
-                    link.ProgrammingId == p.Id &&
-                    categoryIds.Contains(link.CategoryId) &&
-                    link.Category.IsActive))
+            var query =
+                from programming in Db.Programmings.AsNoTracking()
+                join link in Db.ProgrammingXCategories
+                    on programming.Id equals link.ProgrammingId
+                join category in Db.Categories
+                    on link.CategoryId equals category.Id
+                where programming.IsActive
+                    && programming.Host.IsActive
+                    && category.IsActive
+                    && categoryIds.Contains(category.Id)
+                select programming;
+
+            return await query
+                .Distinct()
                 .OrderBy(p => p.StartDate)
                 .ToListAsync();
+
+
+
+           
         }
     }
 }
