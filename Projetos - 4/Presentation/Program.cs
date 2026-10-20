@@ -67,6 +67,9 @@ builder.Services.AddScoped<IProgrammingAppService, ProgrammingAppService>();
 builder.Services.AddScoped<ICategoryRepository, CategoryRepository>();
 builder.Services.AddScoped<ICategoryService, CategoryService>();
 builder.Services.AddScoped<ICategoryAppService, CategoryAppService>();
+builder.Services.AddScoped<IUserXCategoryRepository, UserXCategoryRepository>();
+builder.Services.AddScoped<IUserXCategoryService, UserXCategoryService>();
+builder.Services.AddScoped<IUserXCategoryAppService, UserXCategoryAppService>();
 
 ///
 
