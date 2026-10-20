@@ -6,6 +6,7 @@ using Microsoft.IdentityModel.Tokens;
 using Projetos___4.Application.AppServices;
 using Projetos___4.Application.Interfaces;
 using Projetos___4.Data.Context;
+using Projetos___4.Data.Services;
 using Projetos___4.Data.Repository;
 using Projetos___4.Domain.Interfaces;
 using Projetos___4.Domain.Interfaces.Repository;
@@ -28,7 +29,8 @@ if (builder.Environment.IsDevelopment())
 builder.Services.AddControllers();
 
 builder.Services.AddDbContext<Context>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"),
+        npgsql => npgsql.UseNetTopologySuite()));
 builder.Services
     .AddIdentity<User, IdentityRole>()
     .AddEntityFrameworkStores<Context>()
@@ -42,6 +44,14 @@ builder.Services.Configure<IdentityOptions>(options =>
     options.ClaimsIdentity.UserNameClaimType = "name";
     options.ClaimsIdentity.RoleClaimType = "role";
 });
+
+// A chave é fornecida por Geoapify__ApiKey. Não registrar URLs que contêm a chave.
+builder.Services.Configure<GeoapifyOptions>(builder.Configuration.GetSection("Geoapify"));
+builder.Services.AddHttpClient<IGeocodingService, GeoapifyGeocodingService>(client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(10);
+}).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false })
+  .RemoveAllLoggers();
 
 // INJEÇÃO DE DEPENDÊNCIAS
 builder.Services.AddScoped<IUserService, UserService>();

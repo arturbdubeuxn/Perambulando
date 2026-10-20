@@ -1,6 +1,6 @@
 # Perambulando — Documentação dos endpoints
 
-Conferido em 18/10/2026 a partir dos controllers, DTOs e serviços salvos do projeto. Esta documentação descreve a implementação atual; não representa uma execução de testes no banco.
+Conferido em 19/10/2026 a partir dos controllers, DTOs e serviços salvos do projeto. Os campos de endereço foram verificados por testes offline e a migration aplicada ao banco local, sem cadastrar/excluir registros para testar as actions.
 
 ## Convenções
 
@@ -140,7 +140,9 @@ Corpo (`HostRegisterDTO`):
   "cnpj": "12.345.678/0001-90",
   "logoUrl": "https://example.com/logo.png",
   "instagranUrl": "https://www.instagram.com/empresa",
-  "address": "Rua de Teste, 100",
+  "address": "Rua de Teste",
+  "addressNumber": "100",
+  "addressComplement": "Entrada principal",
   "neighborhood": "Centro",
   "cep": "50000-000",
   "phone": "81999999999",
@@ -151,7 +153,7 @@ Corpo (`HostRegisterDTO`):
 
 Tipos: `0` = Productor (Produtor); `1` = Gastronomy (Gastronomia); `2` = Business (Comércio).
 
-O DTO de cadastro ainda não possui atributos que exijam os campos ou validem o enum. Não há validação de CNPJ/CEP nem geocodificação nesse fluxo. O host é salvo sem exigir programações.
+O DTO de cadastro ainda não possui atributos que exijam os campos ou validem o enum. AddressNumber é opcional, string de até 20 caracteres, e AddressComplement é opcional, string de até 200 caracteres. Não há validação formal de CNPJ/CEP no DTO; a geocodificação exige logradouro e CEP e pode rejeitar endereços não localizados. O host é salvo sem exigir programações.
 
 O serviço atribui a role `HOST` ao usuário, caso necessário. A resposta contém um JWT atualizado, evitando repetir o login.
 
@@ -169,7 +171,7 @@ Exige JWT e `hostId` positivo. Sem corpo. Qualquer usuário autenticado pode con
 
 Retornos: `200` com `HostDetailsDTO`; `400` para ID não positivo; `404` para host inexistente/inativo.
 
-Campos: `id`, `name`, `description`, `typeofhost`, `cnpj`, `logoUrl`, `instagranUrl`, `address`, `neighborhood`, `cep`, `phone` e `programmings`.
+Campos: `id`, `name`, `description`, `typeofhost`, `cnpj`, `logoUrl`, `instagranUrl`, `address`, `addressNumber`, `addressComplement`, `neighborhood`, `cep`, `phone` e `programmings`.
 
 `programmings` contém programações ativas ordenadas por início. Pode ser `[]`. O mapeamento atual usa `ProgrammingDetailsDTO`, mas não preenche suas categorias; também não inclui IDs das programações. A consulta não concede permissão para editar.
 
@@ -183,7 +185,9 @@ Exige JWT com role `ADMIN` ou `HOST`, `hostId` positivo e ser dono do host ativo
 | `name` | Obrigatório; máximo 150 caracteres |
 | `description` | Obrigatório; máximo 2000 |
 | `address` | Obrigatório; máximo 300 |
-| `neighborhood` | Obrigatório; máximo 150 |
+| `addressNumber` | Opcional; texto de até 20 caracteres, inclusive 175A ou s/n |
+| `addressComplement` | Opcional; máximo 200 caracteres |
+| `neighborhood` | Opcional; máximo 150 |
 | `cep` | Obrigatório; máximo 9 |
 | `cnpj` | Máximo 18 |
 | `phone` | Máximo 30 |
@@ -214,7 +218,9 @@ Corpo (`ProgrammingCreateDTO`):
   "startDate": "2027-12-10T18:00:00Z",
   "endDate": "2027-12-10T22:00:00Z",
   "isFree": false,
-  "address": "Rua do Evento, 200",
+  "address": "Rua do Evento",
+  "addressNumber": "200",
+  "addressComplement": "Pavilhão B",
   "neighborhood": "Centro",
   "cep": "50000-000",
   "imageUrl": "https://example.com/evento.png",
@@ -228,7 +234,8 @@ Corpo (`ProgrammingCreateDTO`):
 
 Requisitos e comportamento:
 
-- `name`, `description`, `address`, `neighborhood` e `cep` são obrigatórios pelo DTO.
+- `name`, `description`, `address` e `cep` são obrigatórios pelo DTO.
+- `addressNumber` é opcional, texto de até 20 caracteres; `addressComplement` é opcional, até 200 caracteres. Address representa o logradouro; registros antigos podem ainda conter número embutido, pois não foram reescritos automaticamente.
 - O início deve estar no futuro e ser anterior ao término. Use datas ISO 8601 em UTC com `Z`, compatíveis com a persistência das datas.
 - Preços devem ser não negativos e o mínimo não pode superar o máximo. Para gratuita, ambos devem ser zero.
 - `categoryIds` deve conter pelo menos um ID positivo. Categorias inexistentes geram erro tratado de chave estrangeira.
@@ -245,7 +252,7 @@ Público, inclusive para visitantes. Exige apenas `programmingId` positivo na UR
 
 Retornos: `200` com `ProgrammingDetailsDTO`; `400` para ID não positivo; `404` para programação inexistente, inativa ou de host inativo.
 
-Campos do retorno: `name`, `description`, `startDate`, `endDate`, `isFree`, `address`, `neighborhood`, `cep`, `imageUrl`, `ticketUrl`, `instagranUrl`, `hostName`, `hostLogoUrl`, `createdDate`, `updateDate`, `minPrice`, `maxPrice` e `categories`.
+Campos do retorno: `name`, `description`, `startDate`, `endDate`, `isFree`, `address`, `addressNumber`, `addressComplement`, `neighborhood`, `cep`, `imageUrl`, `ticketUrl`, `instagranUrl`, `hostName`, `hostLogoUrl`, `createdDate`, `updateDate`, `minPrice`, `maxPrice` e `categories`.
 
 `categories` é uma lista das categorias vinculadas, com `id`, `name` e `isActive`. A consulta de vínculos não filtra categorias inativas. O DTO atual não inclui `id` da programação nem `hostId`.
 
@@ -255,7 +262,9 @@ Exige JWT com role `ADMIN` ou `HOST`, IDs positivos, host ativo do usuário e pr
 
 Recebe os mesmos campos do exemplo de create, usando `ProgrammingEditDTO`. É uma substituição completa dos campos editáveis, inclusive da seleção de categorias.
 
-- Obrigatórios: `name`, `description`, `startDate`, `endDate`, `isFree`, `address`, `neighborhood`, `cep`, `minPrice`, `maxPrice` e `categoryIds`.
+Número e complemento também são substituídos no PUT. Se omitidos, assumem string vazia e limpam o valor anterior; reenviar os valores atuais quando quiser preservá-los. Ambos continuam opcionais, com limites de 20 e 200 caracteres. O mesmo comportamento vale para o PUT de host.
+
+- Obrigatórios: `name`, `description`, `startDate`, `endDate`, `isFree`, `address`, `cep`, `minPrice`, `maxPrice` e `categoryIds`.
 - Datas devem estar em UTC, e o início deve ser anterior ao término. O edit não possui a checagem de início futuro que existe no create.
 - Preços devem ser finitos, não negativos e ordenados. Se gratuita, ambos devem ser zero.
 - Categorias: ao menos uma, IDs positivos e sem repetição. IDs inexistentes geram `400`; não há validação de status ativo.
@@ -300,3 +309,35 @@ O arquivo `Projetos - 4.http` ainda contém `GET /api/Programming/{hostId}/GetAl
 No projeto `C:/Users/Artur/source/repos/Projetos - 4/Projetos - 4`: `Presentation/Controllers`, `Application/DTO`, os app services de User/Host/Programming, seus serviços e repositórios, `CategoryRepository`, `JwtTokenService` e a configuração de autenticação em `Presentation/Program.cs`.
 
 Os retornos descritos são os fluxos previstos no código. Exceções não tratadas de banco/configuração podem produzir erros adicionais. Cadastro/edição de host e programação retornam entidades em alguns pontos; não devem ser interpretados como o mesmo contrato dos DTOs de detalhes.
+
+Bairro (`neighborhood`) é opcional no cadastro e na edição de hosts e programações. O campo pode ser omitido, vazio ou nulo; o app service converte nulo em string vazia antes da persistência. As entidades e colunas permanecem não anuláveis, sem necessidade de migration. No PUT, omitir o bairro remove o valor anterior (salva vazio).
+
+## Geocodificação via Geoapify — 19/10/2026
+
+As actions Create/Edit de Host e Programming agora calculam Location antes da persistência. Não há rota nova nem mudança nos corpos de entrada. Falhas de endereço retornam ProblemDetails 422; chave ausente, timeout de 10 s, erros do provedor/rede ou resposta inválida retornam ProblemDetails 503. A consulta só ocorre após validar usuário/propriedade. A edição preserva coordenadas sem consultar se o endereço não mudou e Location está preenchida. Exemplos fictícios no .http devem ser substituídos por endereços reais. A autenticação e os retornos de sucesso permanecem iguais.
+
+Veja a [configuração e os critérios da integração](README.md). Validação: build sem erros (três avisos CS8618 preexistentes), 63 verificações com HTTP/repositórios simulados e 17 testes do protótipo. Consulta HTTPS real ao Geoapify validada em 19/10/2026, com resultado building no Brasil e confiança 1. A chave foi configurada em Geoapify__ApiKey no ambiente do usuário Windows, sem inclusão nos arquivos. O fluxo completo via API/banco ainda precisa ser exercitado após reiniciar o processo que inicia a aplicação. PDFs não regenerados.
+
+### Tolerância ampliada do MVP — 19/10/2026
+
+A busca continua somente com Geoapify e aceita localização aproximada. Mantém coordenadas finitas, país brasileiro, tipo building/street/amenity, cidade/estado presentes e correspondência do nome da via. O prefixo exigido do CEP passa de cinco para três dígitos, ampliando a região possível. São priorizados o CEP completo, depois os cinco primeiros dígitos, o número do imóvel, o tipo building e a confiança. Isso não comprova cidade/UF do usuário nem garante erro máximo em metros.
+
+Na regra geral, a confiança mínima é 0,25; abaixo de 0,7 exige também confiança de rua e de cidade >= 0,5. Com confiança geral >= 0,7, indicadores específicos ausentes não impedem aceitação. Exceção de aproximação: se o CEP completo coincide e a confiança da rua é >= 0,8, aceita pontuação geral baixa ou zero, desde que ela seja válida e todos os demais critérios de país, tipo, nome da via, cidade/estado e coordenadas passem. Isso atende resultados do provedor que reconhecem fortemente a rua mas não confirmam o imóvel. Não há conversão dessas pontuações em porcentagem garantida de acerto.
+
+Na comparação, ignora acentos, pontuação, caixa, artigos/preposições de/da/do/das/dos e o tipo inicial da via (rua, avenida, praça, largo etc.). Reconhece abreviações Mal/Gen/Dr/Prof/Pres. Praças e largos podem ser identificados por name/address_line1 se street não vier preenchido. Não usa comparação difusa livre de nomes.
+
+São feitas até duas consultas sequenciais, somente se a anterior não tiver candidato aceitável: primeiro com número; depois sem número. Se já não há número (vazio/s/n), a segunda usa texto com rua, bairro opcional e CEP. O modo estruturado nunca é misturado com text. Preserva número e demais dados originais no banco. Resultados somente de bairro/CEP/cidade continuam rejeitados. Falhas do provedor não provocam novas tentativas.
+
+Limites: HttpClient de 10 s por requisição e prazo de 15 s para as duas consultas juntas, inferior ao timeout de 20 s do protótipo. Erro de endereço permanece 422 e indisponibilidade permanece 503. Não muda autenticação, rotas, DTOs, entidades ou schema. Não adiciona ViaCEP, geocodificação em lote ou mapa. O protótipo mantém o aviso de localização aproximada. PDFs não foram regenerados.
+
+Validação da tolerância ampliada: compilação sem erros (três avisos CS8618 preexistentes), 53 verificações simuladas aprovadas e 17 testes do protótipo aprovados, com node --check em app.js e catalog.mjs. Os testes simulados cobrem os dois modos de fallback, limite de duas consultas, aceitação aproximada, rejeição de bairro/CEP/cidade, erros do provedor, coordenadas inválidas e cancelamento. Não houve gravação de registros nem alteração de schema nesta etapa.
+
+Comparação real no Geoapify em 19/10/2026: antes 6/10 endereços de teste aceitos; depois 10/10. Conjunto: MASP, Sesc Pompeia, Pinacoteca Luz, Pinacoteca Estação, Pinacoteca Contemporânea, Museu do Amanhã, CCBB Rio, Paço do Frevo, CESAR School e Museu Oscar Niemeyer. Consultas realizadas pelo adapter .NET, sem passar pelo CRUD nem gravar no banco; aceitação do resultado não comprova precisão do imóvel. Reinicie a API para carregar a implementação nova.
+
+### Abrangência atual — 19/10/2026
+
+A pedido do usuário, foi retirada a restrição temporária por estado: as consultas não enviam state=Pernambuco nem incluem um estado fixo no texto. A validação por sigla/nome de Pernambuco foi removida. A busca volta a considerar todo o Brasil, mantendo o filtro countrycode:br, o prefixo de três dígitos do CEP, o nome da via, a exigência de cidade/estado identificáveis no retorno e as demais regras de aproximação e fallback. Portanto não aceita indiscriminadamente ruas homônimas distantes.
+
+Protótipo e comentários do .http foram ajustados. Os exemplos podem continuar usando endereços de Pernambuco, mas não representam limite de cobertura. Sem alterações em DTOs, endpoints, autorização, entidades ou banco. PDFs preservados.
+
+Validação da retirada da restrição: compilação sem erros (três avisos CS8618 preexistentes), 10 verificações simuladas aprovadas (PE/CE/SP, ausência de estado fixo nas duas modalidades de consulta e manutenção de país/CEP/estado identificável), 17 testes do protótipo aprovados e sintaxe JavaScript verificada. Nenhuma nova consulta real ao Geoapify nem gravação no banco nesta retirada.

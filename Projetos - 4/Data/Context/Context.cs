@@ -26,6 +26,7 @@ namespace Projetos___4.Data.Context
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
+            modelBuilder.HasPostgresExtension("postgis");
             modelBuilder.ApplyConfigurationsFromAssembly(typeof(Context).Assembly);
         }
     

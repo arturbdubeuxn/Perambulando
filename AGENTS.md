@@ -2,7 +2,7 @@
 
 ## Documentação contínua
 
-Por solicitação explícita do usuário, mantenha também `docs/` atualizado a cada mudança no sistema. As sete fontes oficiais são `01-controllers.md`, `02-regras-de-negocio.md`, `03-tokens.md`, `04-dtos.md`, `05-docker.md`, `06-banco-de-dados.md` e `07-entidades-models.md`; consulte a matriz em `docs/README.md` para selecionar as afetadas. Confira o comportamento implementado, diferencie pendências e atualize a data. Regenere os PDFs afetados em `docs/pdf/` usando `docs/exportar_pdfs.py` com ReportLab, respeitando as instruções de autoria de PDF disponíveis na sessão. Não documente recursos planejados como existentes nem registre testes não executados. Esta exigência se soma à manutenção do protótipo abaixo.
+Mantenha os documentos Markdown afetados em `docs/` atualizados junto com cada mudança no sistema. Consulte a matriz de `docs/README.md`. Diferencie implementação, validações realizadas e pendências; atualize a data. Por solicitação do usuário, atualize ou regenere PDFs somente quando ele pedir explicitamente. Não exporte PDFs automaticamente. Essa regra se soma à manutenção do protótipo abaixo.
 
 ## Protótipo
 

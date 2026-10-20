@@ -11,14 +11,15 @@ namespace Projetos___4.Domain.Service
         private readonly IProgrammingRepository _programmingRepository;
         private readonly IUserRepository _userRepository;
         private readonly IHostRepository _hostRepository;
+        private readonly IGeocodingService _geocodingService;
         private readonly ICategoryRepository _categoryRepository;
 
-
-        public ProgrammingService(IProgrammingRepository programmingRepository, IUserRepository userRepository, IHostRepository hostRepository, ICategoryRepository categoryRepository)
+        public ProgrammingService(IProgrammingRepository programmingRepository, IUserRepository userRepository, IHostRepository hostRepository, ICategoryRepository categoryRepository, IGeocodingService geocodingService)
         {
             _programmingRepository = programmingRepository;
             _userRepository = userRepository;
             _hostRepository = hostRepository;
+            _geocodingService = geocodingService;
             _categoryRepository = categoryRepository;
         }
         public Task<Programming?> GetByIdAsync(int programmingId)
@@ -84,6 +85,14 @@ namespace Projetos___4.Domain.Service
                 return null;
             }
 
+            var address = new GeocodingAddress(programming.Address, programming.AddressNumber, programming.Neighborhood, programming.CEP);
+            var currentAddress = new GeocodingAddress(existing.Address, existing.AddressNumber, existing.Neighborhood, existing.CEP);
+            var location = existing.Location;
+            if (location == null || address != currentAddress)
+            {
+                location = await _geocodingService.GeocodeAsync(address);
+            }
+
             var currentCategories = await _categoryRepository.GetAllCategoriesbyProgrammingId(existing.Id);
             var currentCategoryIds = currentCategories.Select(category => category.Id).ToHashSet();
             var desiredCategoryIds = links.Select(link => link.CategoryId).ToHashSet();
@@ -96,8 +105,11 @@ namespace Projetos___4.Domain.Service
             existing.EndDate = programming.EndDate;
             existing.IsFree = programming.IsFree;
             existing.Address = programming.Address;
+            existing.AddressNumber = programming.AddressNumber;
+            existing.AddressComplement = programming.AddressComplement;
             existing.Neighborhood = programming.Neighborhood;
             existing.CEP = programming.CEP;
+            existing.Location = location;
             existing.ImageUrl = programming.ImageUrl;
             existing.TicketUrl = programming.TicketUrl;
             existing.InstagranUrl = programming.InstagranUrl;
@@ -117,6 +129,8 @@ namespace Projetos___4.Domain.Service
            {
                 throw new InvalidOperationException("Esse usuário não é o dono do host ativo para este programa.");
            }
+
+           programming.Location = await _geocodingService.GeocodeAsync(new GeocodingAddress(programming.Address, programming.AddressNumber, programming.Neighborhood, programming.CEP));
 
            return await _programmingRepository.CreateWithCategoriesAsync(programming, links);
         }

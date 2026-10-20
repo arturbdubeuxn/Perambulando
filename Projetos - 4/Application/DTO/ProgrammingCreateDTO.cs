@@ -1,4 +1,4 @@
-﻿using Projetos___4.Domain.Model;
+using Projetos___4.Domain.Model;
 using System.ComponentModel.DataAnnotations;
 
 namespace Projetos___4.Application.DTO
@@ -17,8 +17,11 @@ namespace Projetos___4.Application.DTO
         public bool IsFree { get; set; }
         [Required]
         public string Address { get; set; } = string.Empty;
-        [Required]
-        public string Neighborhood { get; set; } = string.Empty;
+        [Required, MaxLength(20)]
+        public string AddressNumber { get; set; } = string.Empty;
+        [MaxLength(200)]
+        public string AddressComplement { get; set; } = string.Empty;
+        public string? Neighborhood { get; set; } = string.Empty;
         [Required]
         public string CEP { get; set; } = string.Empty;
         public string ImageUrl { get; set; } = string.Empty;

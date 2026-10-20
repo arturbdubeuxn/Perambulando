@@ -1,6 +1,6 @@
 # Entidades e models
 
-Perambulando | Atualização: 18/10/2026
+Perambulando | Atualização: 19/10/2026
 
 As cinco entidades de negócio ficam em `Domain/Model`. Entidades representam o domínio e a persistência; DTOs representam entradas e saídas HTTP. Nem toda propriedade herdada de Identity é persistida, e nem todo campo da entidade é exposto nos DTOs.
 
@@ -33,8 +33,11 @@ Cada host pertence a um usuário; o mesmo usuário pode ter vários hosts. Não 
 | LogoUrl | string | Vazia inicialmente |
 | InstagranUrl | string | Vazia inicialmente; grafia atual |
 | Address | string | Endereço do host |
+| AddressNumber | string | Vazio inicialmente; até 20 caracteres; aceita s/n ou alfanumérico |
+| AddressComplement | string | Vazio inicialmente; até 200 caracteres |
 | Neighborhood | string | Bairro |
 | CEP | string | Código postal |
+| Location | Point? | Coordenada opcional do host; JsonIgnore |
 | Phone | string | Contato |
 | Name | string | Nome do estabelecimento |
 | Description | string | Descrição |
@@ -59,6 +62,9 @@ Uma programação pertence a um host. Endereço e preços são próprios, podend
 | StartDate / EndDate | DateTime | Intervalo do evento |
 | IsFree | bool | Gratuidade; false se não definido |
 | Address / Neighborhood / CEP | string | Localização específica |
+| AddressNumber | string | Número específico do evento; vazio inicialmente; até 20 caracteres |
+| AddressComplement | string | Complemento do evento; vazio inicialmente; até 200 caracteres |
+| Location | Point? | Coordenada própria da programação; JsonIgnore |
 | ImageUrl | string | Imagem informada por URL |
 | TicketUrl | string | Link informado para ingressos/reserva |
 | InstagranUrl | string | Link de Instagram; grafia atual |
@@ -98,6 +104,12 @@ O par ProgrammingId/CategoryId não é chave composta nem tem índice único no 
 
 ## 6. Persistência, validação e exposição
 
+Location usa NetTopologySuite.Geometries.Point e é mapeada em geography(Point,4326), com índice GiST. X é longitude e Y é latitude. O serviço de geocodificação utiliza new Point(longitude, latitude) com SRID = 4326. A geocodificação automática está integrada no cadastro e na edição e depende da chave do provedor. Os registros anteriores permanecem com Location NULL.
+
+Número e complemento foram adicionados nas duas entidades, com nomes AddressNumber e AddressComplement (grafia corrigida de Adrress). São strings, sem validações cruzadas no model; os limites 20/200 estão nos DTOs de entrada e na configuração EF. São não nulos no banco, mas aceitam vazio, preservando cadastros antigos. A migration foi aplicada sem reescrever Address. Todos os mapeamentos de criação/edição/detalhes foram atualizados.
+
+JsonIgnore mantém o Point fora dos retornos que serializam entidades. A futura saída para o mapa pode expor latitude e longitude em DTO, mas esse contrato ainda não foi adicionado. A migration de localização já foi aplicada no banco local, com os registros preservados.
+
 - Configurações EF limitam colunas e definem nulidade, não substituem validação de formulário.
 - Strings não anuláveis podem ser vazias; isso não significa que o cadastro deva aceitar conteúdo vazio por regra de negócio.
 - Regras cruzadas de datas e preços estão nos controllers, não em Validate nas entidades.
@@ -116,3 +128,11 @@ User (conta)
 ```
 
 O ID do host não é o ID do usuário. O frontend seleciona qual host será usado, mas o serviço sempre precisa verificar se o dono é o usuário do token.
+
+Bairro (`neighborhood`) é opcional no cadastro e na edição de hosts e programações. O campo pode ser omitido, vazio ou nulo; o app service converte nulo em string vazia antes da persistência. As entidades e colunas permanecem não anuláveis, sem necessidade de migration. No PUT, omitir o bairro remove o valor anterior (salva vazio).
+
+## Geocodificação via Geoapify — 19/10/2026
+
+GeocodingAddress é um record interno com Street, Number, Neighborhood anulável e PostalCode; não é entidade EF nem tabela. GeocodingException diferencia endereço não resolvido de indisponibilidade do serviço. Location em Hosts e Programming é preenchida por IGeocodingService como Point(longitude, latitude), SRID 4326; permanece anulável para registros anteriores e com JsonIgnore. Não foram alteradas as entidades persistidas nesta etapa.
+
+Veja a [configuração e os critérios da integração](README.md). Validação: build sem erros (três avisos CS8618 preexistentes), 63 verificações com HTTP/repositórios simulados e 17 testes do protótipo. Consulta HTTPS real ao Geoapify validada em 19/10/2026, com resultado building no Brasil e confiança 1. A chave foi configurada em Geoapify__ApiKey no ambiente do usuário Windows, sem inclusão nos arquivos. O fluxo completo via API/banco ainda precisa ser exercitado após reiniciar o processo que inicia a aplicação. PDFs não regenerados.
