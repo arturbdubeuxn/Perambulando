@@ -1,6 +1,6 @@
 # Banco de dados
 
-Perambulando | Atualização: 19/10/2026
+Perambulando | Atualização: 20/10/2026
 
 Base: Data/Context/Context.cs, Data/Configurations, migrations e ContextModelSnapshot. A migration de localização foi aplicada ao banco local em 19/10/2026, após backup e conferência do histórico anterior. As alterações de código estão na branch Artur-Desktop.
 
@@ -143,3 +143,12 @@ Bairro (`neighborhood`) é opcional no cadastro e na edição de hosts e program
 A integração Geoapify preenche Location com Point(longitude, latitude), SRID 4326, usando as colunas geography existentes. Nenhuma migration ou alteração de esquema foi necessária. Cadastro/edição só persiste após sucesso da geocodificação. Registros anteriores não foram modificados: Location nula será preenchida na próxima edição válida, mesmo sem mudança de endereço. Não houve gravação no banco real nos testes desta etapa. Consulta por proximidade permanece pendente.
 
 Veja a [configuração e os critérios da integração](README.md). Validação: build sem erros (três avisos CS8618 preexistentes), 63 verificações com HTTP/repositórios simulados e 17 testes do protótipo. Consulta HTTPS real ao Geoapify validada em 19/10/2026, com resultado building no Brasil e confiança 1. A chave foi configurada em Geoapify__ApiKey no ambiente do usuário Windows, sem inclusão nos arquivos. O fluxo completo via API/banco ainda precisa ser exercitado após reiniciar o processo que inicia a aplicação. PDFs não regenerados.
+
+
+## UserXCategories — 20/10/2026
+
+A migration 20261020121359_AddUserXCategories cria UserXCategories com Id inteiro identity (PK), UserId text não nulo, CategoryId inteiro não nulo, CreatedAt/UpdatedAt timestamptz não nulos. Há FKs para Users e Categories com cascade e índices separados em UserId e CategoryId. Não existe índice único para o par (UserId, CategoryId).
+
+A atualização do protótipo não gerou nem aplicou migrations. A verificação EF has-pending-model-changes retornou que não houve alterações no modelo desde a última migration; isso não confirma que a migration já foi aplicada ao banco conectado. O cadastro/consulta de interesses depende de UserXCategories existir no banco. Nenhum registro real foi alterado nos testes.
+
+Validação desta etapa: build concluído sem erros (sete avisos CS8618 na compilação completa); node --check em public/app.js e catalog.mjs; 22 testes aprovados com API simulada, incluindo array JSON na raiz, JWT, seleção de categorias, lista vazia e detalhes das sugestões. Corpos JSON do .http validados com variáveis substituídas. Não houve teste CRUD no banco real, aplicação de migration ou regeneração de PDFs.

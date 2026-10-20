@@ -1,4 +1,4 @@
-# Perambulando — Documentação dos endpoints
+﻿# Perambulando — Documentação dos endpoints
 
 Conferido em 19/10/2026 a partir dos controllers, DTOs e serviços salvos do projeto. Os campos de endereço foram verificados por testes offline e a migration aplicada ao banco local, sem cadastrar/excluir registros para testar as actions.
 
@@ -33,6 +33,7 @@ Conferido em 19/10/2026 a partir dos controllers, DTOs e serviços salvos do pro
 | Programming | PUT | `/api/Programming/{hostId}/Edit/{Programmingid}` | ADMIN ou HOST e dono do host |
 | Programming | PATCH | `/api/Programming/{hostId}/Delete/{programmingId}` | ADMIN ou HOST e dono do host |
 | Category | GET | `/api/Category/GetallCategories` | Público |
+| Category | PUT | `/api/Category/EditCategoryToUser` | Autenticado |
 
 ## UserController
 
@@ -302,7 +303,7 @@ O frontend pode remover o token ao sair. Não existe endpoint de logout ou refre
 
 ## Diferença encontrada no arquivo de testes
 
-O arquivo `Projetos - 4.http` ainda contém `GET /api/Programming/{hostId}/GetAllProgrammingsbyHostId`, mas essa action não está no `ProgrammingController` salvo atualmente. Portanto, ela não integra os 15 endpoints documentados. A função existe nas camadas internas e é usada para listar programações dentro do perfil do host. Esta documentação não altera nem recria a action.
+O arquivo `Projetos - 4.http` ainda contém `GET /api/Programming/{hostId}/GetAllProgrammingsbyHostId`, mas essa action não está no `ProgrammingController` salvo atualmente. Portanto, ela não integra os 18 endpoints atuais. A função existe nas camadas internas e é usada para listar programações dentro do perfil do host. Esta documentação não altera nem recria a action.
 
 ## Fontes consultadas
 
@@ -341,3 +342,50 @@ A pedido do usuário, foi retirada a restrição temporária por estado: as cons
 Protótipo e comentários do .http foram ajustados. Os exemplos podem continuar usando endereços de Pernambuco, mas não representam limite de cobertura. Sem alterações em DTOs, endpoints, autorização, entidades ou banco. PDFs preservados.
 
 Validação da retirada da restrição: compilação sem erros (três avisos CS8618 preexistentes), 10 verificações simuladas aprovadas (PE/CE/SP, ausência de estado fixo nas duas modalidades de consulta e manutenção de país/CEP/estado identificável), 17 testes do protótipo aprovados e sintaxe JavaScript verificada. Nenhuma nova consulta real ao Geoapify nem gravação no banco nesta retirada.
+
+
+## Categorias de interesse do usuário — 20/10/2026
+
+| Método e rota | Autorização | Corpo | Retorno de sucesso |
+|---|---|---|---|
+| POST /api/Category/AddCategoryToUser | JWT de qualquer usuário autenticado | Array JSON direto, por exemplo [1, 2] | 200 com {"message":"Categorias adicionadas com sucesso."} |
+| GET /api/Programming/GetUserProgrammingPreferences | JWT de qualquer usuário autenticado | Sem corpo | 200 com lista de Programming; [] é válido |
+
+O usuário é identificado por sub do JWT. Não enviar userId nem objeto {categoryIds:[...]}. O controller monta UserXCategoryDTO internamente. O POST adiciona vínculos e não substitui os anteriores. O GET devolve programações ativas de hosts ativos com ao menos uma categoria ativa de interesse, sem repetição e ordenadas por StartDate. Não é uma consulta da lista de categorias do usuário.
+
+A falta de autenticação é tratada pelo middleware (401). No POST, a implementação atual lança exceções para lista vazia, categoria inexistente etc. sem tratamento específico no controller: pode retornar 500. Repetições dentro do mesmo envio são removidas, mas vínculos já existentes não são deduplicados. Os exemplos usam IDs ativos e indicam essa limitação. O protótipo mostra sugestões com acesso aos detalhes públicos.
+
+Foram adicionadas addCategoryToUser, userPreferences e userPreferencesAfterProgramming no .http. As duas primeiras usam login.accessToken; a última reaproveita createHost.auth.accessToken após criar/editar uma programação. Não exige novo login só para consultar sugestões.
+
+Validação desta etapa: build concluído sem erros (sete avisos CS8618 na compilação completa); node --check em public/app.js e catalog.mjs; 22 testes aprovados com API simulada, incluindo array JSON na raiz, JWT, seleção de categorias, lista vazia e detalhes das sugestões. Corpos JSON do .http validados com variáveis substituídas. Não houve teste CRUD no banco real, aplicação de migration ou regeneração de PDFs.
+
+
+## Reorganização das preferências — 20/10/2026
+
+| Controller | Método/rota atual | Entrada | Saída |
+|---|---|---|---|
+| Category | POST /api/Category/AddCategoryToUser | JWT; array [1,2] | 200 com mensagem |
+| Category | GET /api/Category/GetUserCategoriesPreferences | JWT; sem corpo | 200 com array de Category, inclusive [] |
+| Programming | GET /api/Programming/GetUserProgrammingPreferences | JWT; sem corpo | 200 com array de Programming, inclusive [] |
+
+As três operações exigem login sem restrição de role. O usuário continua vindo do JWT. As antigas rotas de interesses do UserController foram removidas. O novo GET de categorias percorre CategoryAppService -> CategoryService -> CategoryRepository e retorna categorias vinculadas, distintas e ordenadas por ID; a consulta atual não filtra IsActive. O GET público GetallCategories continua retornando somente categorias ativas. Portanto, a listagem das preferências não deve substituir o catálogo de categorias ativas do formulário.
+
+O protótipo separa as operações por controller: área Categorias para salvar/consultar interesses e área Programações para sugestões. Categorias salvas são mostradas como categorias; sugestões continuam abrindo detalhes públicos. Mantidos JWT, seleção por checkbox e IDs da sessão. A antiga requisição inexistente de listagem por host foi substituída por uma consulta do perfil do host e seu campo programmings. Nenhuma action nova foi criada nesta etapa.
+
+Correções necessárias para execução: reposicionado GetUserProgrammingPreferences para fora de Create (CS0106); acrescentado await no GET de categorias antes de Ok(); alinhados os contratos e implementações de GetAllCategoriesPrefereces para Task<IEnumerable<Category>> não anulável, acompanhando o repositório (CS0738). Foram preservadas as demais mudanças do usuário. Sem alterações em Program.cs, entidades, migrações ou banco. PDFs preservados.
+
+Validação da reorganização: build sem erros (sete avisos CS8618 preexistentes); 24 testes do protótipo com API simulada aprovados; oito verificações temporárias de controllers com serviços simulados aprovadas (espera da Task, retorno de listas, lista vazia, JWT sem usuário e GET de sugestões). Verificados métodos, URLs, autenticação e JSON das 21 requisições .http, cobrindo as 18 actions atuais. Nenhuma migration aplicada nem dado real alterado nos testes.
+
+
+## Endpoint de edição de interesses — 20/10/2026
+
+PUT /api/Category/EditCategoryToUser exige JWT, sem role HOST. O usuário vem exclusivamente do JWT. Corpo JSON: array de IDs, por exemplo [2,3]; é a seleção completa desejada. Mantém vínculos em comum, remove ausentes e inclui novos. Retorna 200 com todos os UserXCategory do usuário após salvar, ordenados por CategoryId/Id, incluindo IDs, UserId, CategoryId e datas. O retorno representa vínculos, não Category nem Programming.
+
+Seleção vazia/nula ou ID <= 0 retorna 400; JSON inválido é tratado pelo ApiController. Token ausente/inválido/expirado ou usuário não identificado retorna 401. Categorias positivas inexistentes ainda falham pela FK sem resposta controlada específica; não foi implementada validação de status ativo ou saneamento de duplicidades anteriores. O repositório mantém a gravação conjunta das diferenças.
+
+O .http inclui edição e conferência das categorias após editar. O protótipo oferece Editar categorias de interesse, botão Carregar interesses atuais, seleção de categorias ativas, envio do array completo e apresentação dos vínculos retornados com seus IDs. Preserva JWT e IDs de host/programação. A action foi adicionada para tornar o fluxo acessível; o inventário atual contém 19 actions.
+
+Validação: build GeoLocation sem erros (sete avisos CS8618 preexistentes); node --check em app.js e catalog.mjs; 27 testes do protótipo com API simulada aprovados; 13 verificações temporárias de service/controller com repositórios simulados aprovadas. API iniciou em Staging com a conexão de desenvolvimento carregada no ambiente do processo, evitando MigrateAsync automático. PUT sem JWT retornou 401; GET público de categorias retornou 200 com 12 categorias. Catálogo e app.js servidos em 127.0.0.1:5173 conferidos com a nova rota. Nenhum PDF foi regenerado.
+
+
+Validação adicional no PostgreSQL — 20/10/2026: oito verificações com Context, CategoryRepository e UserXCategoryRepository reais aprovadas dentro de transação revertida. Cobriram retorno completo com IDs gerados, preservação de vínculo/data, exclusão pelo ID real, deduplicação da entrada, isolamento entre usuários, seleção idêntica, rollback automático da gravação em falha de FK e remoção de todos os registros temporários pelo rollback final. Verificadas zero migrations pendentes; nenhuma migration aplicada. Não foram alterados registros existentes.

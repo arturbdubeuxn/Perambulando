@@ -5,5 +5,6 @@ namespace Projetos___4.Domain.Interfaces.Service
     public interface IUserXCategoryService
     {
         Task<UserXCategory?> AddAsync(UserXCategory userXCategory);
+        Task<List<UserXCategory>> EditAsync(string userId, IReadOnlyCollection<UserXCategory> userCategories);
     }
 }

@@ -250,5 +250,20 @@ namespace Projetos___4.Presentation.Controllers
                 return Problem(statusCode: StatusCodes.Status400BadRequest, title: "Dados inválidos", detail: ex.Message);
             }
         }
+
+        [Authorize]
+        [HttpGet("GetUserProgrammingPreferences")]
+        public async Task<IActionResult> GetUserProgrammingPreferences()
+        {
+            var userId = _userManager.GetUserId(User);
+            if (string.IsNullOrWhiteSpace(userId))
+            {
+                return Problem(statusCode: StatusCodes.Status401Unauthorized,
+                    title: "Usuário não autenticado");
+            }
+
+            var programmings = await _programmingAppService.GetAllProgrammingsByUserCategoriesAsync(userId);
+            return Ok(programmings);
+        }
     }
 }

@@ -128,5 +128,10 @@ namespace Projetos___4.Application.AppServices
 
             return await _programmingService.CreateProgrammingAsync(programming, links, userId);
         }
+
+        public Task<List<Programming>> GetAllProgrammingsByUserCategoriesAsync(string userId)
+        {
+            return _programmingService.GetAllProgrammingsByUserCategories(userId);
+        }
     }
 }

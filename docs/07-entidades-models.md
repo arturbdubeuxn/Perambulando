@@ -1,6 +1,6 @@
 # Entidades e models
 
-Perambulando | Atualização: 19/10/2026
+Perambulando | Atualização: 20/10/2026
 
 As cinco entidades de negócio ficam em `Domain/Model`. Entidades representam o domínio e a persistência; DTOs representam entradas e saídas HTTP. Nem toda propriedade herdada de Identity é persistida, e nem todo campo da entidade é exposto nos DTOs.
 
@@ -136,3 +136,12 @@ Bairro (`neighborhood`) é opcional no cadastro e na edição de hosts e program
 GeocodingAddress é um record interno com Street, Number, Neighborhood anulável e PostalCode; não é entidade EF nem tabela. GeocodingException diferencia endereço não resolvido de indisponibilidade do serviço. Location em Hosts e Programming é preenchida por IGeocodingService como Point(longitude, latitude), SRID 4326; permanece anulável para registros anteriores e com JsonIgnore. Não foram alteradas as entidades persistidas nesta etapa.
 
 Veja a [configuração e os critérios da integração](README.md). Validação: build sem erros (três avisos CS8618 preexistentes), 63 verificações com HTTP/repositórios simulados e 17 testes do protótipo. Consulta HTTPS real ao Geoapify validada em 19/10/2026, com resultado building no Brasil e confiança 1. A chave foi configurada em Geoapify__ApiKey no ambiente do usuário Windows, sem inclusão nos arquivos. O fluxo completo via API/banco ainda precisa ser exercitado após reiniciar o processo que inicia a aplicação. PDFs não regenerados.
+
+
+## UserXCategory — 20/10/2026
+
+Entidade de vínculo de interesses do usuário: Id (int), UserId (string), User (navegação), CategoryId (int), Category (navegação), CreatedAt/UpdatedAt (DateTime inicializados em UTC). Cada registro liga um usuário a uma categoria. Context expõe UserXCategories e a configuração define a tabela com esse nome. A migration usa relacionamentos por convenção e FKs para Users/Categories.
+
+As navegações User/Category e UserId ainda geram avisos CS8618 por falta de inicialização. Esta atualização não modificou a entidade. Os retornos das programações sugeridas usam a entidade Programming; o protótipo lê seus IDs e abre os detalhes públicos sem presumir propriedade do evento.
+
+Validação desta etapa: build concluído sem erros (sete avisos CS8618 na compilação completa); node --check em public/app.js e catalog.mjs; 22 testes aprovados com API simulada, incluindo array JSON na raiz, JWT, seleção de categorias, lista vazia e detalhes das sugestões. Corpos JSON do .http validados com variáveis substituídas. Não houve teste CRUD no banco real, aplicação de migration ou regeneração de PDFs.

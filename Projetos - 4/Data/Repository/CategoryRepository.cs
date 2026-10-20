@@ -32,7 +32,7 @@ namespace Projetos___4.Data.Repository
                 .ToListAsync();
         }
 
-        public async Task<List<Category>> GetAllCategoriesbyUserId(string userId)
+        public async Task<IEnumerable<Category>> GetAllCategoriesbyUserId(string userId)
         {
             return await Db.UserXCategories
                 .AsNoTracking()

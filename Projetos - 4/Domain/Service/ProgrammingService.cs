@@ -142,11 +142,11 @@ namespace Projetos___4.Domain.Service
                 return new List<Programming>();
             }
 
-            List<Category> userCategories = await _categoryRepository.GetAllCategoriesbyUserId(userId);
+            IEnumerable<Category> userCategories = await _categoryRepository.GetAllCategoriesbyUserId(userId);
 
             List<int> userCategoryIds = userCategories.Select(c => c.Id).ToList();
 
-            if (userCategories == null || userCategories.Count == 0)
+            if (userCategories == null)
             {
                 return new List<Programming>();
             }

@@ -1,4 +1,4 @@
-@Projetos___4_HostAddress = http://localhost:5014
+﻿@Projetos___4_HostAddress = http://localhost:5014
 @nome = Maria
 @email = maria@gmail.com
 @senha = SenhaForte123@!
@@ -152,9 +152,54 @@ Authorization: Bearer {{createHost.response.body.$.auth.accessToken}}
 GET {{Projetos___4_HostAddress}}/api/Category/GetallCategories
 Accept: application/json
 
+### CATEGORY - Adicionar categorias de interesse (200)
+# Execute login e getallCategories antes. Ajuste os IDs no início do arquivo.
+# Envie um array JSON direto, sem objeto categoryIds e sem userId; o usuário vem do JWT.
+# A operação adiciona vínculos; não substitui a seleção anterior. Evite reenviar categorias já salvas.
+# @name addCategoryToUser
+POST {{Projetos___4_HostAddress}}/api/Category/AddCategoryToUser
+Content-Type: application/json
+Accept: application/json
+Authorization: Bearer {{login.response.body.$.accessToken}}
+
+[{{CategoryId}}, {{EditCategoryId}}]
+
+### CATEGORY - Consultar minhas categorias de interesse (200, inclusive [])
+# Execute login antes. Retorna a lista de categorias salvas, não programações.
+# Pode executar antes de adicionar interesses para verificar a lista vazia.
+# @name userCategoriesPreferences
+GET {{Projetos___4_HostAddress}}/api/Category/GetUserCategoriesPreferences
+Accept: application/json
+Authorization: Bearer {{login.response.body.$.accessToken}}
+
+### CATEGORY - Editar categorias de interesse (200 com todos os vínculos atualizados)
+# Execute login e consulte GetallCategories para escolher IDs existentes.
+# Envie a seleção completa desejada: ausentes serão removidos; repetidos são ignorados.
+# @name editUserCategories
+PUT {{Projetos___4_HostAddress}}/api/Category/EditCategoryToUser
+Content-Type: application/json
+Accept: application/json
+Authorization: Bearer {{login.response.body.$.accessToken}}
+
+[{{EditCategoryId}}]
+
+### CATEGORY - Conferir interesses após editar (200)
+# @name userCategoriesAfterEdit
+GET {{Projetos___4_HostAddress}}/api/Category/GetUserCategoriesPreferences
+Accept: application/json
+Authorization: Bearer {{login.response.body.$.accessToken}}
+
 # ============================================================
 # PROGRAMMING
 # ============================================================
+
+### PROGRAMMING - Programações pelas categorias de interesse (200)
+# Execute addCategoryToUser antes. Uma lista vazia é válida quando não houver correspondências.
+# Retorna programações, não a lista de categorias do usuário. Não exige role HOST.
+# @name userPreferences
+GET {{Projetos___4_HostAddress}}/api/Programming/GetUserProgrammingPreferences
+Accept: application/json
+Authorization: Bearer {{login.response.body.$.accessToken}}
 
 ### PROGRAMMING - Criar programação (201 com id e Location)
 # Execute createHost e getallCategories antes. Usa o JWT atualizado do host.
@@ -183,10 +228,11 @@ Authorization: Bearer {{createHost.response.body.$.auth.accessToken}}
   "categoryIds": [{{CategoryId}}]
 }
 
-### PROGRAMMING - Listar programações ativas do host (200, inclusive [])
-# Execute createHost antes. Pode executar antes da criação para verificar a lista vazia.
-# @name getAllProgrammingsbyHostId
-GET {{Projetos___4_HostAddress}}/api/Programming/{{createHost.response.body.$.host.id}}/GetAllProgrammingsbyHostId
+### HOST - Conferir programações pelo perfil do host (200)
+# A antiga action /api/Programming/{hostId}/GetAllProgrammingsbyHostId não existe.
+# O perfil do host retorna suas programações no campo programmings.
+# @name hostDetailsAfterProgramming
+GET {{Projetos___4_HostAddress}}/api/Host/Details/{{createHost.response.body.$.host.id}}
 Accept: application/json
 Authorization: Bearer {{createHost.response.body.$.auth.accessToken}}
 
@@ -230,6 +276,13 @@ Authorization: Bearer {{createHost.response.body.$.auth.accessToken}}
 # @name programmingDetailsAfterEdit
 GET {{Projetos___4_HostAddress}}/api/Programming/Details/{{editProgramming.response.body.$.id}}
 Accept: application/json
+
+### PROGRAMMING - Conferir sugestões após criar/editar a programação (200)
+# As categorias de interesse precisam corresponder a pelo menos uma categoria da programação.
+# @name userPreferencesAfterProgramming
+GET {{Projetos___4_HostAddress}}/api/Programming/GetUserProgrammingPreferences
+Accept: application/json
+Authorization: Bearer {{createHost.response.body.$.auth.accessToken}}
 
 # ============================================================
 # LIMPEZA - executar somente depois de concluir as consultas e edições

@@ -50,6 +50,33 @@ namespace Projetos___4.Application.AppServices
 
             return results;
         }
+
+        public async Task<List<UserXCategory>> EditCategoryToUserAsync(UserXCategoryDTO dto)
+        {
+            if (dto == null)
+            {
+                throw new ArgumentNullException(nameof(dto));
+            }
+
+            if (dto.CategoryIds == null || dto.CategoryIds.Count == 0)
+            {
+                throw new ArgumentException("Selecione pelo menos uma categoria.");
+            }
+
+            var links = new List<UserXCategory>();
+
+            foreach (var categoryId in dto.CategoryIds.Distinct())
+            {
+                links.Add(new UserXCategory
+                {
+                    UserId = dto.UserId,
+                    CategoryId = categoryId,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                });
+            }
+
+            return await _userXCategoryService.EditAsync(dto.UserId, links);
+        }
     }
 }
-
