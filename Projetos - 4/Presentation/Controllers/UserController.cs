@@ -7,6 +7,7 @@ using Projetos___4.Domain.Model;
 using Projetos___4.Application.DTO;
 using Projetos___4.Application.Interfaces;
 using Projetos___4.Domain.Service;
+using Projetos___4.Application.AppServices;
 
 namespace Projetos___4.Presentation.Controllers
 {
@@ -19,12 +20,15 @@ namespace Projetos___4.Presentation.Controllers
         private readonly JwtTokenService _tokenService;
         private readonly SignInManager<User> _signInManager;
 
-        public UserController(UserManager<User> userManager, IUserAppService userAppService, JwtTokenService tokenService, SignInManager<User> signInManager)
+        private readonly IUserXCategoryAppService _userXCategoryAppService;
+
+        public UserController(UserManager<User> userManager, IUserAppService userAppService, JwtTokenService tokenService, SignInManager<User> signInManager, IUserXCategoryAppService userXCategoryAppService)
         {
             _userManager = userManager;
             _userAppService = userAppService;
             _tokenService = tokenService;
             _signInManager = signInManager;
+            _userXCategoryAppService = userXCategoryAppService;
         }
         [HttpPost("auth/Register")]
         public async Task<IActionResult> Register([FromBody] UserRegisterDTO dto)
@@ -69,11 +73,7 @@ namespace Projetos___4.Presentation.Controllers
             }
 
             return Ok(await _tokenService.CreateAsync(existingUser));
-
-
-
         }
-
 
         [Authorize]
         [HttpGet("Profile")]
@@ -171,6 +171,32 @@ namespace Projetos___4.Presentation.Controllers
             }
 
             return NoContent();
+        }
+        [Authorize]
+        [HttpPost("AddCategoryToUser")]
+        public async Task<IActionResult> AddCategoryToUser(List<int> categoryIds)
+        {
+            var userId = _userManager.GetUserId(User);
+            if (string.IsNullOrWhiteSpace(userId))
+            {
+                return Problem(statusCode: StatusCodes.Status401Unauthorized,
+                    title: "Usuário não autenticado");
+            }
+
+            var dto = new UserXCategoryDTO
+            {
+                UserId = userId,
+                CategoryIds = categoryIds
+            };
+
+            var result = await _userXCategoryAppService.AddCategoryToUserAsync(dto);
+            if (result == null)
+            {
+                return Problem(statusCode: StatusCodes.Status400BadRequest,
+                    title: "Erro ao adicionar categoria",
+                    detail: "Não foi possível adicionar a categoria ao usuário.");
+            }
+            return Ok(new { message = "Categorias adicionadas com sucesso." });
         }
     }
 }
