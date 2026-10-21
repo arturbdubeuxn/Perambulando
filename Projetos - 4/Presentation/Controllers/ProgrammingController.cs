@@ -129,6 +129,11 @@ namespace Projetos___4.Presentation.Controllers
                     title: "Categorias inválidas", detail: "Informe IDs de categorias positivos e sem repetição.");
             }
 
+            if (dto.Address == null && dto.AddressId <= 0)
+            {
+                return Problem(statusCode: StatusCodes.Status400BadRequest, title: "Endereço inválido", detail: "O endereço é obrigatório.");
+            }
+
             try
             {
                 var result = await _programmingAppService.EditProgrammingAsync(dto, Programmingid, hostId, userId);
@@ -218,6 +223,11 @@ namespace Projetos___4.Presentation.Controllers
             if (dto.MinPrice > dto.MaxPrice)
             {
                 return Problem(statusCode: StatusCodes.Status400BadRequest, title: "Dados inválidos", detail: "O preço mínimo não pode ser maior que o preço máximo.");
+            }
+
+            if (dto.Address == null && dto.AddressId <= 0)
+            {
+                return Problem(statusCode: StatusCodes.Status400BadRequest, title: "Endereço inválido", detail: "O endereço é obrigatório.");
             }
 
             try

@@ -54,6 +54,9 @@ builder.Services.AddHttpClient<IGeocodingService, GeoapifyGeocodingService>(clie
   .RemoveAllLoggers();
 
 // INJEÇÃO DE DEPENDÊNCIAS
+builder.Services.AddScoped<IAddressRepository, AddressRepository>();
+builder.Services.AddScoped<IAddressService, AddressService>();
+builder.Services.AddScoped<IAddressAppService, AddressAppService>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IUserAppService, UserAppService>();
 builder.Services.AddScoped<JwtTokenService>();
@@ -120,6 +123,10 @@ if (app.Environment.IsDevelopment())
             "`dotnet ef migrations add InitialCreate --output-dir \"4 - Data/Migrations\"`.");
     }
 
+    if (context.Database.HasPendingModelChanges())
+    {
+        throw new InvalidOperationException("Há alterações de modelo aguardando revisão. Revise a refatoração de Address antes de gerar e aplicar a migration.");
+    }
     await context.Database.MigrateAsync();
 }
 

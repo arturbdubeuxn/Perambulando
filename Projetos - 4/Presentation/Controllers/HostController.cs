@@ -65,6 +65,11 @@ namespace Projetos___4.Presentation.Controllers
                 return Problem(statusCode: StatusCodes.Status401Unauthorized, title: "Autenticação inválida", detail: "Usuário não encontrado ou inativo.");
             }
 
+            if (dto.Address == null && dto.AddressId <= 0)
+            {
+                return Problem(statusCode: StatusCodes.Status400BadRequest, title: "Endereço inválido", detail: "O endereço é obrigatório.");
+            }
+
             Hosts? result;
             try
             {
@@ -95,15 +100,7 @@ namespace Projetos___4.Presentation.Controllers
 
             var auth = await _tokenService.CreateAsync(user);
 
-            return StatusCode(StatusCodes.Status201Created, new
-            {
-                host = new HostCreatedDTO
-                {
-                    Id = result.Id,
-                    Name = result.Name
-                },
-                auth
-            });
+            return StatusCode(StatusCodes.Status201Created, new { result, auth });
         }
 
 
@@ -123,6 +120,11 @@ namespace Projetos___4.Presentation.Controllers
             {
                 return Problem(statusCode: StatusCodes.Status400BadRequest,
                     title: "Dados inválidos", detail: "O ID do host deve ser maior que zero.");
+            }
+
+            if (dto.Address == null && dto.AddressId <= 0)
+            {
+                return Problem(statusCode: StatusCodes.Status400BadRequest, title: "Endereço inválido", detail: "O endereço é obrigatório.");
             }
 
             Hosts? result;

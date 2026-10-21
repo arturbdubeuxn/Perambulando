@@ -10,11 +10,13 @@ namespace Projetos___4.Application.AppServices
     {
         private readonly IHostService _hostService;
         private readonly IProgrammingService _programmingService;
+        private readonly IAddressAppService _addressAppService;
 
-        public HostAppService(IHostService hostService, IProgrammingService programmingService)
+        public HostAppService(IHostService hostService, IProgrammingService programmingService, IAddressAppService addressAppService)
         {
             _hostService = hostService;
             _programmingService = programmingService;
+            _addressAppService = addressAppService;
         }
 
         public async Task<HostDetailsDTO?> GetByIdAsync(int hostId)
@@ -28,6 +30,8 @@ namespace Projetos___4.Application.AppServices
 
             var programmings = await _programmingService.GetAllProgrammingsbyHostId(hostId);
 
+            var address = host.Address;
+
             return new HostDetailsDTO
             {
                 Id = host.Id,
@@ -37,25 +41,36 @@ namespace Projetos___4.Application.AppServices
                 CNPJ = host.CNPJ,
                 LogoUrl = host.LogoUrl,
                 InstagranUrl = host.InstagranUrl,
-                Address = host.Address,
-                AddressNumber = host.AddressNumber,
-                AddressComplement = host.AddressComplement,
-                Neighborhood = host.Neighborhood,
-                CEP = host.CEP,
+                AddressId = host.AddressId,
+                Address = new AddressDetailsDTO
+                {
+                    Id = address.Id,
+                    Street = address.Street,
+                    Number = address.Number,
+                    Complement = address.Complement,
+                    Neighborhood = address.Neighborhood,
+                    CEP = address.CEP
+                },
                 Phone = host.Phone,
                 Programmings = programmings.Select(programming => new ProgrammingDetailsDTO
                 {
                     Id = programming.Id,
+                    HostId = programming.HostId,
                     Name = programming.Name,
                     Description = programming.Description,
                     StartDate = programming.StartDate,
                     EndDate = programming.EndDate,
                     IsFree = programming.IsFree,
-                    Address = programming.Address,
-                    AddressNumber = programming.AddressNumber,
-                    AddressComplement = programming.AddressComplement,
-                    Neighborhood = programming.Neighborhood,
-                    CEP = programming.CEP,
+                    AddressId = programming.AddressId,
+                    Address = new AddressDetailsDTO
+                    {
+                        Id = programming.Address.Id,
+                        Street = programming.Address.Street,
+                        Number = programming.Address.Number,
+                        Complement = programming.Address.Complement,
+                        Neighborhood = programming.Address.Neighborhood,
+                        CEP = programming.Address.CEP
+                    },
                     ImageUrl = programming.ImageUrl,
                     TicketUrl = programming.TicketUrl,
                     InstagranUrl = programming.InstagranUrl,
@@ -82,15 +97,23 @@ namespace Projetos___4.Application.AppServices
                 CNPJ = dto.CNPJ,
                 LogoUrl = dto.LogoUrl,
                 InstagranUrl = dto.InstagranUrl,
-                Address = dto.Address,
-                AddressNumber = dto.AddressNumber,
-                AddressComplement = dto.AddressComplement,
-                Neighborhood = dto.Neighborhood ?? string.Empty,
-                CEP = dto.CEP,
+                AddressId = dto.AddressId ?? 0,
                 Phone = dto.Phone,
                 Name = dto.Name,
                 Description = dto.Description,
             };
+
+            if (dto.Address != null)
+            {
+                host.Address = new Address
+                {
+                    Street = dto.Address.Street,
+                    Number = dto.Address.Number,
+                    Complement = dto.Address.Complement ?? string.Empty,
+                    Neighborhood = dto.Address.Neighborhood ?? string.Empty,
+                    CEP = dto.Address.CEP
+                };
+            }
 
             var result = await _hostService.Create(host, userId);
 
@@ -110,15 +133,23 @@ namespace Projetos___4.Application.AppServices
                 CNPJ = dto.CNPJ,
                 LogoUrl = dto.LogoUrl,
                 InstagranUrl = dto.InstagranUrl,
-                Address = dto.Address,
-                AddressNumber = dto.AddressNumber,
-                AddressComplement = dto.AddressComplement,
-                Neighborhood = dto.Neighborhood ?? string.Empty,
-                CEP = dto.CEP,
+                AddressId = dto.AddressId ?? 0,
                 Phone = dto.Phone,
                 Name = dto.Name,
                 Description = dto.Description
             };
+
+            if (dto.Address != null)
+            {
+                host.Address = new Address
+                {
+                    Street = dto.Address.Street,
+                    Number = dto.Address.Number,
+                    Complement = dto.Address.Complement ?? string.Empty,
+                    Neighborhood = dto.Address.Neighborhood ?? string.Empty,
+                    CEP = dto.Address.CEP
+                };
+            }
 
             return _hostService.EditHostAsync(host, userId);
         }

@@ -1,7 +1,4 @@
-﻿using NetTopologySuite.Geometries;
-using System.Text.Json.Serialization;
-
-namespace Projetos___4.Domain.Model
+﻿namespace Projetos___4.Domain.Model
 {
     public class Hosts
     {
@@ -18,23 +15,12 @@ namespace Projetos___4.Domain.Model
 
         public string InstagranUrl { get; set; } = string.Empty;
 
-        public string Address { get; set; } = string.Empty;
-
-        public string AddressNumber { get; set; } = string.Empty;
-
-        public string AddressComplement { get; set; } = string.Empty;
-
-        public string Neighborhood { get; set; } = string.Empty;
-
-        public string CEP { get; set; } = string.Empty;
-
-        [JsonIgnore]
-        public Point? Location { get; set; }
-
         public string Phone { get; set; } = string.Empty;
 
         public string Name { get; set; } = string.Empty;
         public string Description { get; set; } = string.Empty;
+        public Address Address { get; set; } = null!;
+        public int AddressId { get; set; }
         public bool IsActive { get; set; } = true;
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 

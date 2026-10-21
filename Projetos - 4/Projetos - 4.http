@@ -1,4 +1,5 @@
-﻿@Projetos___4_HostAddress = http://localhost:5014
+# ADDRESS: migration AddAddress aplicada em 21/10/2026. Banco atualizado; selecione AddressId ou envie um novo objeto Address.
+@Projetos___4_HostAddress = http://localhost:5014
 @nome = Maria
 @email = maria@gmail.com
 @senha = SenhaForte123@!
@@ -12,11 +13,11 @@
 # Aceita aproximação pelo nome da via e três primeiros dígitos do CEP. Bairro opcional; sem ViaCEP.
 # Sem candidato aceitável, tenta sem número; até duas consultas em 15 s no total.
 # Resultados apenas de bairro, CEP ou cidade continuam sendo recusados.
-# Troque os endereços fictícios abaixo por endereços reais do Brasil antes de cadastrar/editar.
+# Confira os dados do endereço de exemplo antes de cadastrar; prefira addressId para reutilizar.
 # Endereço não localizado/baixa precisão => 422; provedor indisponível/chave ausente => 503.
 # Edição sem mudança de endereço e com Location já preenchida não consulta o provedor.
-# neighborhood é opcional no create/edit de host e programação: pode ser omitido, null ou vazio.
-# No PUT, omitir neighborhood limpa o bairro anterior.
+# address.neighborhood é opcional no endereço novo: pode ser omitido, null ou vazio.
+# Nos quatro create/edit, envie exatamente addressId OU address (nunca os dois).
 # Fluxo: registerUser (conta nova) -> login -> createHost -> getallCategories
 # -> createProgrammingAfterHost -> consultas/edições -> limpeza no final do arquivo.
 # registerUser e login usam as mesmas credenciais acima.
@@ -78,11 +79,42 @@ Authorization: Bearer {{login.response.body.$.accessToken}}
 }
 
 # ============================================================
+# ADDRESS - busca autenticada de endereços cadastrados
+# ============================================================
+
+### ADDRESS - Buscar logradouro (200, até dez opções)
+# Execute login antes. A resposta é uma lista de AddressDetailsDTO.
+# Use o ID de uma opção escolhida em addressId; nunca envie address junto.
+# A API busca registros já cadastrados; esta consulta não chama a Geoapify.
+# @name searchAddress
+GET {{Projetos___4_HostAddress}}/api/Address/GetAllAddress?search=Cais
+Accept: application/json
+Authorization: Bearer {{login.response.body.$.accessToken}}
+
+### ADDRESS - Buscar pelo CEP (200)
+# @name searchAddressByCEP
+GET {{Projetos___4_HostAddress}}/api/Address/GetAllAddress?search=50030
+Accept: application/json
+Authorization: Bearer {{login.response.body.$.accessToken}}
+
+### ADDRESS - Menos de três caracteres retorna [] (200)
+# @name searchAddressTooShort
+GET {{Projetos___4_HostAddress}}/api/Address/GetAllAddress?search=Ca
+Accept: application/json
+Authorization: Bearer {{login.response.body.$.accessToken}}
+
+### ADDRESS - Sem busca retorna [] (200)
+# @name searchAddressEmpty
+GET {{Projetos___4_HostAddress}}/api/Address/GetAllAddress
+Accept: application/json
+Authorization: Bearer {{login.response.body.$.accessToken}}
+
+# ============================================================
 # HOST
 # ============================================================
 
-### HOST - Criar host e receber JWT atualizado (201 com host e auth)
-# Execute login antes. O ID do host fica em host.id; o JWT fica em auth.accessToken.
+### HOST - Criar host e receber JWT atualizado (201 com result e auth)
+# Execute login antes. O ID do host fica em result.id; o JWT fica em auth.accessToken.
 # @name createHost
 POST {{Projetos___4_HostAddress}}/api/Host/Create
 Content-Type: application/json
@@ -94,11 +126,13 @@ Authorization: Bearer {{login.response.body.$.accessToken}}
   "cnpj": "12.345.678/0001-90",
   "logoUrl": "https://example.com/logo.png",
   "instagranUrl": "https://www.instagram.com/host_teste",
-  "address": "Avenida Cais do Apolo",
-  "addressNumber": "77",
-  "addressComplement": "Entrada principal",
-  "neighborhood": "Bairro do Recife",
-  "cep": "50030-220",
+  "address": {
+    "street": "Avenida Cais do Apolo",
+    "number": "77",
+    "complement": "Entrada principal",
+    "neighborhood": "Bairro do Recife",
+    "cep": "50030-220"
+  },
   "phone": "(11) 99999-0000",
   "name": "Novo Host",
   "description": "Estabelecimento de teste da API."
@@ -115,14 +149,15 @@ Authorization: Bearer {{createHost.response.body.$.auth.accessToken}}
 # O controller atual exige autenticação nesta action.
 # Execute createHost antes. Antes de criar programações, programmings deve ser [].
 # @name hostDetails
-GET {{Projetos___4_HostAddress}}/api/Host/Details/{{createHost.response.body.$.host.id}}
+GET {{Projetos___4_HostAddress}}/api/Host/Details/{{createHost.response.body.$.result.id}}
 Accept: application/json
 Authorization: Bearer {{createHost.response.body.$.auth.accessToken}}
 
 ### HOST - Editar host (200)
-# Execute createHost antes. PUT substitui todos os campos editáveis do host.
+# Execute createHost e hostDetails antes. PUT substitui todos os campos editáveis.
+# Reutiliza o endereço dos detalhes; para trocar por novo, substitua addressId pelo objeto address.
 # @name editHost
-PUT {{Projetos___4_HostAddress}}/api/Host/{{createHost.response.body.$.host.id}}/Edit
+PUT {{Projetos___4_HostAddress}}/api/Host/{{createHost.response.body.$.result.id}}/Edit
 Content-Type: application/json
 Accept: application/json
 Authorization: Bearer {{createHost.response.body.$.auth.accessToken}}
@@ -132,14 +167,26 @@ Authorization: Bearer {{createHost.response.body.$.auth.accessToken}}
   "cnpj": "12.345.678/0001-90",
   "logoUrl": "https://example.com/logo-atualizado.png",
   "instagranUrl": "https://www.instagram.com/host_teste",
-  "address": "Avenida Cais do Apolo",
-  "addressNumber": "77",
-  "addressComplement": "Entrada principal",
-  "neighborhood": "Bairro do Recife",
-  "cep": "50030-220",
+  "addressId": {{hostDetails.response.body.$.address.id}},
   "phone": "(11) 99999-1111",
   "name": "Host atualizado",
   "description": "Dados do host atualizados pelo endpoint de edição."
+}
+
+### HOST - Criar reutilizando um endereço selecionado
+# Opcional: cria OUTRO host. Execute login e searchAddress com resultados antes.
+# Não envie address junto com addressId. Este exemplo não substitui createHost no fluxo principal.
+# @name createHostWithExistingAddress
+POST {{Projetos___4_HostAddress}}/api/Host/Create
+Content-Type: application/json
+Accept: application/json
+Authorization: Bearer {{login.response.body.$.accessToken}}
+
+{
+  "name": "Host com endereço existente",
+  "description": "Reutiliza um endereço selecionado.",
+  "typeofhost": 2,
+  "addressId": {{searchAddress.response.body.$[0].id}}
 }
 
 # ============================================================
@@ -203,8 +250,9 @@ Authorization: Bearer {{login.response.body.$.accessToken}}
 
 ### PROGRAMMING - Criar programação (201 com id e Location)
 # Execute createHost e getallCategories antes. Usa o JWT atualizado do host.
+# Reutiliza o endereço cadastrado no host, sem repetir os campos de endereço.
 # @name createProgrammingAfterHost
-POST {{Projetos___4_HostAddress}}/api/Programming/{{createHost.response.body.$.host.id}}/Create
+POST {{Projetos___4_HostAddress}}/api/Programming/{{createHost.response.body.$.result.id}}/Create
 Content-Type: application/json
 Accept: application/json
 Authorization: Bearer {{createHost.response.body.$.auth.accessToken}}
@@ -215,11 +263,7 @@ Authorization: Bearer {{createHost.response.body.$.auth.accessToken}}
   "startDate": "2027-12-10T18:00:00Z",
   "endDate": "2027-12-10T22:00:00Z",
   "isFree": true,
-  "address": "Avenida Cais do Apolo",
-  "addressNumber": "77",
-  "addressComplement": "Entrada principal",
-  "neighborhood": "Bairro do Recife",
-  "cep": "50030-220",
+  "addressId": {{createHost.response.body.$.result.addressId}},
   "imageUrl": "https://example.com/evento.png",
   "ticketUrl": "",
   "instagranUrl": "",
@@ -232,7 +276,7 @@ Authorization: Bearer {{createHost.response.body.$.auth.accessToken}}
 # A antiga action /api/Programming/{hostId}/GetAllProgrammingsbyHostId não existe.
 # O perfil do host retorna suas programações no campo programmings.
 # @name hostDetailsAfterProgramming
-GET {{Projetos___4_HostAddress}}/api/Host/Details/{{createHost.response.body.$.host.id}}
+GET {{Projetos___4_HostAddress}}/api/Host/Details/{{createHost.response.body.$.result.id}}
 Accept: application/json
 Authorization: Bearer {{createHost.response.body.$.auth.accessToken}}
 
@@ -243,11 +287,11 @@ GET {{Projetos___4_HostAddress}}/api/Programming/Details/{{createProgrammingAfte
 Accept: application/json
 
 ### PROGRAMMING - Editar programação e categorias (200)
-# Execute createProgrammingAfterHost antes. PUT substitui todos os campos editáveis.
+# Execute createProgrammingAfterHost e programmingDetails antes. PUT substitui todos os campos editáveis.
 # Envie a lista final de categorias. Vínculos retirados são removidos; novos IDs são adicionados.
 # Ajuste EditCategoryId no início do arquivo para uma categoria existente.
 # @name editProgramming
-PUT {{Projetos___4_HostAddress}}/api/Programming/{{createHost.response.body.$.host.id}}/Edit/{{createProgrammingAfterHost.response.body.$.id}}
+PUT {{Projetos___4_HostAddress}}/api/Programming/{{createHost.response.body.$.result.id}}/Edit/{{createProgrammingAfterHost.response.body.$.id}}
 Content-Type: application/json
 Accept: application/json
 Authorization: Bearer {{createHost.response.body.$.auth.accessToken}}
@@ -258,11 +302,7 @@ Authorization: Bearer {{createHost.response.body.$.auth.accessToken}}
   "startDate": "2027-12-10T18:00:00Z",
   "endDate": "2027-12-10T23:00:00Z",
   "isFree": false,
-  "address": "Avenida Cais do Apolo",
-  "addressNumber": "77",
-  "addressComplement": "Entrada principal",
-  "neighborhood": "Bairro do Recife",
-  "cep": "50030-220",
+  "addressId": {{programmingDetails.response.body.$.address.id}},
   "imageUrl": "https://example.com/festival.png",
   "ticketUrl": "https://example.com/ingressos",
   "instagranUrl": "https://www.instagram.com/host_teste",
@@ -284,6 +324,37 @@ GET {{Projetos___4_HostAddress}}/api/Programming/GetUserProgrammingPreferences
 Accept: application/json
 Authorization: Bearer {{createHost.response.body.$.auth.accessToken}}
 
+### PROGRAMMING - Criar com endereço novo (opcional, 201)
+# Execute createHost e getallCategories antes. Usa o JWT atualizado do host.
+# Alternativa: cria OUTRA programação. Um endereço equivalente pode ser reutilizado pelo serviço.
+# @name createProgrammingWithNewAddress
+POST {{Projetos___4_HostAddress}}/api/Programming/{{createHost.response.body.$.result.id}}/Create
+Content-Type: application/json
+Accept: application/json
+Authorization: Bearer {{createHost.response.body.$.auth.accessToken}}
+
+{
+  "name": "Programação com endereço novo",
+  "description": "Cadastro usando o JWT atualizado, sem repetir o login.",
+  "startDate": "2027-12-10T18:00:00Z",
+  "endDate": "2027-12-10T22:00:00Z",
+  "isFree": true,
+  "address": {
+    "street": "Avenida Cais do Apolo",
+    "number": "77",
+    "complement": "Entrada principal",
+    "neighborhood": "Bairro do Recife",
+    "cep": "50030-220"
+  },
+  "imageUrl": "https://example.com/evento.png",
+  "ticketUrl": "",
+  "instagranUrl": "",
+  "minPrice": 0,
+  "maxPrice": 0,
+  "categoryIds": [{{CategoryId}}]
+}
+
+
 # ============================================================
 # LIMPEZA - executar somente depois de concluir as consultas e edições
 # ============================================================
@@ -291,14 +362,14 @@ Authorization: Bearer {{createHost.response.body.$.auth.accessToken}}
 ### PROGRAMMING - Desativar programação (204, sem corpo)
 # Execute createProgrammingAfterHost antes. Depois disso, os detalhes devem retornar 404.
 # @name deleteProgramming
-PATCH {{Projetos___4_HostAddress}}/api/Programming/{{createHost.response.body.$.host.id}}/Delete/{{createProgrammingAfterHost.response.body.$.id}}
+PATCH {{Projetos___4_HostAddress}}/api/Programming/{{createHost.response.body.$.result.id}}/Delete/{{createProgrammingAfterHost.response.body.$.id}}
 Accept: application/json
 Authorization: Bearer {{createHost.response.body.$.auth.accessToken}}
 
 ### HOST - Desativar host (204, sem corpo)
 # Execute após testar suas programações. O host deixará de aparecer nas consultas ativas.
 # @name deleteHost
-PATCH {{Projetos___4_HostAddress}}/api/Host/{{createHost.response.body.$.host.id}}/Delete
+PATCH {{Projetos___4_HostAddress}}/api/Host/{{createHost.response.body.$.result.id}}/Delete
 Accept: application/json
 Authorization: Bearer {{createHost.response.body.$.auth.accessToken}}
 

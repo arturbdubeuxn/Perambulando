@@ -1,4 +1,7 @@
-# Docker
+﻿# Docker
+
+> Atualização de 21/10/2026: a refatoração de Address está preparada no código e aguarda revisão **antes da migration**. O banco ainda tem o schema anterior. Consulte a [revisão dos contratos e da transferência de dados](validacoes/refatoracao-address-revisao-2026-10-21.md); as descrições antigas de endereço neste arquivo representam a versão anterior.
+
 
 Perambulando | Atualização: 19/10/2026
 
@@ -74,3 +77,10 @@ Ao adicionar Dockerfile/Compose, registrar o local dos arquivos, contexto de bui
 Forneça Geoapify__ApiKey no ambiente do processo/container da aplicação, não no PostgreSQL. A API precisa de saída HTTPS para api.geoapify.com. O compose.postgis.yaml atual disponibiliza somente o banco, portanto não injeta essa variável na API. Nenhuma imagem, volume ou container foi alterado nesta etapa. Configuração local e política de falhas estão no README.
 
 Veja a [configuração e os critérios da integração](README.md). Validação: build sem erros (três avisos CS8618 preexistentes), 63 verificações com HTTP/repositórios simulados e 17 testes do protótipo. Consulta HTTPS real ao Geoapify validada em 19/10/2026, com resultado building no Brasil e confiança 1. A chave foi configurada em Geoapify__ApiKey no ambiente do usuário Windows, sem inclusão nos arquivos. O fluxo completo via API/banco ainda precisa ser exercitado após reiniciar o processo que inicia a aplicação. PDFs não regenerados.
+
+
+## Refatoração de Address — 21/10/2026
+
+Nenhuma imagem, container ou volume foi alterado para Address. O schema novo ainda não foi criado. Não reinicie a API nova esperando compatibilidade com o banco antigo; em Development, alterações de modelo pendentes são verificadas antes de MigrateAsync. A transferência dos dados e a revisão/aplicação da migration são etapas futuras, após aprovação.
+
+Nenhuma migration ou PDF gerado nesta etapa. [Revisão pendente](validacoes/refatoracao-address-revisao-2026-10-21.md).

@@ -4,17 +4,16 @@ namespace Projetos___4.Application.DTO;
 
 public class ProgrammingDetailsDTO
 {
-    public int Id;
     public string Name { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
     public DateTime StartDate { get; set; }
     public DateTime EndDate { get; set; }
     public bool IsFree { get; set; }
-    public string Address { get; set; } = string.Empty;
-    public string AddressNumber { get; set; } = string.Empty;
-    public string AddressComplement { get; set; } = string.Empty;
-    public string Neighborhood { get; set; } = string.Empty;
-    public string CEP { get; set; } = string.Empty;
+    public int AddressId { get; set; }
+    public AddressDetailsDTO Address { get; set; } = new();
+    public int Id { get; set; }
+    public int HostId { get; set; }
+
     public string ImageUrl { get; set; } = string.Empty;
     public string TicketUrl { get; set; } = string.Empty;
     public string InstagranUrl { get; set; } = string.Empty;

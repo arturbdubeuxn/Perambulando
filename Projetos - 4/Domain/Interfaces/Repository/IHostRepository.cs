@@ -8,7 +8,7 @@ namespace Projetos___4.Domain.Interfaces.Repository
 
         Task<Hosts?> GetByIdAsync(int hostId);
 
-        Task<Hosts?> GetByIdAsync(int hostId, string userId);
+        Task<Hosts?> VerificationbyId(int hostId, string userId);
 
         Task<Hosts> EditAsync(Hosts host);
 

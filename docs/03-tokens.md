@@ -1,5 +1,8 @@
 # Funcionamento dos tokens
 
+> Atualização de 21/10/2026: a refatoração de Address está preparada no código e aguarda revisão **antes da migration**. O banco ainda tem o schema anterior. Consulte a [revisão dos contratos e da transferência de dados](validacoes/refatoracao-address-revisao-2026-10-21.md); as descrições antigas de endereço neste arquivo representam a versão anterior.
+
+
 Perambulando | Atualização: 18/10/2026
 
 Base: `Domain/Service/JwtTokenService.cs`, `Presentation/Program.cs`, controllers de User/Host e fluxo de sessão do protótipo.
@@ -85,3 +88,15 @@ Uma cópia do token permanece tecnicamente válida até expirar. Emitir outro to
 Enviar o Bearer apenas para a API apropriada, aplicar os novos tokens retornados por create de host e edit de usuário, tratar 401 como necessidade de autenticação e distinguir 403 (role insuficiente) de 404 (registro indisponível para o solicitante).
 
 `canEdit` e `canDelete` não são retornados atualmente. A interface pode usar a listagem dos próprios hosts para gestão; o backend deve continuar verificando o dono em toda mutação.
+
+
+## Refatoração de Address — 21/10/2026
+
+GET /api/Address/GetAllAddress exige autenticação, sem role HOST. A autoria do endereço vem do usuário identificado pelo JWT; não é recebida no DTO. As claims e a emissão/renovação de JWT permanecem iguais; CreateHost continua devolvendo auth e agora inclui host.addressId.
+
+Nenhuma migration ou PDF gerado nesta etapa. [Revisão pendente](validacoes/refatoracao-address-revisao-2026-10-21.md).
+
+
+## Retorno do cadastro de host — 21/10/2026
+
+HostController.Create passa a retornar 201 com somente as propriedades result (retorno de _hostAppService.Create) e auth (JWT). O result foi declarado antes do try para poder ser usado no retorno. O .http usa createHost.response.body.$.result.id, e o protótipo lê result para reaproveitar o host; auth.accessToken permanece igual. Nenhuma migration gerada ou aplicada nesta alteração. O retorno de result representa a entidade Hosts completa, inclusive suas navegações serializáveis.

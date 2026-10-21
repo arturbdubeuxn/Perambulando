@@ -14,6 +14,7 @@ namespace Projetos___4.Data.Repository
         public async Task<IEnumerable<Programming>> GetAllProgrammingsbyHostId(int hostId)
         {
             return await Db.Programmings
+                .Include(p => p.Address)
                 .AsNoTracking()
                 .Where(p => p.HostId == hostId && p.IsActive && p.Host.IsActive)
                 .OrderBy(p => p.StartDate)
@@ -24,6 +25,7 @@ namespace Projetos___4.Data.Repository
         {
             return Db.Programmings
                 .Include(p => p.Host)
+                .Include(p => p.Address)
                 .FirstOrDefaultAsync(p => p.Id == programmingId &&
                     (!hostId.HasValue || p.HostId == hostId.Value) &&
                     p.IsActive && p.Host.IsActive);
@@ -31,12 +33,22 @@ namespace Projetos___4.Data.Repository
 
         public async Task<Programming> EditAsync(Programming programming)
         {
+            if (programming.Address.Id == 0)
+            {
+                Db.Addresses.Add(programming.Address);
+            }
+
             await Db.SaveChangesAsync();
             return programming;
         }
 
         public async Task<Programming> EditWithCategoriesAsync(Programming programming, List<ProgrammingXCategory> linksToAdd, List<int> categoryIdsToRemove)
         {
+            if (programming.Address.Id == 0)
+            {
+                Db.Addresses.Add(programming.Address);
+            }
+
             var linksToRemove = await Db.ProgrammingXCategories
                 .Where(link => link.ProgrammingId == programming.Id && categoryIdsToRemove.Contains(link.CategoryId))
                 .ToListAsync();
@@ -55,6 +67,11 @@ namespace Projetos___4.Data.Repository
 
         public async Task<Programming> CreateWithCategoriesAsync(Programming programming, List<ProgrammingXCategory> links)
         {
+            if (programming.Address.Id == 0)
+            {
+                Db.Addresses.Add(programming.Address);
+            }
+
             Db.Programmings.Add(programming);
             foreach (var link in links)
             {
@@ -68,7 +85,7 @@ namespace Projetos___4.Data.Repository
         {
 
             var query =
-                from programming in Db.Programmings.AsNoTracking()
+                from programming in Db.Programmings.Include(p => p.Address).AsNoTracking()
                 join link in Db.ProgrammingXCategories
                     on programming.Id equals link.ProgrammingId
                 join category in Db.Categories

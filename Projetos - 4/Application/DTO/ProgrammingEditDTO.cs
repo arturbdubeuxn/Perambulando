@@ -4,6 +4,9 @@ namespace Projetos___4.Application.DTO;
 
 public class ProgrammingEditDTO
 {
+    [Range(1, int.MaxValue)]
+    public int? AddressId { get; set; }
+    public AddressCreateDTO? Address { get; set; }
     [Required]
     public string Name { get; set; } = string.Empty;
     [Required]
@@ -14,15 +17,6 @@ public class ProgrammingEditDTO
     public DateTime? EndDate { get; set; }
     [Required]
     public bool? IsFree { get; set; }
-    [Required]
-    public string Address { get; set; } = string.Empty;
-    [Required, MaxLength(20)]
-    public string AddressNumber { get; set; } = string.Empty;
-    [MaxLength(200)]
-    public string AddressComplement { get; set; } = string.Empty;
-    public string? Neighborhood { get; set; } = string.Empty;
-    [Required]
-    public string CEP { get; set; } = string.Empty;
     public string ImageUrl { get; set; } = string.Empty;
     public string TicketUrl { get; set; } = string.Empty;
     public string InstagranUrl { get; set; } = string.Empty;

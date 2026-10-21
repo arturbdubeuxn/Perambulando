@@ -13,3 +13,9 @@ Por solicitação do usuário, ao alterar funcionalidades desta API, atualize ta
 - Siga as camadas existentes. Não altere Program.cs, CORS, models ou migrações apenas para suportar a interface de testes. Use chaves em todos os ifs novos.
 - Execute as verificações de compilação apropriadas. Para mudanças no protótipo, use `node --check` e `node --test` na pasta dele, com API simulada e sem alterações destrutivas no banco real.
 - Painel: http://127.0.0.1:5173/. Atalho: `prototipo-api/Abrir.cmd` no outro workspace. A API e o banco devem ser iniciados normalmente pelo usuário.
+
+## Padrão de implementação — orientação do usuário em 21/10/2026
+
+- Siga sempre o padrão das funções, classes, interfaces, construtores, nomenclatura e camadas já existentes no sistema. Leia implementações equivalentes antes de alterar ou criar funcionalidades.
+- Não crie pastas adicionais. Adapte a implementação somente às pastas que já existem no projeto.
+- Preserve o modo existente de fazer mapeamentos, validações e injeção de dependências; evite introduzir novos estilos ou abstrações por iniciativa própria.
