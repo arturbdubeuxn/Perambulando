@@ -70,7 +70,7 @@ namespace Projetos___4.Presentation.Controllers
                 return Problem(statusCode: StatusCodes.Status400BadRequest, title: "Endereço inválido", detail: "O endereço é obrigatório.");
             }
 
-            Hosts? result;
+            HostCreatedDTO? result;
             try
             {
                 result = await _hostAppService.Create(dto, userId);
@@ -83,12 +83,12 @@ namespace Projetos___4.Presentation.Controllers
                     detail: ex.Message);
             }
             catch (InvalidOperationException ex) when (ex.Message == "Role HOST is not registered." ||
-                ex.Message == "Failed to create host." || ex.Message == "Host was saved, but role assignment failed.")
+                ex.Message == "Failed to create host." || ex.Message == "Host role assignment failed.")
             {
                 return Problem(statusCode: StatusCodes.Status500InternalServerError,
                     title: "Falha no cadastro do host",
-                    detail: ex.Message == "Host was saved, but role assignment failed."
-                        ? "O host foi salvo, mas não foi possível atribuir a permissão HOST. Contate o suporte antes de repetir o cadastro."
+                    detail: ex.Message == "Host role assignment failed."
+                        ? "Não foi possível atribuir a permissão HOST. O cadastro do host foi desfeito."
                         : "Não foi possível concluir o cadastro do host.");
             }
 
@@ -127,7 +127,7 @@ namespace Projetos___4.Presentation.Controllers
                 return Problem(statusCode: StatusCodes.Status400BadRequest, title: "Endereço inválido", detail: "O endereço é obrigatório.");
             }
 
-            Hosts? result;
+            HostResponseDTO? result;
             try
             {
                 result = await _hostAppService.EditHostAsync(dto, hostId, userId);
@@ -192,7 +192,7 @@ namespace Projetos___4.Presentation.Controllers
                 return Problem(statusCode: StatusCodes.Status401Unauthorized, title: "Autenticação inválida", detail: "Usuário não autenticado.");
             }
 
-            IEnumerable<Hosts> hostlist = await _hostAppService.GetAllHostsbyUserId(userId);
+            IEnumerable<HostResponseDTO> hostlist = await _hostAppService.GetAllHostsbyUserId(userId);
 
             return Ok(hostlist);
         }

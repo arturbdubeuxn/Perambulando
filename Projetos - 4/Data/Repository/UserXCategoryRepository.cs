@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Projetos___4.Domain.Interfaces.Repository;
 using Projetos___4.Domain.Model;
 
@@ -13,15 +13,17 @@ namespace Projetos___4.Data.Repository
             Db = context;
         }
 
-        public async Task<UserXCategory?> AddAsync(UserXCategory userXCategory)
+        public async Task<List<UserXCategory>> AddAsync(IReadOnlyCollection<UserXCategory> userCategories)
         {
-            if (userXCategory == null)
+            ArgumentNullException.ThrowIfNull(userCategories);
+
+            foreach (var userXCategory in userCategories)
             {
-                throw new ArgumentNullException(nameof(userXCategory));
+                await Db.Set<UserXCategory>().AddAsync(userXCategory);
             }
-            await Db.Set<UserXCategory>().AddAsync(userXCategory);
+
             await Db.SaveChangesAsync();
-            return userXCategory;
+            return userCategories.ToList();
         }
 
         public async Task<List<UserXCategory>> EditAsync(string userId, List<UserXCategory> linksToAdd,List<UserXCategory> linksToRemove)

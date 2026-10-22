@@ -14,21 +14,33 @@ namespace Projetos___4.Data.Repository
             Db = db;
         }
 
-        public async Task<Hosts?> Create(Hosts hosts)
+        public async Task<Hosts?> Create(Hosts hosts, Func<Task> assignRole)
         {
-            if(hosts == null)
-            {
-                throw new ArgumentNullException(nameof(hosts));
-            }
+            ArgumentNullException.ThrowIfNull(hosts);
+            ArgumentNullException.ThrowIfNull(assignRole);
 
-            if (hosts.Address.Id == 0)
+            await using var transaction = await Db.Database.BeginTransactionAsync();
+            try
             {
-                Db.Addresses.Add(hosts.Address);
-            }
+                if (hosts.Address.Id == 0)
+                {
+                    Db.Addresses.Add(hosts.Address);
+                }
 
-            Db.Set<Hosts>().Add(hosts);
-            var result = await Db.SaveChangesAsync() > 0;
-            return result ? hosts : null;
+                Db.Set<Hosts>().Add(hosts);
+                await Db.SaveChangesAsync();
+
+                await assignRole();
+
+                await transaction.CommitAsync();
+                return hosts;
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                Db.ChangeTracker.Clear();
+                throw;
+            }
         }
 
         public Task<Hosts?> GetByIdAsync(int hostId)

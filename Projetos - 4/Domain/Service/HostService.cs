@@ -48,24 +48,31 @@ namespace Projetos___4.Domain.Service
             }
 
             if (!await _roleManager.RoleExistsAsync("HOST"))
+            {
                 throw new InvalidOperationException("Role HOST is not registered.");
+            }
 
             host.Address = await _addressService.AddAddress(host.AddressId, host.Address, userId);
             host.AddressId = host.Address.Id;
 
-            var result = await _hostRepository.Create(host);
+            var result = await _hostRepository.Create(host, async () =>
+            {
+                if (!await _userManager.IsInRoleAsync(user, "HOST"))
+                {
+                    var roleResult = await _userManager.AddToRoleAsync(user, "HOST");
+                    if (!roleResult.Succeeded)
+                    {
+                        throw new InvalidOperationException("Host role assignment failed.");
+                    }
+                }
+            });
 
             if (result == null)
-                throw new InvalidOperationException("Failed to create host.");
-
-            if (!await _userManager.IsInRoleAsync(user, "HOST"))
             {
-                var roleResult = await _userManager.AddToRoleAsync(user, "HOST");
-                if (!roleResult.Succeeded)
-                    throw new InvalidOperationException("Host was saved, but role assignment failed.");
+                throw new InvalidOperationException("Failed to create host.");
             }
 
-            return (host);
+            return result;
         }
 
         public Task<Hosts?> GetByIdAsync(int hostId)

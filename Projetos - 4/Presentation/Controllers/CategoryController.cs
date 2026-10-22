@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -65,7 +65,16 @@ public class CategoryController : ControllerBase
             CategoryIds = categoryIds
         };
 
-        var result = await _userXCategoryAppService.AddCategoryToUserAsync(dto);
+        List<UserXCategory> result;
+        try
+        {
+            result = await _userXCategoryAppService.AddCategoryToUserAsync(dto);
+        }
+        catch (ArgumentException ex)
+        {
+            return Problem(statusCode: StatusCodes.Status400BadRequest,
+                title: "Categorias inválidas", detail: ex.Message);
+        }
         if (result == null)
         {
             return Problem(statusCode: StatusCodes.Status400BadRequest,
@@ -86,13 +95,13 @@ public class CategoryController : ControllerBase
                 title: "Usuário não autenticado");
         }
 
-        if (categoryIds == null || categoryIds.Count == 0 || categoryIds.Any(id => id <= 0))
+        if (categoryIds == null || categoryIds.Any(id => id <= 0))
         {
             return BadRequest(new ProblemDetails
             {
                 Status = StatusCodes.Status400BadRequest,
                 Title = "Categorias inválidas",
-                Detail = "Selecione pelo menos uma categoria com ID maior que zero."
+                Detail = "Informe uma lista com IDs maiores que zero, ou [] para remover todas as preferências."
             });
         }
 
@@ -102,7 +111,16 @@ public class CategoryController : ControllerBase
             CategoryIds = categoryIds
         };
 
-        var links = await _userXCategoryAppService.EditCategoryToUserAsync(dto);
+        List<UserXCategory> links;
+        try
+        {
+            links = await _userXCategoryAppService.EditCategoryToUserAsync(dto);
+        }
+        catch (ArgumentException ex)
+        {
+            return Problem(statusCode: StatusCodes.Status400BadRequest,
+                title: "Categorias inválidas", detail: ex.Message);
+        }
         return Ok(links);
     }
 
