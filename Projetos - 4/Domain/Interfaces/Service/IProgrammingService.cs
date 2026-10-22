@@ -9,6 +9,7 @@ namespace Projetos___4.Domain.Interfaces.Service
         Task<Programming?> DeleteProgrammingAsync(int id, int hostId, string userId);
         Task<IEnumerable<Programming>> GetAllProgrammingsbyHostId(int hostId, string userId);
         Task<IEnumerable<Programming>> GetAllProgrammingsbyHostId(int hostId);
+        Task<List<Programming>> GetAllProgrammingsByUserCategories(string userId);
         Task<Programming> CreateProgrammingAsync(Programming programming, List<ProgrammingXCategory> links, string userId);
         Task<Programming?> EditProgrammingAsync(Programming programming, List<ProgrammingXCategory> links, string userId);
     }

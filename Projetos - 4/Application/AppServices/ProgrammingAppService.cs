@@ -10,9 +10,12 @@ namespace Projetos___4.Application.AppServices
     public class ProgrammingAppService : IProgrammingAppService
     {
         private readonly IProgrammingService _programmingService;
-        public ProgrammingAppService(IProgrammingService programmingService)
+        private readonly IAddressService _addressService;
+
+        public ProgrammingAppService(IProgrammingService programmingService, IAddressService addressService)
         {
             _programmingService = programmingService;
+            _addressService = addressService;
         }
 
         public async Task<ProgrammingDetailsDTO?> GetByIdAsync(int programmingId)
@@ -23,16 +26,27 @@ namespace Projetos___4.Application.AppServices
                 return null;
             }
 
+            var address = programming.Address;
+
             return new ProgrammingDetailsDTO
             {
+                Id = programming.Id,
+                HostId = programming.HostId,
                 Name = programming.Name,
                 Description = programming.Description,
                 StartDate = programming.StartDate,
                 EndDate = programming.EndDate,
                 IsFree = programming.IsFree,
-                Address = programming.Address,
-                Neighborhood = programming.Neighborhood,
-                CEP = programming.CEP,
+                AddressId = programming.AddressId,
+                Address = new AddressDetailsDTO
+                {
+                    Id = address.Id,
+                    Street = address.Street,
+                    Number = address.Number,
+                    Complement = address.Complement,
+                    Neighborhood = address.Neighborhood,
+                    CEP = address.CEP
+                },
                 ImageUrl = programming.ImageUrl,
                 TicketUrl = programming.TicketUrl,
                 InstagranUrl = programming.InstagranUrl,
@@ -67,15 +81,25 @@ namespace Projetos___4.Application.AppServices
                 StartDate = dto.StartDate!.Value,
                 EndDate = dto.EndDate!.Value,
                 IsFree = dto.IsFree!.Value,
-                Address = dto.Address,
-                Neighborhood = dto.Neighborhood,
-                CEP = dto.CEP,
+                AddressId = dto.AddressId ?? 0,
                 ImageUrl = dto.ImageUrl,
                 TicketUrl = dto.TicketUrl,
                 InstagranUrl = dto.InstagranUrl,
                 MinPrice = dto.MinPrice!.Value,
                 MaxPrice = dto.MaxPrice!.Value
             };
+
+            if (dto.Address != null)
+            {
+                programming.Address = new Address
+                {
+                    Street = dto.Address.Street,
+                    Number = dto.Address.Number,
+                    Complement = dto.Address.Complement ?? string.Empty,
+                    Neighborhood = dto.Address.Neighborhood ?? string.Empty,
+                    CEP = dto.Address.CEP
+                };
+            }
 
             var links = new List<ProgrammingXCategory>();
             foreach (var categoryId in dto.categoryIds)
@@ -100,15 +124,25 @@ namespace Projetos___4.Application.AppServices
                 StartDate = dto.StartDate,
                 EndDate = dto.EndDate,
                 IsFree = dto.IsFree,
-                Address = dto.Address,
-                Neighborhood = dto.Neighborhood,
-                CEP = dto.CEP,
+                AddressId = dto.AddressId ?? 0,
                 ImageUrl = dto.ImageUrl,
                 TicketUrl = dto.TicketUrl,
                 InstagranUrl = dto.InstagranUrl,
                 MinPrice = dto.MinPrice,
                 MaxPrice = dto.MaxPrice
             };
+
+            if (dto.Address != null)
+            {
+                programming.Address = new Address
+                {
+                    Street = dto.Address.Street,
+                    Number = dto.Address.Number,
+                    Complement = dto.Address.Complement ?? string.Empty,
+                    Neighborhood = dto.Address.Neighborhood ?? string.Empty,
+                    CEP = dto.Address.CEP
+                };
+            }
 
             var links = new List<ProgrammingXCategory>();
             foreach (var categoryId in dto.categoryIds)
@@ -121,6 +155,11 @@ namespace Projetos___4.Application.AppServices
             }
 
             return await _programmingService.CreateProgrammingAsync(programming, links, userId);
+        }
+
+        public Task<List<Programming>> GetAllProgrammingsByUserCategoriesAsync(string userId)
+        {
+            return _programmingService.GetAllProgrammingsByUserCategories(userId);
         }
     }
 }

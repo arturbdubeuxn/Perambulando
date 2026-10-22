@@ -6,6 +6,7 @@ using Microsoft.IdentityModel.Tokens;
 using Projetos___4.Application.AppServices;
 using Projetos___4.Application.Interfaces;
 using Projetos___4.Data.Context;
+using Projetos___4.Data.Services;
 using Projetos___4.Data.Repository;
 using Projetos___4.Domain.Interfaces;
 using Projetos___4.Domain.Interfaces.Repository;
@@ -28,7 +29,8 @@ if (builder.Environment.IsDevelopment())
 builder.Services.AddControllers();
 
 builder.Services.AddDbContext<Context>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"),
+        npgsql => npgsql.UseNetTopologySuite()));
 builder.Services
     .AddIdentity<User, IdentityRole>()
     .AddEntityFrameworkStores<Context>()
@@ -43,7 +45,18 @@ builder.Services.Configure<IdentityOptions>(options =>
     options.ClaimsIdentity.RoleClaimType = "role";
 });
 
+// A chave é fornecida por Geoapify__ApiKey. Não registrar URLs que contêm a chave.
+builder.Services.Configure<GeoapifyOptions>(builder.Configuration.GetSection("Geoapify"));
+builder.Services.AddHttpClient<IGeocodingService, GeoapifyGeocodingService>(client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(10);
+}).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false })
+  .RemoveAllLoggers();
+
 // INJEÇÃO DE DEPENDÊNCIAS
+builder.Services.AddScoped<IAddressRepository, AddressRepository>();
+builder.Services.AddScoped<IAddressService, AddressService>();
+builder.Services.AddScoped<IAddressAppService, AddressAppService>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IUserAppService, UserAppService>();
 builder.Services.AddScoped<JwtTokenService>();
@@ -57,6 +70,9 @@ builder.Services.AddScoped<IProgrammingAppService, ProgrammingAppService>();
 builder.Services.AddScoped<ICategoryRepository, CategoryRepository>();
 builder.Services.AddScoped<ICategoryService, CategoryService>();
 builder.Services.AddScoped<ICategoryAppService, CategoryAppService>();
+builder.Services.AddScoped<IUserXCategoryRepository, UserXCategoryRepository>();
+builder.Services.AddScoped<IUserXCategoryService, UserXCategoryService>();
+builder.Services.AddScoped<IUserXCategoryAppService, UserXCategoryAppService>();
 
 ///
 
@@ -107,6 +123,10 @@ if (app.Environment.IsDevelopment())
             "`dotnet ef migrations add InitialCreate --output-dir \"4 - Data/Migrations\"`.");
     }
 
+    if (context.Database.HasPendingModelChanges())
+    {
+        throw new InvalidOperationException("Há alterações de modelo aguardando revisão. Revise a refatoração de Address antes de gerar e aplicar a migration.");
+    }
     await context.Database.MigrateAsync();
 }
 

@@ -13,6 +13,8 @@ namespace Projetos___4.Data.Context
         {
         }
 
+        public DbSet<Address> Addresses => Set<Address>();
+
         public DbSet<Category> Categories => Set<Category>();
 
         public DbSet<Hosts> Hosts => Set<Hosts>();
@@ -26,6 +28,7 @@ namespace Projetos___4.Data.Context
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
+            modelBuilder.HasPostgresExtension("postgis");
             modelBuilder.ApplyConfigurationsFromAssembly(typeof(Context).Assembly);
         }
     

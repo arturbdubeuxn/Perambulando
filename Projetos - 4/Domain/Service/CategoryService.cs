@@ -1,4 +1,4 @@
-﻿using Projetos___4.Domain.Interfaces.Repository;
+using Projetos___4.Domain.Interfaces.Repository;
 using Projetos___4.Domain.Interfaces.Service;
 using Projetos___4.Domain.Model;
 
@@ -16,6 +16,11 @@ namespace Projetos___4.Domain.Service
         public Task<IEnumerable<Category>> GetallCategories()
         {
             return _categoryRepository.GetallCategories();
+        }
+
+        public Task<IEnumerable<Category>> GetAllCategoriesPrefereces(string userId)
+        {
+            return _categoryRepository.GetAllCategoriesbyUserId(userId);
         }
 
         public Task<Category> GetbyId(int categoryId)

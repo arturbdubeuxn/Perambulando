@@ -5,6 +5,7 @@ namespace Projetos___4.Application.Interfaces
 {
     public interface IUserXCategoryAppService
     {
-        Task<UserXCategory?> AddCategoryToUserAsync(UserXCategoryDTO dto);
+        Task <List<UserXCategory>> AddCategoryToUserAsync(UserXCategoryDTO dto);
+        Task <List<UserXCategory>> EditCategoryToUserAsync(UserXCategoryDTO dto);
     }
 }

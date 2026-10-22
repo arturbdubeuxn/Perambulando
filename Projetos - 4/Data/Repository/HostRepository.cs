@@ -21,6 +21,11 @@ namespace Projetos___4.Data.Repository
                 throw new ArgumentNullException(nameof(hosts));
             }
 
+            if (hosts.Address.Id == 0)
+            {
+                Db.Addresses.Add(hosts.Address);
+            }
+
             Db.Set<Hosts>().Add(hosts);
             var result = await Db.SaveChangesAsync() > 0;
             return result ? hosts : null;
@@ -28,18 +33,23 @@ namespace Projetos___4.Data.Repository
 
         public Task<Hosts?> GetByIdAsync(int hostId)
         {
-            return Db.Hosts.AsNoTracking()
+            return Db.Hosts.Include(host => host.Address).AsNoTracking()
                 .FirstOrDefaultAsync(host => host.Id == hostId && host.IsActive);
         }
 
-        public Task<Hosts?> GetByIdAsync(int hostId, string userId)
+        public Task<Hosts?> VerificationbyId(int hostId, string userId)
         {
-            return Db.Hosts.FirstOrDefaultAsync(h =>
+            return Db.Hosts.Include(host => host.Address).FirstOrDefaultAsync(h =>
                 h.Id == hostId && h.UserId == userId && h.IsActive);
         }
 
         public async Task<Hosts> EditAsync(Hosts host)
         {
+            if (host.Address.Id == 0)
+            {
+                Db.Addresses.Add(host.Address);
+            }
+
             await Db.SaveChangesAsync();
             return host;
         }
@@ -52,7 +62,7 @@ namespace Projetos___4.Data.Repository
 
         public async Task<IEnumerable<Hosts>> GetAllHostsbyUserId(string userId)
         {
-            return await Db.Hosts.Where(h => h.UserId == userId && h.IsActive == true).ToListAsync();
+            return await Db.Hosts.Include(host => host.Address).Where(h => h.UserId == userId && h.IsActive == true).ToListAsync();
         }
     }
 }

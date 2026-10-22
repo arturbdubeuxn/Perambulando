@@ -1,8 +1,13 @@
-﻿namespace Projetos___4.Domain.Interfaces.Service
+using Projetos___4.Domain.Model;
+
+namespace Projetos___4.Domain.Interfaces.Service
 {
     public interface ICategoryService
     {
-        Task<IEnumerable<Projetos___4.Domain.Model.Category>> GetallCategories();
-        Task<Projetos___4.Domain.Model.Category> GetbyId(int categoryId);
+        Task<IEnumerable<Category>> GetallCategories();
+
+        Task<IEnumerable<Category>> GetAllCategoriesPrefereces(string userId);
+
+        Task<Category> GetbyId(int categoryId);
     }
 }

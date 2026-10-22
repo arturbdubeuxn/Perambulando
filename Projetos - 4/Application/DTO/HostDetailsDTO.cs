@@ -11,9 +11,8 @@ public class HostDetailsDTO
     public string CNPJ { get; set; } = string.Empty;
     public string LogoUrl { get; set; } = string.Empty;
     public string InstagranUrl { get; set; } = string.Empty;
-    public string Address { get; set; } = string.Empty;
-    public string Neighborhood { get; set; } = string.Empty;
-    public string CEP { get; set; } = string.Empty;
+    public int AddressId { get; set; }
+    public AddressDetailsDTO Address { get; set; } = new();
     public string Phone { get; set; } = string.Empty;
     public List<ProgrammingDetailsDTO> Programmings { get; set; } = new();
 }

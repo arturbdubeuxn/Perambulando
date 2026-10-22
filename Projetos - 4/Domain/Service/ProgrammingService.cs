@@ -11,14 +11,15 @@ namespace Projetos___4.Domain.Service
         private readonly IProgrammingRepository _programmingRepository;
         private readonly IUserRepository _userRepository;
         private readonly IHostRepository _hostRepository;
+        private readonly IAddressService _addressService;
         private readonly ICategoryRepository _categoryRepository;
 
-
-        public ProgrammingService(IProgrammingRepository programmingRepository, IUserRepository userRepository, IHostRepository hostRepository, ICategoryRepository categoryRepository)
+        public ProgrammingService(IProgrammingRepository programmingRepository, IUserRepository userRepository, IHostRepository hostRepository, ICategoryRepository categoryRepository, IAddressService addressService)
         {
             _programmingRepository = programmingRepository;
             _userRepository = userRepository;
             _hostRepository = hostRepository;
+            _addressService = addressService;
             _categoryRepository = categoryRepository;
         }
         public Task<Programming?> GetByIdAsync(int programmingId)
@@ -84,6 +85,8 @@ namespace Projetos___4.Domain.Service
                 return null;
             }
 
+            var address = await _addressService.AddAddress(programming.AddressId, programming.Address, userId);
+
             var currentCategories = await _categoryRepository.GetAllCategoriesbyProgrammingId(existing.Id);
             var currentCategoryIds = currentCategories.Select(category => category.Id).ToHashSet();
             var desiredCategoryIds = links.Select(link => link.CategoryId).ToHashSet();
@@ -95,9 +98,8 @@ namespace Projetos___4.Domain.Service
             existing.StartDate = programming.StartDate;
             existing.EndDate = programming.EndDate;
             existing.IsFree = programming.IsFree;
-            existing.Address = programming.Address;
-            existing.Neighborhood = programming.Neighborhood;
-            existing.CEP = programming.CEP;
+            existing.Address = address;
+            existing.AddressId = address.Id;
             existing.ImageUrl = programming.ImageUrl;
             existing.TicketUrl = programming.TicketUrl;
             existing.InstagranUrl = programming.InstagranUrl;
@@ -118,6 +120,9 @@ namespace Projetos___4.Domain.Service
                 throw new InvalidOperationException("Esse usuário não é o dono do host ativo para este programa.");
            }
 
+           programming.Address = await _addressService.AddAddress(programming.AddressId, programming.Address, userId);
+           programming.AddressId = programming.Address.Id;
+
            return await _programmingRepository.CreateWithCategoriesAsync(programming, links);
         }
 
@@ -128,11 +133,11 @@ namespace Projetos___4.Domain.Service
                 return new List<Programming>();
             }
 
-            List<Category> userCategories = await _categoryRepository.GetAllCategoriesbyUserId(userId);
+            IEnumerable<Category> userCategories = await _categoryRepository.GetAllCategoriesbyUserId(userId);
 
             List<int> userCategoryIds = userCategories.Select(c => c.Id).ToList();
 
-            if (userCategories == null || userCategories.Count == 0)
+            if (userCategories == null)
             {
                 return new List<Programming>();
             }

@@ -14,12 +14,14 @@ namespace Projetos___4.Domain.Service
         private readonly UserManager<User> _userManager;
         private readonly IUserRepository _userRepository;
         private readonly IHostRepository _hostRepository;
+        private readonly IAddressService _addressService;
         private readonly RoleManager<IdentityRole> _roleManager;
-        public HostService(UserManager<User> userManager, IUserRepository userRepository, IHostRepository hostRepository, RoleManager<IdentityRole> roleManager)
+        public HostService(UserManager<User> userManager, IUserRepository userRepository, IHostRepository hostRepository, RoleManager<IdentityRole> roleManager, IAddressService addressService)
         {
             _userManager = userManager;
             _userRepository = userRepository;
             _hostRepository = hostRepository;
+            _addressService = addressService;
             _roleManager = roleManager;
         }
 
@@ -48,6 +50,9 @@ namespace Projetos___4.Domain.Service
             if (!await _roleManager.RoleExistsAsync("HOST"))
                 throw new InvalidOperationException("Role HOST is not registered.");
 
+            host.Address = await _addressService.AddAddress(host.AddressId, host.Address, userId);
+            host.AddressId = host.Address.Id;
+
             var result = await _hostRepository.Create(host);
 
             if (result == null)
@@ -75,20 +80,21 @@ namespace Projetos___4.Domain.Service
                 return null;
             }
 
-            var existing = await _hostRepository.GetByIdAsync(host.Id, userId);
+            var existing = await _hostRepository.VerificationbyId(host.Id, userId);
 
             if (existing == null)
             {
                 return null;
             }
 
+            var address = await _addressService.AddAddress(host.AddressId, host.Address, userId);
+
             existing.Typeofhost = host.Typeofhost;
             existing.CNPJ = host.CNPJ;
             existing.LogoUrl = host.LogoUrl;
             existing.InstagranUrl = host.InstagranUrl;
-            existing.Address = host.Address;
-            existing.Neighborhood = host.Neighborhood;
-            existing.CEP = host.CEP;
+            existing.Address = address;
+            existing.AddressId = address.Id;
             existing.Phone = host.Phone;
             existing.Name = host.Name;
             existing.Description = host.Description;
@@ -104,7 +110,7 @@ namespace Projetos___4.Domain.Service
                 return null;
             }
 
-            var host = await _hostRepository.GetByIdAsync(hostId, userId);
+            var host = await _hostRepository.VerificationbyId(hostId, userId);
 
             if (host == null)
             {

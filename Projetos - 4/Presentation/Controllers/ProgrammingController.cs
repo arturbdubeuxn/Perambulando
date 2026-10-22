@@ -1,3 +1,4 @@
+using Projetos___4.Domain.Exceptions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
@@ -128,6 +129,11 @@ namespace Projetos___4.Presentation.Controllers
                     title: "Categorias inválidas", detail: "Informe IDs de categorias positivos e sem repetição.");
             }
 
+            if (dto.Address == null && dto.AddressId <= 0)
+            {
+                return Problem(statusCode: StatusCodes.Status400BadRequest, title: "Endereço inválido", detail: "O endereço é obrigatório.");
+            }
+
             try
             {
                 var result = await _programmingAppService.EditProgrammingAsync(dto, Programmingid, hostId, userId);
@@ -140,6 +146,13 @@ namespace Projetos___4.Presentation.Controllers
                 }
 
                 return Ok(result);
+            }
+            catch (GeocodingException ex)
+            {
+                return Problem(statusCode: ex.ServiceUnavailable
+                        ? StatusCodes.Status503ServiceUnavailable : StatusCodes.Status422UnprocessableEntity,
+                    title: ex.ServiceUnavailable ? "Serviço de localização indisponível" : "Endereço não localizado",
+                    detail: ex.Message);
             }
             catch (DbUpdateException ex) when (ex.InnerException is PostgresException postgres &&
                 postgres.SqlState == PostgresErrorCodes.ForeignKeyViolation &&
@@ -212,6 +225,11 @@ namespace Projetos___4.Presentation.Controllers
                 return Problem(statusCode: StatusCodes.Status400BadRequest, title: "Dados inválidos", detail: "O preço mínimo não pode ser maior que o preço máximo.");
             }
 
+            if (dto.Address == null && dto.AddressId <= 0)
+            {
+                return Problem(statusCode: StatusCodes.Status400BadRequest, title: "Endereço inválido", detail: "O endereço é obrigatório.");
+            }
+
             try
             {
                 var programming = await _programmingAppService.CreateProgrammingAsync(dto, HostId, userid);
@@ -222,6 +240,13 @@ namespace Projetos___4.Presentation.Controllers
                 return Problem(statusCode: StatusCodes.Status404NotFound,
                     title: "Host indisponível",
                     detail: "Host não encontrado ou indisponível para este usuário.");
+            }
+            catch (GeocodingException ex)
+            {
+                return Problem(statusCode: ex.ServiceUnavailable
+                        ? StatusCodes.Status503ServiceUnavailable : StatusCodes.Status422UnprocessableEntity,
+                    title: ex.ServiceUnavailable ? "Serviço de localização indisponível" : "Endereço não localizado",
+                    detail: ex.Message);
             }
             catch (DbUpdateException ex) when (ex.InnerException is PostgresException postgres &&
                 postgres.SqlState == PostgresErrorCodes.ForeignKeyViolation &&
@@ -234,6 +259,21 @@ namespace Projetos___4.Presentation.Controllers
             {
                 return Problem(statusCode: StatusCodes.Status400BadRequest, title: "Dados inválidos", detail: ex.Message);
             }
+        }
+
+        [Authorize]
+        [HttpGet("GetUserProgrammingPreferences")]
+        public async Task<IActionResult> GetUserProgrammingPreferences()
+        {
+            var userId = _userManager.GetUserId(User);
+            if (string.IsNullOrWhiteSpace(userId))
+            {
+                return Problem(statusCode: StatusCodes.Status401Unauthorized,
+                    title: "Usuário não autenticado");
+            }
+
+            var programmings = await _programmingAppService.GetAllProgrammingsByUserCategoriesAsync(userId);
+            return Ok(programmings);
         }
     }
 }

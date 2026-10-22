@@ -16,16 +16,9 @@ public class HostEditDTO
 
     [MaxLength(2048)]
     public string InstagranUrl { get; set; } = string.Empty;
-
-    [Required, MaxLength(300)]
-    public string Address { get; set; } = string.Empty;
-
-    [Required, MaxLength(150)]
-    public string Neighborhood { get; set; } = string.Empty;
-
-    [Required, MaxLength(9)]
-    public string CEP { get; set; } = string.Empty;
-
+    [Range(1, int.MaxValue)]
+    public int? AddressId { get; set; }
+    public AddressCreateDTO? Address { get; set; }
     [MaxLength(30)]
     public string Phone { get; set; } = string.Empty;
 

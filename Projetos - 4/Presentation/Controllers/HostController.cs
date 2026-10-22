@@ -1,3 +1,4 @@
+using Projetos___4.Domain.Exceptions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -64,10 +65,22 @@ namespace Projetos___4.Presentation.Controllers
                 return Problem(statusCode: StatusCodes.Status401Unauthorized, title: "Autenticação inválida", detail: "Usuário não encontrado ou inativo.");
             }
 
+            if (dto.Address == null && dto.AddressId <= 0)
+            {
+                return Problem(statusCode: StatusCodes.Status400BadRequest, title: "Endereço inválido", detail: "O endereço é obrigatório.");
+            }
+
             Hosts? result;
             try
             {
                 result = await _hostAppService.Create(dto, userId);
+            }
+            catch (GeocodingException ex)
+            {
+                return Problem(statusCode: ex.ServiceUnavailable
+                        ? StatusCodes.Status503ServiceUnavailable : StatusCodes.Status422UnprocessableEntity,
+                    title: ex.ServiceUnavailable ? "Serviço de localização indisponível" : "Endereço não localizado",
+                    detail: ex.Message);
             }
             catch (InvalidOperationException ex) when (ex.Message == "Role HOST is not registered." ||
                 ex.Message == "Failed to create host." || ex.Message == "Host was saved, but role assignment failed.")
@@ -87,15 +100,7 @@ namespace Projetos___4.Presentation.Controllers
 
             var auth = await _tokenService.CreateAsync(user);
 
-            return StatusCode(StatusCodes.Status201Created, new
-            {
-                host = new HostCreatedDTO
-                {
-                    Id = result.Id,
-                    Name = result.Name
-                },
-                auth
-            });
+            return StatusCode(StatusCodes.Status201Created, new { result, auth });
         }
 
 
@@ -117,7 +122,24 @@ namespace Projetos___4.Presentation.Controllers
                     title: "Dados inválidos", detail: "O ID do host deve ser maior que zero.");
             }
 
-            var result = await _hostAppService.EditHostAsync(dto, hostId, userId);
+            if (dto.Address == null && dto.AddressId <= 0)
+            {
+                return Problem(statusCode: StatusCodes.Status400BadRequest, title: "Endereço inválido", detail: "O endereço é obrigatório.");
+            }
+
+            Hosts? result;
+            try
+            {
+                result = await _hostAppService.EditHostAsync(dto, hostId, userId);
+            }
+            catch (GeocodingException ex)
+            {
+                return Problem(statusCode: ex.ServiceUnavailable
+                        ? StatusCodes.Status503ServiceUnavailable : StatusCodes.Status422UnprocessableEntity,
+                    title: ex.ServiceUnavailable ? "Serviço de localização indisponível" : "Endereço não localizado",
+                    detail: ex.Message);
+            }
+
 
             if (result == null)
             {
