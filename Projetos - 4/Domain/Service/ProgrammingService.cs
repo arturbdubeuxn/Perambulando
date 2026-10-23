@@ -19,7 +19,8 @@ namespace Projetos___4.Domain.Service
         private readonly IProgrammingXCategoryService _programmingXCategoryService;
 
 
-        public ProgrammingService(IProgrammingRepository programmingRepository, IUserRepository userRepository, IHostRepository hostRepository, ICategoryRepository categoryRepository, IAddressService addressService, IProgrammingValidations programmingValidations)
+        public ProgrammingService(IProgrammingRepository programmingRepository, IUserRepository userRepository, IHostRepository hostRepository, ICategoryRepository categoryRepository, IAddressService addressService, IProgrammingValidations programmingValidations,
+ICategoryService categoryService, IProgrammingXCategoryService programmingXCategoryService)
         {
             _programmingRepository = programmingRepository;
             _userRepository = userRepository;
