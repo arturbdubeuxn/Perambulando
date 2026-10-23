@@ -23,10 +23,11 @@ namespace Projetos___4.Application.DTO
         public string TicketUrl { get; set; } = string.Empty;
         public string InstagranUrl { get; set; } = string.Empty;
         [Required]
+        [Range(0, float.MaxValue)]
         public float MinPrice { get; set; }
         [Required]
+        [Range(0, float.MaxValue)]
         public float MaxPrice { get; set; }
-        [Required]
         public List<int> categoryIds { get; set; } = new List<int>();
     }
 }

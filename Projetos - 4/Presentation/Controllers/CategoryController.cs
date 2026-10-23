@@ -50,7 +50,7 @@ public class CategoryController : ControllerBase
 
     [Authorize]
     [HttpPost("AddCategoryToUser")]
-    public async Task<IActionResult> AddCategoryToUser(List<int> categoryIds)
+    public async Task<IActionResult> AddCategoryToUser([FromBody] List<int> categoryIds)
     {
         var userId = _userManager.GetUserId(User);
         if (string.IsNullOrWhiteSpace(userId))
@@ -59,29 +59,18 @@ public class CategoryController : ControllerBase
                 title: "Usuário não autenticado");
         }
 
-        var dto = new UserXCategoryDTO
-        {
-            UserId = userId,
-            CategoryIds = categoryIds
-        };
-
-        List<UserXCategory> result;
+        UserXCategoryDTO result;
         try
         {
-            result = await _userXCategoryAppService.AddCategoryToUserAsync(dto);
+            result = await _userXCategoryAppService.AddCategoryToUserAsync(categoryIds,userId);
         }
         catch (ArgumentException ex)
         {
             return Problem(statusCode: StatusCodes.Status400BadRequest,
                 title: "Categorias inválidas", detail: ex.Message);
         }
-        if (result == null)
-        {
-            return Problem(statusCode: StatusCodes.Status400BadRequest,
-                title: "Erro ao adicionar categoria",
-                detail: "Não foi possível adicionar a categoria ao usuário.");
-        }
-        return Ok(new { message = "Categorias adicionadas com sucesso." });
+
+        return Ok(result);
     }
 
     [Authorize]
@@ -95,26 +84,10 @@ public class CategoryController : ControllerBase
                 title: "Usuário não autenticado");
         }
 
-        if (categoryIds == null || categoryIds.Any(id => id <= 0))
-        {
-            return BadRequest(new ProblemDetails
-            {
-                Status = StatusCodes.Status400BadRequest,
-                Title = "Categorias inválidas",
-                Detail = "Informe uma lista com IDs maiores que zero, ou [] para remover todas as preferências."
-            });
-        }
-
-        var dto = new UserXCategoryDTO
-        {
-            UserId = userId,
-            CategoryIds = categoryIds
-        };
-
-        List<UserXCategory> links;
+        UserXCategoryDTO links;
         try
         {
-            links = await _userXCategoryAppService.EditCategoryToUserAsync(dto);
+            links = await _userXCategoryAppService.EditCategoryToUserAsync(categoryIds,userId);
         }
         catch (ArgumentException ex)
         {

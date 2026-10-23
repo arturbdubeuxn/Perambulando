@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Identity;
+using Projetos___4.Application.Validations.Interfaces;
+using Microsoft.AspNetCore.Identity;
 using Projetos___4.Domain.Model;
 using Projetos___4.Application.DTO;
 using Projetos___4.Application.Interfaces;
@@ -10,9 +11,13 @@ namespace Projetos___4.Application.AppServices
     public class UserAppService : IUserAppService
     {
         private readonly IUserService _userService;
-        public UserAppService(IUserService userService)
+        private readonly IValidation<UserRegisterDTO> _userCreateValidation;
+        private readonly IValidation<UserEditDTO> _userEditValidation;
+        public UserAppService(IUserService userService, IValidation<UserRegisterDTO> userCreateValidation, IValidation<UserEditDTO> userEditValidation)
         {
             _userService = userService;
+            _userCreateValidation = userCreateValidation;
+            _userEditValidation = userEditValidation;
         }
 
         public async Task<UserProfileDTO?> GetProfileAsync(string userId)
@@ -37,6 +42,8 @@ namespace Projetos___4.Application.AppServices
 
         public Task<IdentityResult?> EditUserAsync(UserEditDTO dto, string userId)
         {
+            _userEditValidation.Validate(dto, DateTime.UtcNow);
+
             var user = new User
             {
                 UserName = dto.Name.Trim(),
@@ -49,10 +56,8 @@ namespace Projetos___4.Application.AppServices
 
         public async Task<IdentityResult> Create(UserRegisterDTO dto)
         {
-            if (dto == null)
-            {
-                throw new ArgumentNullException(nameof(dto), "User data is invalid");
-            }
+            _userCreateValidation.Validate(dto, DateTime.UtcNow);
+
             var newUser = new User
             {
                 UserName = dto.Name,

@@ -12,20 +12,21 @@ public class ProgrammingEditDTO
     [Required]
     public string Description { get; set; } = string.Empty;
     [Required]
-    public DateTime? StartDate { get; set; }
+    public DateTime StartDate { get; set; }
     [Required]
-    public DateTime? EndDate { get; set; }
+    public DateTime EndDate { get; set; }
     [Required]
-    public bool? IsFree { get; set; }
+    public bool IsFree { get; set; }
     public string ImageUrl { get; set; } = string.Empty;
     public string TicketUrl { get; set; } = string.Empty;
     public string InstagranUrl { get; set; } = string.Empty;
     [Required]
-    public float? MinPrice { get; set; }
+    [Range(0, float.MaxValue)]
+    public float MinPrice { get; set; }
     [Required]
-    public float? MaxPrice { get; set; }
-
-    [Required, MinLength(1)]
+    [Range(0, float.MaxValue)]
+    public float MaxPrice { get; set; }
     public List<int> categoryIds { get; set; } = new();
+
 
 }

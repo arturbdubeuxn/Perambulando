@@ -1,19 +1,27 @@
-
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Projetos___4.Application.AppServices;
 using Projetos___4.Application.Interfaces;
+using Projetos___4.Application.Validations.Interfaces;
+using Projetos___4.Application.Validations.Validations.Programming;
 using Projetos___4.Data.Context;
-using Projetos___4.Data.Services;
 using Projetos___4.Data.Repository;
+using Projetos___4.Data.Services;
 using Projetos___4.Domain.Interfaces;
 using Projetos___4.Domain.Interfaces.Repository;
 using Projetos___4.Domain.Interfaces.Service;
 using Projetos___4.Domain.Model;
 using Projetos___4.Domain.Service;
 using System.Text;
+using static System.Net.Mime.MediaTypeNames;
+
+using Projetos___4.Application.DTO;
+using Projetos___4.Application.Validations.Validations.User;
+using Projetos___4.Application.Validations.Validations.Host;
+using Projetos___4.Domain.Validations.Interface;
+using Projetos___4.Domain.Validations.Validations;
 
 
 
@@ -66,6 +74,7 @@ builder.Services.AddScoped<IHostRepository,HostRepository>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IProgrammingRepository,ProgrammingRepository>();
 builder.Services.AddScoped<IProgrammingService, ProgrammingService>();
+builder.Services.AddScoped<IProgrammingValidations, ProgrammingValidations>();
 builder.Services.AddScoped<IProgrammingAppService, ProgrammingAppService>();
 builder.Services.AddScoped<ICategoryRepository, CategoryRepository>();
 builder.Services.AddScoped<ICategoryService, CategoryService>();
@@ -73,6 +82,14 @@ builder.Services.AddScoped<ICategoryAppService, CategoryAppService>();
 builder.Services.AddScoped<IUserXCategoryRepository, UserXCategoryRepository>();
 builder.Services.AddScoped<IUserXCategoryService, UserXCategoryService>();
 builder.Services.AddScoped<IUserXCategoryAppService, UserXCategoryAppService>();
+builder.Services.AddScoped<IValidation<ProgrammingCreateDTO>, ProgrammingCreateValidation>();
+builder.Services.AddScoped<IValidation<ProgrammingEditDTO>, ProgrammingEditValidation>();
+builder.Services.AddScoped<IValidation<HostRegisterDTO>, HostCreateValidation>();
+builder.Services.AddScoped<IValidation<HostEditDTO>, HostEditValidation>();
+builder.Services.AddScoped<IValidation<UserRegisterDTO>, UserCreateValidation>();
+builder.Services.AddScoped<IValidation<UserEditDTO>, UserEditValidation>();
+builder.Services.AddScoped<IValidation<UserXCategoryDTO>, UserXCategoryValidation>();
+
 
 ///
 
