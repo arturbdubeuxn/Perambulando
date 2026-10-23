@@ -66,6 +66,8 @@ builder.Services.AddScoped<IHostRepository,HostRepository>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IProgrammingRepository,ProgrammingRepository>();
 builder.Services.AddScoped<IProgrammingService, ProgrammingService>();
+builder.Services.AddScoped<IProgrammingXCategoryRepository, ProgrammingXCategoryRepository>();
+builder.Services.AddScoped<IProgrammingXCategoryService, ProgrammingXCategoryService>();
 builder.Services.AddScoped<IProgrammingAppService, ProgrammingAppService>();
 builder.Services.AddScoped<ICategoryRepository, CategoryRepository>();
 builder.Services.AddScoped<ICategoryService, CategoryService>();

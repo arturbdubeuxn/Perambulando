@@ -13,14 +13,18 @@ namespace Projetos___4.Domain.Service
         private readonly IHostRepository _hostRepository;
         private readonly IAddressService _addressService;
         private readonly ICategoryRepository _categoryRepository;
+        private readonly ICategoryService _categoryService;
+        private readonly IProgrammingXCategoryService _programmingXCategoryService;
 
-        public ProgrammingService(IProgrammingRepository programmingRepository, IUserRepository userRepository, IHostRepository hostRepository, ICategoryRepository categoryRepository, IAddressService addressService)
+        public ProgrammingService(IProgrammingRepository programmingRepository, IUserRepository userRepository, IHostRepository hostRepository, ICategoryRepository categoryRepository, IAddressService addressService, ICategoryService categoryService, IProgrammingXCategoryService programmingXCategoryService)
         {
             _programmingRepository = programmingRepository;
             _userRepository = userRepository;
             _hostRepository = hostRepository;
             _addressService = addressService;
             _categoryRepository = categoryRepository;
+            _categoryService = categoryService;
+            _programmingXCategoryService = programmingXCategoryService;
         }
         public Task<Programming?> GetByIdAsync(int programmingId)
         {
@@ -88,10 +92,8 @@ namespace Projetos___4.Domain.Service
             var address = await _addressService.AddAddress(programming.AddressId, programming.Address, userId);
 
             var currentCategories = await _categoryRepository.GetAllCategoriesbyProgrammingId(existing.Id);
-            var currentCategoryIds = currentCategories.Select(category => category.Id).ToHashSet();
-            var desiredCategoryIds = links.Select(link => link.CategoryId).ToHashSet();
-            var categoryIdsToRemove = currentCategoryIds.Except(desiredCategoryIds).ToList();
-            var linksToAdd = links.Where(link => !currentCategoryIds.Contains(link.CategoryId)).ToList();
+            var categoryIdsToRemove = _categoryService.GetCategoryIdsToRemove(currentCategories, links);
+            var linksToAdd = _programmingXCategoryService.GetLinksToAdd(currentCategories, links);
 
             existing.Name = programming.Name;
             existing.Description = programming.Description;

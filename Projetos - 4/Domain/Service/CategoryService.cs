@@ -23,6 +23,13 @@ namespace Projetos___4.Domain.Service
             return _categoryRepository.GetAllCategoriesbyUserId(userId);
         }
 
+        public List<int> GetCategoryIdsToRemove(List<Category> currentCategories, List<ProgrammingXCategory> links)
+        {
+            var currentCategoryIds = currentCategories.Select(category => category.Id).ToHashSet();
+            var desiredCategoryIds = links.Select(link => link.CategoryId).ToHashSet();
+            return currentCategoryIds.Except(desiredCategoryIds).ToList();
+        }
+
         public Task<Category> GetbyId(int categoryId)
         {
             return _categoryRepository.GetbyId(categoryId);
