@@ -84,7 +84,7 @@ namespace Projetos___4.Application.AppServices
             };
         }
 
-        public async Task<Hosts?> Create(HostRegisterDTO dto, string userId)
+        public async Task<HostCreatedDTO?> Create(HostRegisterDTO dto, string userId)
         {
             if(dto == null || string.IsNullOrEmpty(userId))
             {
@@ -118,13 +118,20 @@ namespace Projetos___4.Application.AppServices
             var result = await _hostService.Create(host, userId);
 
             if (result == null)
+            {
                 throw new InvalidOperationException("Failed to create host.");
+            }
 
-            return result;
+            return new HostCreatedDTO
+            {
+                Id = result.Id,
+                AddressId = result.AddressId,
+                Name = result.Name
+            };
 
         }
 
-        public Task<Hosts?> EditHostAsync(HostEditDTO dto, int hostId, string userId)
+        public async Task<HostResponseDTO?> EditHostAsync(HostEditDTO dto, int hostId, string userId)
         {
             var host = new Hosts
             {
@@ -151,7 +158,37 @@ namespace Projetos___4.Application.AppServices
                 };
             }
 
-            return _hostService.EditHostAsync(host, userId);
+            var result = await _hostService.EditHostAsync(host, userId);
+
+            if (result == null)
+            {
+                return null;
+            }
+
+            return new HostResponseDTO
+            {
+                Id = result.Id,
+                Typeofhost = result.Typeofhost,
+                CNPJ = result.CNPJ,
+                LogoUrl = result.LogoUrl,
+                InstagranUrl = result.InstagranUrl,
+                Phone = result.Phone,
+                Name = result.Name,
+                Description = result.Description,
+                AddressId = result.AddressId,
+                Address = new AddressDetailsDTO
+                {
+                    Id = result.Address.Id,
+                    Street = result.Address.Street,
+                    Number = result.Address.Number,
+                    Complement = result.Address.Complement,
+                    Neighborhood = result.Address.Neighborhood,
+                    CEP = result.Address.CEP
+                },
+                IsActive = result.IsActive,
+                CreatedAt = result.CreatedAt,
+                UpdatedAt = result.UpdatedAt
+            };
         }
 
         public Task<Hosts?> DeleteHostAsync(int hostId, string userId)
@@ -159,9 +196,34 @@ namespace Projetos___4.Application.AppServices
             return _hostService.DeleteHostAsync(hostId, userId);
         }
 
-        public async Task<IEnumerable<Hosts>> GetAllHostsbyUserId(string userid)
+        public async Task<IEnumerable<HostResponseDTO>> GetAllHostsbyUserId(string userid)
         {
-            return await _hostService.GetAllHostsbyUserId(userid);
+            var hosts = await _hostService.GetAllHostsbyUserId(userid);
+
+            return hosts.Select(host => new HostResponseDTO
+            {
+                Id = host.Id,
+                Typeofhost = host.Typeofhost,
+                CNPJ = host.CNPJ,
+                LogoUrl = host.LogoUrl,
+                InstagranUrl = host.InstagranUrl,
+                Phone = host.Phone,
+                Name = host.Name,
+                Description = host.Description,
+                AddressId = host.AddressId,
+                Address = new AddressDetailsDTO
+                {
+                    Id = host.Address.Id,
+                    Street = host.Address.Street,
+                    Number = host.Address.Number,
+                    Complement = host.Address.Complement,
+                    Neighborhood = host.Address.Neighborhood,
+                    CEP = host.Address.CEP
+                },
+                IsActive = host.IsActive,
+                CreatedAt = host.CreatedAt,
+                UpdatedAt = host.UpdatedAt
+            }).ToList();
         }
     }
 }

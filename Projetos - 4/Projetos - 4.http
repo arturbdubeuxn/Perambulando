@@ -114,7 +114,7 @@ Authorization: Bearer {{login.response.body.$.accessToken}}
 # ============================================================
 
 ### HOST - Criar host e receber JWT atualizado (201 com result e auth)
-# Execute login antes. O ID do host fica em result.id; o JWT fica em auth.accessToken.
+# Execute login antes. result contém somente id, addressId e name; o JWT fica em auth.accessToken.
 # @name createHost
 POST {{Projetos___4_HostAddress}}/api/Host/Create
 Content-Type: application/json
@@ -203,6 +203,10 @@ Accept: application/json
 # Execute login e getallCategories antes. Ajuste os IDs no início do arquivo.
 # Envie um array JSON direto, sem objeto categoryIds e sem userId; o usuário vem do JWT.
 # A operação adiciona vínculos; não substitui a seleção anterior. Evite reenviar categorias já salvas.
+# Selecione categorias ativas retornadas por GetallCategories. O frontend envia os IDs.
+# Qualquer categoria inexistente/inativa rejeita todo o cadastro (400), sem gravação parcial.
+# Escolha opcional: pule esta requisição ou envie [] para não adicionar nada.
+# No PUT EditCategoryToUser, [] remove todas as preferências atuais.
 # @name addCategoryToUser
 POST {{Projetos___4_HostAddress}}/api/Category/AddCategoryToUser
 Content-Type: application/json

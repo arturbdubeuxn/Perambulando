@@ -1,4 +1,4 @@
-﻿using Projetos___4.Domain.Interfaces.Repository;
+using Projetos___4.Domain.Interfaces.Repository;
 using Projetos___4.Domain.Interfaces.Service;
 using Projetos___4.Domain.Model;
 
@@ -14,13 +14,35 @@ namespace Projetos___4.Domain.Service
             _categoryService = categoryService;
         }
 
-        public async Task<UserXCategory?> AddAsync(UserXCategory userXCategory)
+        public async Task<List<UserXCategory>> AddAsync(string userId, IReadOnlyCollection<UserXCategory> userCategories)
         {
-            if (userXCategory == null)
+            ArgumentNullException.ThrowIfNull(userCategories);
+
+            if (string.IsNullOrWhiteSpace(userId))
             {
-                throw new ArgumentNullException(nameof(userXCategory));
+                throw new ArgumentException("Informe o usuário.", nameof(userId));
             }
-            return await _userXCategoryRepository.AddAsync(userXCategory);
+
+            if (userCategories.Count == 0)
+            {
+                return new List<UserXCategory>();
+            }
+
+            if (userCategories.Any(link => link.UserId != userId))
+            {
+                throw new ArgumentException("As categorias devem pertencer ao usuário informado.", nameof(userCategories));
+            }
+
+            var activeCategories = await _categoryService.GetallCategories();
+            var activeCategoryIds = activeCategories.Where(category => category.IsActive)
+                .Select(category => category.Id).ToHashSet();
+
+            if (userCategories.Any(link => link.CategoryId <= 0 || !activeCategoryIds.Contains(link.CategoryId)))
+            {
+                throw new ArgumentException("Uma ou mais categorias não existem ou estão inativas.", nameof(userCategories));
+            }
+
+            return await _userXCategoryRepository.AddAsync(userCategories);
         }
 
         public async Task<List<UserXCategory>> EditAsync(string userId, IReadOnlyCollection<UserXCategory> newLinks)
@@ -36,9 +58,13 @@ namespace Projetos___4.Domain.Service
                 throw new ArgumentException("Informe o usuário.", nameof(userId));
             }
 
-            if (newCategories.Count == 0)
+            var activeCategories = await _categoryService.GetallCategories();
+            var activeCategoryIds = activeCategories.Where(category => category.IsActive)
+                .Select(category => category.Id).ToHashSet();
+
+            if (newCategories.Any(category => category.Id <= 0 || !activeCategoryIds.Contains(category.Id)))
             {
-                throw new ArgumentException("Selecione pelo menos uma categoria.", nameof(newCategories));
+                throw new ArgumentException("Uma ou mais categorias não existem ou estão inativas.", nameof(newLinks));
             }
 
             var currentCategories = await _categoryService.GetAllCategoriesPrefereces(userId);

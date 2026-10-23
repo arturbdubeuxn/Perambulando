@@ -1,4 +1,4 @@
-﻿using Projetos___4.Application.DTO;
+using Projetos___4.Application.DTO;
 using Projetos___4.Application.Interfaces;
 using Projetos___4.Domain.Interfaces.Service;
 using Projetos___4.Domain.Model;
@@ -20,9 +20,9 @@ namespace Projetos___4.Application.AppServices
                 throw new ArgumentNullException(nameof(dto));
             }
 
-            if (dto.CategoryIds == null || dto.CategoryIds.Count == 0)
+            if (dto.CategoryIds == null)
             {
-                throw new ArgumentException("Selecione pelo menos uma categoria.");
+                throw new ArgumentException("Informe uma lista de categorias; use [] para nenhuma seleção.");
             }
 
             var results = new List<UserXCategory>();
@@ -37,18 +37,10 @@ namespace Projetos___4.Application.AppServices
                     UpdatedAt = DateTime.UtcNow
                 };
 
-                var created = await _userXCategoryService.AddAsync(userXCategory);
-
-                if (created == null)
-                {
-                    throw new InvalidOperationException(
-                        "Não foi possível adicionar a categoria ao usuário.");
-                }
-
-                results.Add(created);
+                results.Add(userXCategory);
             }
 
-            return results;
+            return await _userXCategoryService.AddAsync(dto.UserId, results);
         }
 
         public async Task<List<UserXCategory>> EditCategoryToUserAsync(UserXCategoryDTO dto)
@@ -58,9 +50,9 @@ namespace Projetos___4.Application.AppServices
                 throw new ArgumentNullException(nameof(dto));
             }
 
-            if (dto.CategoryIds == null || dto.CategoryIds.Count == 0)
+            if (dto.CategoryIds == null)
             {
-                throw new ArgumentException("Selecione pelo menos uma categoria.");
+                throw new ArgumentException("Informe uma lista de categorias; use [] para nenhuma seleção.");
             }
 
             var links = new List<UserXCategory>();
