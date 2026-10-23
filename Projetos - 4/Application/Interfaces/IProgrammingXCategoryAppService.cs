@@ -1,10 +1,9 @@
-﻿using Projetos___4.Application.DTO;
-using Projetos___4.Domain.Model;
+using Projetos___4.Application.DTO;
 
 namespace Projetos___4.Application.Interfaces
 {
     public interface IProgrammingXCategoryAppService
     {
-        Task<ProgrammingXCategory> CreateProgrammingXCategoryAsync(int categoryId, int programmingId);
+        Task<ProgrammingXCategoryResponseDTO> CreateProgrammingXCategoryAsync(int categoryId, int programmingId);
     }
 }

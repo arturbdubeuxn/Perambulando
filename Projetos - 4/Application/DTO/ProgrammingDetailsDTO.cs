@@ -1,4 +1,3 @@
-using Projetos___4.Domain.Model;
 
 namespace Projetos___4.Application.DTO;
 
@@ -24,5 +23,5 @@ public class ProgrammingDetailsDTO
     public float MinPrice { get; set; }
     public float MaxPrice { get; set; }
 
-    public List<Category>? Categories { get; set; }
+    public List<CategoryResponseDTO>? Categories { get; set; }
 }

@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using Projetos___4.Domain.Exceptions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -27,13 +28,8 @@ namespace Projetos___4.Presentation.Controllers
 
         [Authorize]
         [HttpGet("Details/{hostId:int}")]
-        public async Task<IActionResult> Details([FromRoute] int hostId)
+        public async Task<IActionResult> Details([FromRoute, Range(1, int.MaxValue)] int hostId)
         {
-            if (hostId <= 0)
-            {
-                return Problem(statusCode: StatusCodes.Status400BadRequest,
-                    title: "Dados inválidos", detail: "O ID do host deve ser maior que zero.");
-            }
 
             var host = await _hostAppService.GetByIdAsync(hostId);
 
@@ -65,11 +61,6 @@ namespace Projetos___4.Presentation.Controllers
                 return Problem(statusCode: StatusCodes.Status401Unauthorized, title: "Autenticação inválida", detail: "Usuário não encontrado ou inativo.");
             }
 
-            if (dto.Address == null && dto.AddressId <= 0)
-            {
-                return Problem(statusCode: StatusCodes.Status400BadRequest, title: "Endereço inválido", detail: "O endereço é obrigatório.");
-            }
-
             HostCreatedDTO? result;
             try
             {
@@ -92,6 +83,11 @@ namespace Projetos___4.Presentation.Controllers
                         : "Não foi possível concluir o cadastro do host.");
             }
 
+            catch (ArgumentException ex)
+            {
+                return Problem(statusCode: StatusCodes.Status400BadRequest,
+                    title: "Dados inválidos", detail: ex.Message);
+            }
             if (result == null)
             {
                 return Problem(statusCode: StatusCodes.Status500InternalServerError, title: "Falha no cadastro do host");
@@ -106,7 +102,7 @@ namespace Projetos___4.Presentation.Controllers
 
         [Authorize(Roles = "ADMIN,HOST")]
         [HttpPut("{hostId:int}/Edit")]
-        public async Task<IActionResult> Edit([FromRoute] int hostId, [FromBody] HostEditDTO dto)
+        public async Task<IActionResult> Edit([FromRoute, Range(1, int.MaxValue)] int hostId, [FromBody] HostEditDTO dto)
         {
             var userId = _userManager.GetUserId(User);
 
@@ -116,15 +112,11 @@ namespace Projetos___4.Presentation.Controllers
                     title: "Usuário não autenticado");
             }
 
-            if (hostId <= 0)
+
+            if (dto == null)
             {
                 return Problem(statusCode: StatusCodes.Status400BadRequest,
-                    title: "Dados inválidos", detail: "O ID do host deve ser maior que zero.");
-            }
-
-            if (dto.Address == null && dto.AddressId <= 0)
-            {
-                return Problem(statusCode: StatusCodes.Status400BadRequest, title: "Endereço inválido", detail: "O endereço é obrigatório.");
+                    title: "Dados inválidos", detail: "Informe os dados da requisição.");
             }
 
             HostResponseDTO? result;
@@ -141,6 +133,11 @@ namespace Projetos___4.Presentation.Controllers
             }
 
 
+            catch (ArgumentException ex)
+            {
+                return Problem(statusCode: StatusCodes.Status400BadRequest,
+                    title: "Dados inválidos", detail: ex.Message);
+            }
             if (result == null)
             {
                 return Problem(statusCode: StatusCodes.Status404NotFound,
@@ -153,7 +150,7 @@ namespace Projetos___4.Presentation.Controllers
 
         [Authorize(Roles = "ADMIN,HOST")]
         [HttpPatch("{hostId:int}/Delete")]
-        public async Task<IActionResult> Delete([FromRoute] int hostId)
+        public async Task<IActionResult> Delete([FromRoute, Range(1, int.MaxValue)] int hostId)
         {
             var userId = _userManager.GetUserId(User);
 
@@ -163,11 +160,6 @@ namespace Projetos___4.Presentation.Controllers
                     title: "Usuário não autenticado");
             }
 
-            if (hostId <= 0)
-            {
-                return Problem(statusCode: StatusCodes.Status400BadRequest,
-                    title: "Dados inválidos", detail: "O ID do host deve ser maior que zero.");
-            }
 
             var result = await _hostAppService.DeleteHostAsync(hostId, userId);
 

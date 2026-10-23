@@ -1,4 +1,4 @@
-﻿using Projetos___4.Application.DTO;
+using Projetos___4.Application.DTO;
 using Projetos___4.Application.Interfaces;
 using Projetos___4.Domain.Interfaces.Service;
 using Projetos___4.Domain.Model;
@@ -13,7 +13,7 @@ namespace Projetos___4.Application.AppServices
         {
             _programmingXCategoryService = programmingXCategoryService;
         }
-        public Task<ProgrammingXCategory> CreateProgrammingXCategoryAsync(int categoryId, int programmingId)
+        public async Task<ProgrammingXCategoryResponseDTO> CreateProgrammingXCategoryAsync(int categoryId, int programmingId)
         {
             var programmingXCategory = new ProgrammingXCategory
             {
@@ -21,7 +21,14 @@ namespace Projetos___4.Application.AppServices
                 CategoryId = categoryId
             };
 
-            return _programmingXCategoryService.CreateProgrammingXCategoryAsync(programmingXCategory);
+            var result = await _programmingXCategoryService.CreateProgrammingXCategoryAsync(programmingXCategory);
+
+            return new ProgrammingXCategoryResponseDTO
+            {
+                Id = result.Id,
+                ProgrammingId = result.ProgrammingId,
+                CategoryId = result.CategoryId
+            };
         }
     }
 }

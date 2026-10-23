@@ -3,6 +3,7 @@ using Projetos___4.Domain.Interfaces;
 using Projetos___4.Domain.Interfaces.Repository;
 using Projetos___4.Domain.Interfaces.Service;
 using Projetos___4.Domain.Model;
+using Projetos___4.Domain.Validations.Interface;
 
 namespace Projetos___4.Domain.Service
 {
@@ -13,16 +14,19 @@ namespace Projetos___4.Domain.Service
         private readonly IHostRepository _hostRepository;
         private readonly IAddressService _addressService;
         private readonly ICategoryRepository _categoryRepository;
+        private readonly IProgrammingValidations _programmingValidations;
         private readonly ICategoryService _categoryService;
         private readonly IProgrammingXCategoryService _programmingXCategoryService;
 
-        public ProgrammingService(IProgrammingRepository programmingRepository, IUserRepository userRepository, IHostRepository hostRepository, ICategoryRepository categoryRepository, IAddressService addressService, ICategoryService categoryService, IProgrammingXCategoryService programmingXCategoryService)
+
+        public ProgrammingService(IProgrammingRepository programmingRepository, IUserRepository userRepository, IHostRepository hostRepository, ICategoryRepository categoryRepository, IAddressService addressService, IProgrammingValidations programmingValidations)
         {
             _programmingRepository = programmingRepository;
             _userRepository = userRepository;
             _hostRepository = hostRepository;
             _addressService = addressService;
             _categoryRepository = categoryRepository;
+            _programmingValidations = programmingValidations;
             _categoryService = categoryService;
             _programmingXCategoryService = programmingXCategoryService;
         }
@@ -77,6 +81,8 @@ namespace Projetos___4.Domain.Service
 
         public async Task<Programming?> EditProgrammingAsync(Programming programming, List<ProgrammingXCategory> links, string userId)
         {
+            _programmingValidations.ValidateProgramming(programming, links, DateTime.UtcNow);
+
             if (string.IsNullOrWhiteSpace(userId) ||
                 !await _hostRepository.UserOwnsActiveHostAsync(programming, userId))
             {
@@ -89,7 +95,9 @@ namespace Projetos___4.Domain.Service
                 return null;
             }
 
-            var address = await _addressService.AddAddress(programming.AddressId, programming.Address, userId);
+            var addressId = programming.AddressId > 0 ? programming.AddressId : programming.Address?.Id ?? 0;
+            var newAddress = addressId > 0 ? null : programming.Address;
+            var address = await _addressService.AddAddress(addressId, newAddress, userId);
 
             var currentCategories = await _categoryRepository.GetAllCategoriesbyProgrammingId(existing.Id);
             var categoryIdsToRemove = _categoryService.GetCategoryIdsToRemove(currentCategories, links);
@@ -115,6 +123,12 @@ namespace Projetos___4.Domain.Service
 
         public async Task<Programming> CreateProgrammingAsync(Programming programming, List<ProgrammingXCategory> links, string userId)
         {
+           _programmingValidations.ValidateProgramming(programming, links, DateTime.UtcNow);
+           if (string.IsNullOrWhiteSpace(userId))
+           {
+               throw new InvalidOperationException("Esse usuário não é o dono do host ativo para este programa.");
+           }
+
            bool userOwnsActiveHost = await _hostRepository.UserOwnsActiveHostAsync(programming, userId);
 
            if (!userOwnsActiveHost)
@@ -122,7 +136,9 @@ namespace Projetos___4.Domain.Service
                 throw new InvalidOperationException("Esse usuário não é o dono do host ativo para este programa.");
            }
 
-           programming.Address = await _addressService.AddAddress(programming.AddressId, programming.Address, userId);
+           var addressId = programming.AddressId > 0 ? programming.AddressId : programming.Address?.Id ?? 0;
+           var newAddress = addressId > 0 ? null : programming.Address;
+           programming.Address = await _addressService.AddAddress(addressId, newAddress, userId);
            programming.AddressId = programming.Address.Id;
 
            return await _programmingRepository.CreateWithCategoriesAsync(programming, links);

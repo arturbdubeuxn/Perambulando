@@ -39,7 +39,16 @@ namespace Projetos___4.Presentation.Controllers
                 return Problem(statusCode: StatusCodes.Status400BadRequest, title: "Dados inválidos", detail: "O usuário é inválido");
             }
 
-            var result = await _userAppService.Create(dto);
+            IdentityResult result;
+            try
+            {
+                result = await _userAppService.Create(dto);
+            }
+            catch (ArgumentException ex)
+            {
+                return Problem(statusCode: StatusCodes.Status400BadRequest,
+                    title: "Dados inválidos", detail: ex.Message);
+            }
 
             if (!result.Succeeded)
             {
@@ -112,7 +121,21 @@ namespace Projetos___4.Presentation.Controllers
                     title: "Usuário não autenticado");
             }
 
-            var result = await _userAppService.EditUserAsync(dto, userId);
+            if (dto == null)
+            {
+                return Problem(statusCode: StatusCodes.Status400BadRequest,
+                    title: "Dados inválidos", detail: "Informe os dados da requisição.");
+            }
+            IdentityResult? result;
+            try
+            {
+                result = await _userAppService.EditUserAsync(dto, userId);
+            }
+            catch (ArgumentException ex)
+            {
+                return Problem(statusCode: StatusCodes.Status400BadRequest,
+                    title: "Dados inválidos", detail: ex.Message);
+            }
 
             if (result == null)
             {
@@ -148,11 +171,22 @@ namespace Projetos___4.Presentation.Controllers
 
         [Authorize]
         [HttpDelete]
-        public async Task<IActionResult> DeleteUser([FromBody] UserRegisterDTO dto)
+        public async Task<IActionResult> DeleteUser([FromBody] UserDeleteDTO dto)
         {
+            var userId = _userManager.GetUserId(User);
+            if (string.IsNullOrWhiteSpace(userId))
+            {
+                return Problem(statusCode: StatusCodes.Status401Unauthorized, title: "Usuário não autenticado");
+            }
+
+            if (dto == null)
+            {
+                return Problem(statusCode: StatusCodes.Status400BadRequest,
+                    title: "Dados inválidos", detail: "Informe os dados da requisição.");
+            }
             var existingUser = await _userManager.FindByEmailAsync(dto.Email);
 
-            if (existingUser != null && existingUser.Id != User.FindFirstValue("sub"))
+            if (existingUser != null && existingUser.Id != userId)
             {
                 return Problem(statusCode: StatusCodes.Status403Forbidden, title: "Acesso negado", detail: "Você só pode excluir a própria conta.");
             }

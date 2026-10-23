@@ -1,7 +1,7 @@
 using Projetos___4.Application.Interfaces;
 
 using Projetos___4.Domain.Interfaces.Service;
-using Projetos___4.Domain.Model;
+using Projetos___4.Application.DTO;
 
 namespace Projetos___4.Application.AppServices
 {
@@ -14,19 +14,40 @@ namespace Projetos___4.Application.AppServices
             _categoryService = categoryService;
         }
 
-        public Task<IEnumerable<Category>> GetallCategories()
+        public async Task<IEnumerable<CategoryResponseDTO>> GetallCategories()
         {
-            return _categoryService.GetallCategories();
+            var categories = await _categoryService.GetallCategories();
+
+            return categories.Select(category => new CategoryResponseDTO
+            {
+                Id = category.Id,
+                Name = category.Name,
+                IsActive = category.IsActive
+            }).ToList();
         }
 
-        public Task<Category> GetbyId(int categoryId)
+        public async Task<CategoryResponseDTO> GetbyId(int categoryId)
         {
-            return _categoryService.GetbyId(categoryId);
+            var category = await _categoryService.GetbyId(categoryId);
+
+            return new CategoryResponseDTO
+            {
+                Id = category.Id,
+                Name = category.Name,
+                IsActive = category.IsActive
+            };
         }
 
-        public Task<IEnumerable<Category>> GetAllCategoriesPrefereces(string userId)
+        public async Task<IEnumerable<CategoryResponseDTO>> GetAllCategoriesPrefereces(string userId)
         {
-            return _categoryService.GetAllCategoriesPrefereces(userId);
+            var categories = await _categoryService.GetAllCategoriesPrefereces(userId);
+
+            return categories.Select(category => new CategoryResponseDTO
+            {
+                Id = category.Id,
+                Name = category.Name,
+                IsActive = category.IsActive
+            }).ToList();
         }
     }
 }

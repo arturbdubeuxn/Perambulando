@@ -1,3 +1,5 @@
+# Programação: cadastro, edição e sugestões retornam DTOs, sem navegação host ou autoria interna do endereço.
+# Cadastro preserva id/addressId na raiz e Location dos detalhes; exclusão continua 204 sem corpo.
 # ADDRESS: migration AddAddress aplicada em 21/10/2026. Banco atualizado; selecione AddressId ou envie um novo objeto Address.
 @Projetos___4_HostAddress = http://localhost:5014
 @nome = Maria
@@ -207,6 +209,7 @@ Accept: application/json
 # Qualquer categoria inexistente/inativa rejeita todo o cadastro (400), sem gravação parcial.
 # Escolha opcional: pule esta requisição ou envie [] para não adicionar nada.
 # No PUT EditCategoryToUser, [] remove todas as preferências atuais.
+# Resposta 200: DTO com userId e categoryIds; a mensagem de sucesso anterior foi substituída.
 # @name addCategoryToUser
 POST {{Projetos___4_HostAddress}}/api/Category/AddCategoryToUser
 Content-Type: application/json
@@ -295,6 +298,7 @@ Accept: application/json
 # Envie a lista final de categorias. Vínculos retirados são removidos; novos IDs são adicionados.
 # Ajuste EditCategoryId no início do arquivo para uma categoria existente.
 # @name editProgramming
+# Edição: datas em UTC, início futuro, término posterior, categorias positivas sem repetição.
 PUT {{Projetos___4_HostAddress}}/api/Programming/{{createHost.response.body.$.result.id}}/Edit/{{createProgrammingAfterHost.response.body.$.id}}
 Content-Type: application/json
 Accept: application/json
