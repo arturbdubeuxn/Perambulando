@@ -9,6 +9,7 @@ public class HostEditDTO
     public TypeofHost? Typeofhost { get; set; }
 
     [MaxLength(18)]
+    [Required]
     public string CNPJ { get; set; } = string.Empty;
 
     [MaxLength(2048)]

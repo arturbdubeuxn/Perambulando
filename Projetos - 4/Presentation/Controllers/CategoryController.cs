@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -50,7 +50,7 @@ public class CategoryController : ControllerBase
 
     [Authorize]
     [HttpPost("AddCategoryToUser")]
-    public async Task<IActionResult> AddCategoryToUser(List<int> categoryIds)
+    public async Task<IActionResult> AddCategoryToUser([FromBody] List<int> categoryIds)
     {
         var userId = _userManager.GetUserId(User);
         if (string.IsNullOrWhiteSpace(userId))
@@ -59,20 +59,18 @@ public class CategoryController : ControllerBase
                 title: "Usuário não autenticado");
         }
 
-        var dto = new UserXCategoryDTO
+        UserXCategoryDTO result;
+        try
         {
-            UserId = userId,
-            CategoryIds = categoryIds
-        };
-
-        var result = await _userXCategoryAppService.AddCategoryToUserAsync(dto);
-        if (result == null)
+            result = await _userXCategoryAppService.AddCategoryToUserAsync(categoryIds,userId);
+        }
+        catch (ArgumentException ex)
         {
             return Problem(statusCode: StatusCodes.Status400BadRequest,
-                title: "Erro ao adicionar categoria",
-                detail: "Não foi possível adicionar a categoria ao usuário.");
+                title: "Categorias inválidas", detail: ex.Message);
         }
-        return Ok(new { message = "Categorias adicionadas com sucesso." });
+
+        return Ok(result);
     }
 
     [Authorize]
@@ -86,23 +84,16 @@ public class CategoryController : ControllerBase
                 title: "Usuário não autenticado");
         }
 
-        if (categoryIds == null || categoryIds.Count == 0 || categoryIds.Any(id => id <= 0))
+        UserXCategoryDTO links;
+        try
         {
-            return BadRequest(new ProblemDetails
-            {
-                Status = StatusCodes.Status400BadRequest,
-                Title = "Categorias inválidas",
-                Detail = "Selecione pelo menos uma categoria com ID maior que zero."
-            });
+            links = await _userXCategoryAppService.EditCategoryToUserAsync(categoryIds,userId);
         }
-
-        var dto = new UserXCategoryDTO
+        catch (ArgumentException ex)
         {
-            UserId = userId,
-            CategoryIds = categoryIds
-        };
-
-        var links = await _userXCategoryAppService.EditCategoryToUserAsync(dto);
+            return Problem(statusCode: StatusCodes.Status400BadRequest,
+                title: "Categorias inválidas", detail: ex.Message);
+        }
         return Ok(links);
     }
 

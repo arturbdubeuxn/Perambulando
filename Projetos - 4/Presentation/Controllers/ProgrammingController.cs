@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using Projetos___4.Domain.Exceptions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
@@ -27,12 +28,8 @@ namespace Projetos___4.Presentation.Controllers
 
         [AllowAnonymous]
         [HttpGet("Details/{programmingId:int}")]
-        public async Task<IActionResult> Details([FromRoute] int programmingId)
+        public async Task<IActionResult> Details([FromRoute, Range(1, int.MaxValue)] int programmingId)
         {
-            if (programmingId <= 0)
-            {
-                return Problem(statusCode: StatusCodes.Status400BadRequest, title: "Dados inválidos", detail: "O ID da programação deve ser maior que zero.");
-            }
 
             var programming = await _programmingAppService.GetByIdAsync(programmingId);
 
@@ -48,7 +45,7 @@ namespace Projetos___4.Presentation.Controllers
 
         [Authorize(Roles = "ADMIN,HOST")]
         [HttpPatch("{hostId:int}/Delete/{programmingId:int}")]
-        public async Task<IActionResult> Delete([FromRoute] int hostId, [FromRoute] int programmingId)
+        public async Task<IActionResult> Delete([FromRoute, Range(1, int.MaxValue)] int hostId, [FromRoute, Range(1, int.MaxValue)] int programmingId)
         {
             var userId = _userManager.GetUserId(User);
 
@@ -57,10 +54,6 @@ namespace Projetos___4.Presentation.Controllers
                 return Problem(statusCode: StatusCodes.Status401Unauthorized, title: "Usuário não autenticado");
             }
 
-            if (hostId <= 0 || programmingId <= 0)
-            {
-                return Problem(statusCode: StatusCodes.Status400BadRequest, title: "Dados inválidos", detail: "Os IDs do host e da programação devem ser maiores que zero.");
-            }
 
             var result = await _programmingAppService.DeleteProgrammingAsync(programmingId, hostId, userId);
 
@@ -76,7 +69,7 @@ namespace Projetos___4.Presentation.Controllers
 
         [Authorize(Roles = "ADMIN,HOST")]
         [HttpPut("{hostId:int}/Edit/{Programmingid:int}")]
-        public async Task<IActionResult> Edit([FromRoute] int hostId, [FromRoute] int Programmingid, [FromBody] ProgrammingEditDTO dto)
+        public async Task<IActionResult> Edit([FromRoute, Range(1, int.MaxValue)] int hostId, [FromRoute, Range(1, int.MaxValue)] int programmingId, [FromBody] ProgrammingEditDTO dto)
         {
             var userId = _userManager.GetUserId(User);
 
@@ -85,58 +78,15 @@ namespace Projetos___4.Presentation.Controllers
                 return Problem(statusCode: StatusCodes.Status401Unauthorized, title: "Usuário não autenticado");
             }
 
-            if (hostId <= 0 || Programmingid <= 0)
-            {
-                return Problem(statusCode: StatusCodes.Status400BadRequest, title: "Dados inválidos", detail: "Os IDs do host e da programação devem ser maiores que zero.");
-            }
-
-            if (dto.StartDate.HasValue && dto.EndDate.HasValue && dto.StartDate.Value >= dto.EndDate.Value)
-            {
-                return Problem(statusCode: StatusCodes.Status400BadRequest, title: "Dados inválidos", detail: "A data final deve ser posterior à data inicial.");
-            }
-
-            if ((dto.StartDate.HasValue && dto.StartDate.Value.Kind != DateTimeKind.Utc) ||
-                (dto.EndDate.HasValue && dto.EndDate.Value.Kind != DateTimeKind.Utc))
-            {
-                return Problem(statusCode: StatusCodes.Status400BadRequest, title: "Dados inválidos", detail: "Informe as datas em UTC, com o sufixo Z.");
-            }
-
-            if ((dto.MinPrice.HasValue && (!float.IsFinite(dto.MinPrice.Value) || dto.MinPrice.Value < 0)) ||
-                (dto.MaxPrice.HasValue && (!float.IsFinite(dto.MaxPrice.Value) || dto.MaxPrice.Value < 0)))
-            {
-                return Problem(statusCode: StatusCodes.Status400BadRequest, title: "Dados inválidos", detail: "Os preços devem ser valores finitos e não negativos.");
-            }
-
-            if (dto.MinPrice > dto.MaxPrice)
-            {
-                return Problem(statusCode: StatusCodes.Status400BadRequest, title: "Dados inválidos", detail: "O preço mínimo não pode ser maior que o máximo.");
-            }
-
-            if (dto.IsFree == true && (dto.MinPrice != 0 || dto.MaxPrice != 0))
-            {
-                return Problem(statusCode: StatusCodes.Status400BadRequest, title: "Dados inválidos", detail: "Os preços devem ser zero para programações gratuitas.");
-            }
-
-            if (dto.categoryIds == null || dto.categoryIds.Count == 0)
+            if (dto == null)
             {
                 return Problem(statusCode: StatusCodes.Status400BadRequest,
-                    title: "Categorias inválidas", detail: "Selecione pelo menos uma categoria para a programação.");
-            }
-
-            if (dto.categoryIds.Any(categoryId => categoryId <= 0) || dto.categoryIds.Distinct().Count() != dto.categoryIds.Count)
-            {
-                return Problem(statusCode: StatusCodes.Status400BadRequest,
-                    title: "Categorias inválidas", detail: "Informe IDs de categorias positivos e sem repetição.");
-            }
-
-            if (dto.Address == null && dto.AddressId <= 0)
-            {
-                return Problem(statusCode: StatusCodes.Status400BadRequest, title: "Endereço inválido", detail: "O endereço é obrigatório.");
+                    title: "Dados inválidos", detail: "Informe os dados da programação.");
             }
 
             try
             {
-                var result = await _programmingAppService.EditProgrammingAsync(dto, Programmingid, hostId, userId);
+                var result = await _programmingAppService.EditProgrammingAsync(dto, programmingId, hostId, userId);
 
                 if (result == null)
                 {
@@ -161,78 +111,33 @@ namespace Projetos___4.Presentation.Controllers
                 return Problem(statusCode: StatusCodes.Status400BadRequest,
                     title: "Categorias inválidas", detail: "Uma ou mais categorias informadas não existem.");
             }
+            catch (ArgumentException ex)
+            {
+                return Problem(statusCode: StatusCodes.Status400BadRequest,
+                    title: "Dados inválidos", detail: ex.Message);
+            }
         }
 
         [Authorize(Roles = "ADMIN, HOST")]
         [HttpPost("{HostId:int}/Create")]
-        public async Task<IActionResult> Create([FromRoute] int HostId, [FromBody] ProgrammingCreateDTO dto)
+        public async Task<IActionResult> Create([FromRoute, Range(1, int.MaxValue)] int hostId, [FromBody] ProgrammingCreateDTO dto)
         {
             var userid = _userManager.GetUserId(User);
 
-            if (dto == null)
-            {
-                return Problem(statusCode: StatusCodes.Status400BadRequest, title: "Dados inválidos", detail: "Preencha os campos obrigatórios.");
-            }
-
-            if (dto.categoryIds == null || dto.categoryIds.Count == 0)
-            {
-                return Problem(statusCode: StatusCodes.Status400BadRequest, title: "Dados inválidos", detail: "Selecione pelo menos uma categoria para a programação.");
-            }
-
-            List<int> categoryIds = dto.categoryIds;
-
-            foreach(var categoryId in categoryIds)
-            {
-                if (categoryId <= 0)
-                {
-                    return Problem(statusCode: StatusCodes.Status400BadRequest, title: "Dados inválidos", detail: "Os IDs das categorias devem ser maiores que zero.");
-                }
-            }
-
-            if (userid == null)
+            if (string.IsNullOrWhiteSpace(userid))
             {
                 return Problem(statusCode: StatusCodes.Status401Unauthorized, title: "Usuário não autenticado");
             }
 
-            if (HostId <= 0)
+            if (dto == null)
             {
-                return Problem(statusCode: StatusCodes.Status400BadRequest, title: "Dados inválidos", detail: "O host precisa ser válido.");
-            }
-
-
-            if (dto.StartDate >= dto.EndDate || dto.StartDate <= DateTime.UtcNow)
-            {
-                return Problem(statusCode: StatusCodes.Status400BadRequest, title: "Dados inválidos", detail: "A data de início não pode ser posterior à data de término ou no passado.");
-            }
-
-            if (dto.IsFree != true && (dto.MinPrice < 0 || dto.MaxPrice < 0))
-            {
-                return Problem(statusCode: StatusCodes.Status400BadRequest, title: "Dados inválidos", detail: "O preço mínimo e máximo não podem ser negativos.");
-            }
-
-            if (dto.MinPrice < 0 || dto.MaxPrice < 0)
-            {
-                return Problem(statusCode: StatusCodes.Status400BadRequest, title: "Dados inválidos", detail: "O preço mínimo e máximo não podem ser negativos.");
-            }
-
-            if (dto.IsFree == true && (dto.MinPrice > 0 || dto.MaxPrice > 0))
-            {
-                return Problem(statusCode: StatusCodes.Status400BadRequest, title: "Dados inválidos", detail: "O preço mínimo e máximo devem ser zero para eventos gratuitos.");
-            }
-
-            if (dto.MinPrice > dto.MaxPrice)
-            {
-                return Problem(statusCode: StatusCodes.Status400BadRequest, title: "Dados inválidos", detail: "O preço mínimo não pode ser maior que o preço máximo.");
-            }
-
-            if (dto.Address == null && dto.AddressId <= 0)
-            {
-                return Problem(statusCode: StatusCodes.Status400BadRequest, title: "Endereço inválido", detail: "O endereço é obrigatório.");
+                return Problem(statusCode: StatusCodes.Status400BadRequest,
+                    title: "Dados inválidos", detail: "Informe os dados da requisição.");
             }
 
             try
             {
-                var programming = await _programmingAppService.CreateProgrammingAsync(dto, HostId, userid);
+                var programming = await _programmingAppService.CreateProgrammingAsync(dto, hostId, userid);
                 return CreatedAtAction(nameof(Details), new { programmingId = programming.Id }, programming);
             }
             catch (InvalidOperationException ex) when (ex.Message == "Esse usuário não é o dono do host ativo para este programa.")

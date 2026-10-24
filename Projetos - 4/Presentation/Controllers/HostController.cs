@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using Projetos___4.Domain.Exceptions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -27,13 +28,8 @@ namespace Projetos___4.Presentation.Controllers
 
         [Authorize]
         [HttpGet("Details/{hostId:int}")]
-        public async Task<IActionResult> Details([FromRoute] int hostId)
+        public async Task<IActionResult> Details([FromRoute, Range(1, int.MaxValue)] int hostId)
         {
-            if (hostId <= 0)
-            {
-                return Problem(statusCode: StatusCodes.Status400BadRequest,
-                    title: "Dados inválidos", detail: "O ID do host deve ser maior que zero.");
-            }
 
             var host = await _hostAppService.GetByIdAsync(hostId);
 
@@ -65,12 +61,7 @@ namespace Projetos___4.Presentation.Controllers
                 return Problem(statusCode: StatusCodes.Status401Unauthorized, title: "Autenticação inválida", detail: "Usuário não encontrado ou inativo.");
             }
 
-            if (dto.Address == null && dto.AddressId <= 0)
-            {
-                return Problem(statusCode: StatusCodes.Status400BadRequest, title: "Endereço inválido", detail: "O endereço é obrigatório.");
-            }
-
-            Hosts? result;
+            HostCreatedDTO? result;
             try
             {
                 result = await _hostAppService.Create(dto, userId);
@@ -83,15 +74,20 @@ namespace Projetos___4.Presentation.Controllers
                     detail: ex.Message);
             }
             catch (InvalidOperationException ex) when (ex.Message == "Role HOST is not registered." ||
-                ex.Message == "Failed to create host." || ex.Message == "Host was saved, but role assignment failed.")
+                ex.Message == "Failed to create host." || ex.Message == "Host role assignment failed.")
             {
                 return Problem(statusCode: StatusCodes.Status500InternalServerError,
                     title: "Falha no cadastro do host",
-                    detail: ex.Message == "Host was saved, but role assignment failed."
-                        ? "O host foi salvo, mas não foi possível atribuir a permissão HOST. Contate o suporte antes de repetir o cadastro."
+                    detail: ex.Message == "Host role assignment failed."
+                        ? "Não foi possível atribuir a permissão HOST. O cadastro do host foi desfeito."
                         : "Não foi possível concluir o cadastro do host.");
             }
 
+            catch (ArgumentException ex)
+            {
+                return Problem(statusCode: StatusCodes.Status400BadRequest,
+                    title: "Dados inválidos", detail: ex.Message);
+            }
             if (result == null)
             {
                 return Problem(statusCode: StatusCodes.Status500InternalServerError, title: "Falha no cadastro do host");
@@ -106,7 +102,7 @@ namespace Projetos___4.Presentation.Controllers
 
         [Authorize(Roles = "ADMIN,HOST")]
         [HttpPut("{hostId:int}/Edit")]
-        public async Task<IActionResult> Edit([FromRoute] int hostId, [FromBody] HostEditDTO dto)
+        public async Task<IActionResult> Edit([FromRoute, Range(1, int.MaxValue)] int hostId, [FromBody] HostEditDTO dto)
         {
             var userId = _userManager.GetUserId(User);
 
@@ -116,18 +112,14 @@ namespace Projetos___4.Presentation.Controllers
                     title: "Usuário não autenticado");
             }
 
-            if (hostId <= 0)
+
+            if (dto == null)
             {
                 return Problem(statusCode: StatusCodes.Status400BadRequest,
-                    title: "Dados inválidos", detail: "O ID do host deve ser maior que zero.");
+                    title: "Dados inválidos", detail: "Informe os dados da requisição.");
             }
 
-            if (dto.Address == null && dto.AddressId <= 0)
-            {
-                return Problem(statusCode: StatusCodes.Status400BadRequest, title: "Endereço inválido", detail: "O endereço é obrigatório.");
-            }
-
-            Hosts? result;
+            HostResponseDTO? result;
             try
             {
                 result = await _hostAppService.EditHostAsync(dto, hostId, userId);
@@ -141,6 +133,11 @@ namespace Projetos___4.Presentation.Controllers
             }
 
 
+            catch (ArgumentException ex)
+            {
+                return Problem(statusCode: StatusCodes.Status400BadRequest,
+                    title: "Dados inválidos", detail: ex.Message);
+            }
             if (result == null)
             {
                 return Problem(statusCode: StatusCodes.Status404NotFound,
@@ -153,7 +150,7 @@ namespace Projetos___4.Presentation.Controllers
 
         [Authorize(Roles = "ADMIN,HOST")]
         [HttpPatch("{hostId:int}/Delete")]
-        public async Task<IActionResult> Delete([FromRoute] int hostId)
+        public async Task<IActionResult> Delete([FromRoute, Range(1, int.MaxValue)] int hostId)
         {
             var userId = _userManager.GetUserId(User);
 
@@ -163,11 +160,6 @@ namespace Projetos___4.Presentation.Controllers
                     title: "Usuário não autenticado");
             }
 
-            if (hostId <= 0)
-            {
-                return Problem(statusCode: StatusCodes.Status400BadRequest,
-                    title: "Dados inválidos", detail: "O ID do host deve ser maior que zero.");
-            }
 
             var result = await _hostAppService.DeleteHostAsync(hostId, userId);
 
@@ -192,7 +184,7 @@ namespace Projetos___4.Presentation.Controllers
                 return Problem(statusCode: StatusCodes.Status401Unauthorized, title: "Autenticação inválida", detail: "Usuário não autenticado.");
             }
 
-            IEnumerable<Hosts> hostlist = await _hostAppService.GetAllHostsbyUserId(userId);
+            IEnumerable<HostResponseDTO> hostlist = await _hostAppService.GetAllHostsbyUserId(userId);
 
             return Ok(hostlist);
         }
