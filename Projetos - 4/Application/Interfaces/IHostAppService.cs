@@ -5,6 +5,8 @@ namespace Projetos___4.Application.Interfaces
     public interface IHostAppService
     {
 
+        Task<CompanyRegistrationDTO> GetByCnpjAsync(string cnpj, CancellationToken cancellationToken = default);
+
         Task<HostCreatedDTO?> Create(HostRegisterDTO dto, string userId);
 
         Task<HostDetailsDTO?> GetByIdAsync(int hostId);

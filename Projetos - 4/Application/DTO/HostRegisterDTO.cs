@@ -14,6 +14,7 @@ namespace Projetos___4.Application.DTO
 
         [MaxLength(18)]
         [Required]
+        [RegularExpression(@"^(?:[A-Za-z0-9]{12}[0-9]{2}|[A-Za-z0-9]{2}\.[A-Za-z0-9]{3}\.[A-Za-z0-9]{3}/[A-Za-z0-9]{4}-[0-9]{2})$", ErrorMessage = "Informe um CNPJ válido, com ou sem máscara.")]
         public string CNPJ { get; set; } = string.Empty;
 
         [MaxLength(2048)]

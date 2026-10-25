@@ -27,6 +27,20 @@ namespace Projetos___4.Presentation.Controllers
         }
 
         [Authorize]
+        [HttpGet("GetByCNPJ")]
+        public async Task<IActionResult> GetByCNPJ([FromQuery] string cnpj)
+        {
+            try
+            {
+                return Ok(await _hostAppService.GetByCnpjAsync(cnpj, HttpContext.RequestAborted));
+            }
+            catch (CnpjException ex)
+            {
+                return ex.CnpjProblem(this);
+            }
+        }
+
+        [Authorize]
         [HttpGet("Details/{hostId:int}")]
         public async Task<IActionResult> Details([FromRoute, Range(1, int.MaxValue)] int hostId)
         {
@@ -65,6 +79,10 @@ namespace Projetos___4.Presentation.Controllers
             try
             {
                 result = await _hostAppService.Create(dto, userId);
+            }
+            catch (CnpjException ex)
+            {
+                return ex.CnpjProblem(this);
             }
             catch (GeocodingException ex)
             {
@@ -123,6 +141,10 @@ namespace Projetos___4.Presentation.Controllers
             try
             {
                 result = await _hostAppService.EditHostAsync(dto, hostId, userId);
+            }
+            catch (CnpjException ex)
+            {
+                return ex.CnpjProblem(this);
             }
             catch (GeocodingException ex)
             {

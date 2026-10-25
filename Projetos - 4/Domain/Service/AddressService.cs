@@ -8,11 +8,22 @@ public class AddressService : IAddressService
 {
     private readonly IAddressRepository _addressRepository;
     private readonly IGeocodingService _geocodingService;
-    public AddressService(IAddressRepository repository, IGeocodingService geocodingService)
+    private readonly IPostalCodeService _postalCodeService;
+    public AddressService(IAddressRepository repository, IGeocodingService geocodingService, IPostalCodeService postalCodeService)
     {
+        _postalCodeService = postalCodeService;
         _addressRepository = repository;
         _geocodingService = geocodingService;
     }
+    public Task<PostalAddress?> GetByCEPAsync(string cep, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(cep) || !System.Text.RegularExpressions.Regex.IsMatch(cep.Trim(), @"^[0-9]{5}-?[0-9]{3}$"))
+        {
+            throw new ArgumentException("Informe um CEP com oito dígitos, com ou sem hífen.", nameof(cep));
+        }
+        return _postalCodeService.GetByCEPAsync(cep.Trim().Replace("-", ""), cancellationToken);
+    }
+
     public Task<List<Address>> GetAllAddressAsync(string search)
     {
         return _addressRepository.GetAllAddressAsync(search);

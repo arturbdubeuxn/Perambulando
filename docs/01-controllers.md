@@ -58,7 +58,8 @@ Corpo (`UserRegisterDTO`):
 
 - `typeofUser`: `0` = Local; `1` = Turist.
 - Nome, e-mail e senha são encaminhados ao Identity. O DTO não possui validações explícitas por atributos.
-- O e-mail deve ser único. Atualmente `name` é salvo em `UserName`, sujeito à unicidade e às restrições de nome do Identity.
+- O e-mail deve ser único. Atualmente 
+ame` é salvo em `UserName`, sujeito à unicidade e às restrições de nome do Identity.
 - A senha é validada pelo Identity; não há personalização de suas regras no bloco de configuração atual.
 
 Retornos: `201` com `{"message":"Usuário cadastrado com sucesso."}`; `400` para dados inválidos ou erros do Identity, como e-mail duplicado e senha rejeitada.
@@ -92,7 +93,8 @@ Retornos: `200` com o objeto de autenticação abaixo; `400` para falha na valid
 
 Exige JWT, sem corpo ou ID na URL. O usuário é identificado pelo token.
 
-Retorna `200` com `id`, `name`, `email`, `typeofUser`, `isPro` e `createdAt`. Retorna `404` se o usuário não existir ou estiver inativo.
+Retorna `200` com `id`, 
+ame`, `email`, `typeofUser`, `isPro` e `createdAt`. Retorna `404` se o usuário não existir ou estiver inativo.
 
 ### PUT /api/User/Edit — Editar o próprio usuário
 
@@ -106,7 +108,8 @@ Exige JWT e identifica o usuário pelo token. Substitui nome, e-mail e tipo; nã
 }
 ```
 
-Requisitos (`UserEditDTO`): `name` obrigatório, até 256 caracteres; `email` obrigatório, formato válido, até 256 caracteres; `typeofUser` obrigatório e pertencente ao enum. O nome e o e-mail são aparados no mapeamento e a alteração passa pelo Identity.
+Requisitos (`UserEditDTO`): 
+ame` obrigatório, até 256 caracteres; `email` obrigatório, formato válido, até 256 caracteres; `typeofUser` obrigatório e pertencente ao enum. O nome e o e-mail são aparados no mapeamento e a alteração passa pelo Identity.
 
 Retornos: `200` com `{"user": {"...": "perfil atualizado"}, "auth": {"...": "novo JWT"}}`; `400` para validação ou rejeição pelo Identity; `404` para usuário inexistente/inativo.
 
@@ -176,7 +179,9 @@ Exige JWT e `hostId` positivo. Sem corpo. Qualquer usuário autenticado pode con
 
 Retornos: `200` com `HostDetailsDTO`; `400` para ID não positivo; `404` para host inexistente/inativo.
 
-Campos: `id`, `name`, `description`, `typeofhost`, `cnpj`, `logoUrl`, `instagranUrl`, `address`, `addressNumber`, `addressComplement`, `neighborhood`, `cep`, `phone` e `programmings`.
+Campos: `id`, 
+ame`, `description`, `typeofhost`, `cnpj`, `logoUrl`, `instagranUrl`, `address`, `addressNumber`, `addressComplement`, 
+eighborhood`, `cep`, `phone` e `programmings`.
 
 `programmings` contém programações ativas ordenadas por início. Pode ser `[]`. O mapeamento atual usa `ProgrammingDetailsDTO`, mas não preenche suas categorias; também não inclui IDs das programações. A consulta não concede permissão para editar.
 
@@ -187,12 +192,14 @@ Exige JWT com role `ADMIN` ou `HOST`, `hostId` positivo e ser dono do host ativo
 | Campo | Requisito no edit |
 |---|---|
 | `typeofhost` | Obrigatório; enum válido |
-| `name` | Obrigatório; máximo 150 caracteres |
+| 
+ame` | Obrigatório; máximo 150 caracteres |
 | `description` | Obrigatório; máximo 2000 |
 | `address` | Obrigatório; máximo 300 |
 | `addressNumber` | Opcional; texto de até 20 caracteres, inclusive 175A ou s/n |
 | `addressComplement` | Opcional; máximo 200 caracteres |
-| `neighborhood` | Opcional; máximo 150 |
+| 
+eighborhood` | Opcional; máximo 150 |
 | `cep` | Obrigatório; máximo 9 |
 | `cnpj` | Máximo 18 |
 | `phone` | Máximo 30 |
@@ -239,7 +246,8 @@ Corpo (`ProgrammingCreateDTO`):
 
 Requisitos e comportamento:
 
-- `name`, `description`, `address` e `cep` são obrigatórios pelo DTO.
+- 
+ame`, `description`, `address` e `cep` são obrigatórios pelo DTO.
 - `addressNumber` é opcional, texto de até 20 caracteres; `addressComplement` é opcional, até 200 caracteres. Address representa o logradouro; registros antigos podem ainda conter número embutido, pois não foram reescritos automaticamente.
 - O início deve estar no futuro e ser anterior ao término. Use datas ISO 8601 em UTC com `Z`, compatíveis com a persistência das datas.
 - Preços devem ser não negativos e o mínimo não pode superar o máximo. Para gratuita, ambos devem ser zero.
@@ -257,9 +265,12 @@ Público, inclusive para visitantes. Exige apenas `programmingId` positivo na UR
 
 Retornos: `200` com `ProgrammingDetailsDTO`; `400` para ID não positivo; `404` para programação inexistente, inativa ou de host inativo.
 
-Campos do retorno: `name`, `description`, `startDate`, `endDate`, `isFree`, `address`, `addressNumber`, `addressComplement`, `neighborhood`, `cep`, `imageUrl`, `ticketUrl`, `instagranUrl`, `hostName`, `hostLogoUrl`, `createdDate`, `updateDate`, `minPrice`, `maxPrice` e `categories`.
+Campos do retorno: 
+ame`, `description`, `startDate`, `endDate`, `isFree`, `address`, `addressNumber`, `addressComplement`, 
+eighborhood`, `cep`, `imageUrl`, `ticketUrl`, `instagranUrl`, `hostName`, `hostLogoUrl`, `createdDate`, `updateDate`, `minPrice`, `maxPrice` e `categories`.
 
-`categories` é uma lista das categorias vinculadas, com `id`, `name` e `isActive`. A consulta de vínculos não filtra categorias inativas. O DTO atual não inclui `id` da programação nem `hostId`.
+`categories` é uma lista das categorias vinculadas, com `id`, 
+ame` e `isActive`. A consulta de vínculos não filtra categorias inativas. O DTO atual não inclui `id` da programação nem `hostId`.
 
 ### PUT /api/Programming/{hostId}/Edit/{Programmingid} — Editar programação e categorias
 
@@ -269,7 +280,8 @@ Recebe os mesmos campos do exemplo de create, usando `ProgrammingEditDTO`. É um
 
 Número e complemento também são substituídos no PUT. Se omitidos, assumem string vazia e limpam o valor anterior; reenviar os valores atuais quando quiser preservá-los. Ambos continuam opcionais, com limites de 20 e 200 caracteres. O mesmo comportamento vale para o PUT de host.
 
-- Obrigatórios: `name`, `description`, `startDate`, `endDate`, `isFree`, `address`, `cep`, `minPrice`, `maxPrice` e `categoryIds`.
+- Obrigatórios: 
+ame`, `description`, `startDate`, `endDate`, `isFree`, `address`, `cep`, `minPrice`, `maxPrice` e `categoryIds`.
 - Datas devem estar em UTC, e o início deve ser anterior ao término. O edit não possui a checagem de início futuro que existe no create.
 - Preços devem ser finitos, não negativos e ordenados. Se gratuita, ambos devem ser zero.
 - Categorias: ao menos uma, IDs positivos e sem repetição. IDs inexistentes geram `400`; não há validação de status ativo.
@@ -292,7 +304,8 @@ Retornos: `204`; `400` para IDs não positivos; `404` para registro inexistente,
 
 Público, sem corpo ou parâmetros. Consulta apenas categorias com `IsActive = true`, ordenadas por ID.
 
-Retorno: `200` com lista de objetos contendo `id`, `name` e `isActive`, inclusive `[]`. Use os IDs retornados em `categoryIds` ao criar ou editar programações.
+Retorno: `200` com lista de objetos contendo `id`, 
+ame` e `isActive`, inclusive `[]`. Use os IDs retornados em `categoryIds` ao criar ou editar programações.
 
 ## Fluxo de uso
 
@@ -315,7 +328,8 @@ No projeto `C:/Users/Artur/source/repos/Projetos - 4/Projetos - 4`: `Presentatio
 
 Os retornos descritos são os fluxos previstos no código. Exceções não tratadas de banco/configuração podem produzir erros adicionais. Cadastro/edição de host e programação retornam entidades em alguns pontos; não devem ser interpretados como o mesmo contrato dos DTOs de detalhes.
 
-Bairro (`neighborhood`) é opcional no cadastro e na edição de hosts e programações. O campo pode ser omitido, vazio ou nulo; o app service converte nulo em string vazia antes da persistência. As entidades e colunas permanecem não anuláveis, sem necessidade de migration. No PUT, omitir o bairro remove o valor anterior (salva vazio).
+Bairro (
+eighborhood`) é opcional no cadastro e na edição de hosts e programações. O campo pode ser omitido, vazio ou nulo; o app service converte nulo em string vazia antes da persistência. As entidades e colunas permanecem não anuláveis, sem necessidade de migration. No PUT, omitir o bairro remove o valor anterior (salva vazio).
 
 ## Geocodificação via Geoapify — 19/10/2026
 
@@ -444,10 +458,14 @@ Validação: 29 combinações de rota/verbo conferidas contra o OpenAPI da API l
 
 Esta seção substitui as descrições anteriores de retorno de entidades Hosts.
 
-- Cadastro: HTTP 201 com `{ result, auth }`; `result` é HostCreatedDTO e contém somente `id`, `addressId` e `name`. `auth` mantém `accessToken`, `tokenType` e `expiresAt`.
+- Cadastro: HTTP 201 com `{ result, auth }`; `result` é HostCreatedDTO e contém somente `id`, `addressId` e 
+ame`. `auth` mantém `accessToken`, `tokenType` e `expiresAt`.
 - Edição: HTTP 200 com HostResponseDTO. Listagem: HTTP 200 com uma lista desse DTO, inclusive `[]`.
-- HostResponseDTO permite `id`, `typeofhost`, `cnpj`, `logoUrl`, `instagranUrl`, `phone`, `name`, `description`, `addressId`, `address`, `isActive`, `createdAt` e `updatedAt`.
-- `address` usa AddressDetailsDTO: `id`, `street`, `number`, `complement`, `neighborhood` e `cep`.
+- HostResponseDTO permite `id`, `typeofhost`, `cnpj`, `logoUrl`, `instagranUrl`, `phone`, 
+ame`, `description`, `addressId`, `address`, `isActive`, `createdAt` e `updatedAt`.
+- `address` usa AddressDetailsDTO: `id`, `street`, 
+umber`, `complement`, 
+eighborhood` e `cep`.
 - Detalhes continuam usando HostDetailsDTO. Exclusão continua sem corpo (204).
 - Os mapeamentos explícitos ficam em HostAppService e as assinaturas em IHostAppService. User, UserId e Address.AddWho não entram nos DTOs. Entidades continuam internas aos serviços/repositórios.
 
@@ -682,3 +700,28 @@ Estas descrições substituem os registros anteriores de retorno de entidades ne
 Cadastro e edição mantêm as rotas, autorização e respostas existentes. Os controllers continuam convertendo ArgumentException em ProblemDetails 400; a origem das regras compartilhadas passa a ser `ProgrammingValidations`, chamado pelo serviço de domínio. Assim, chamadas internas ao serviço recebem as mesmas restrições de datas, categorias, preços, gratuidade e seleção de endereço.
 
 Os atributos de rota, os DTOs e os tratamentos HTTP foram conferidos no código. Build aprovado e 77 verificações isoladas de domínio/AppService/DI aprovadas. Não houve teste HTTP nesta etapa. O protótipo não foi encontrado nos caminhos de Artur ou Rafael e não pôde ser revisado. PDFs preservados.
+
+
+## Consulta ViaCEP — 24/10/2026
+Implementado GET /api/Address/GetByCEP?cep=50030-220, com JWT obrigatório. Fluxo: AddressController -> AddressAppService -> AddressService -> IPostalCodeService/ViaCepService. Formato validado no serviço; aceita oito dígitos ou hífen após o quinto dígito. Retorno PostalAddressDTO: cep, street, neighborhood, city, state. Sem número ou complemento do imóvel.
+Respostas: 200 encontrado, 400 formato inválido, 401 sem autenticação, 404 quando o ViaCEP confirma ausência e 503 por timeout, HTTP malsucedido ou resposta inválida. Timeout de oito segundos; cancelamento da requisição propagado. Consulta não grava no banco nem aciona a Geoapify. O formulário permite preencher manualmente se a consulta falhar e mantém número/complemento.
+Escopo desta etapa: preenchimento assistido nos quatro formulários de criar/editar host/programação. Cidade e UF são exibidos na consulta, ainda não persistidos em Address nem enviados à geocodificação. A inclusão dessas colunas e seu uso pela Geoapify continuam pendentes de etapa própria, com revisão da migration. PostalAddress é um resultado de consulta, não uma entidade mapeada no EF. Não há migration nesta entrega.
+Validações executadas: build sem erros (sete avisos CS8618 existentes), node --check, 44 testes do protótipo com API simulada e dez verificações do adaptador C# com HttpMessageHandler simulado (sucesso, ausência, resposta inválida, HTTP 429/500, falha de rede e timeout). Nenhum cadastro real foi criado nos testes. PDFs não regenerados.
+
+Verificação local adicional: API iniciada; GET GetByCEP sem JWT retornou 401. Consulta direta ao ViaCEP para 01001000 retornou Praça da Sé, São Paulo/SP. Painel respondeu HTTP 200. O cadastro real com JWT não foi executado nesta validação.
+
+## Endereço no protótipo — 25/10/2026
+A consulta ViaCEP ocorre automaticamente 400 ms após preencher um CEP válido, sem botão. Número e complemento são preservados; preenchimento manual continua disponível. Criar/editar programação oferece “Usar endereço do host”: consulta GET /api/Host/Details/{hostId} com JWT e reutiliza addressId, sem criar endereço duplicado. Respostas são descartadas se host, CEP ou seleção mudarem durante a consulta. Nenhuma alteração de contrato da API ou banco. Validação: node --check e 47 testes com API simulada aprovados. PDFs não regenerados.
+
+
+## Consulta e validação de CNPJ — 25/10/2026
+Integração Minha Receita nas camadas existentes: HostController -> HostAppService -> HostService -> ICompanyRegistrationService/MinhaReceitaService. ICnpjValidations/CnpjValidations normalizam e validam formato e dígitos verificadores numéricos e alfanuméricos, sem converter o identificador em número. Os DTOs de cadastro/edição exigem CNPJ e formato compatível. Nenhuma pasta nova de produção foi criada.
+GET /api/Host/GetByCNPJ?cnpj=33683111000280 exige JWT e retorna CompanyRegistrationDTO: cnpj, legalName, tradeName, registrationStatus, statusDescription, checkedAt (UTC da consulta), street, number, complement, neighborhood, cep, city e state. Nenhum dado de sócios é devolvido. Consulta bem-sucedida retorna 200 inclusive para situação não ativa; o formulário informa a situação. Falhas: 400 formato/DV inválido, 404 não localizado na base consultada, 503 indisponibilidade, limite, timeout ou resposta inválida. CheckedAt não representa atualização da base oficial nem é persistido.
+Criar host e alterar CNPJ exigem consulta com situacao_cadastral=2 antes de geocodificar ou salvar. Cadastro duplicado retorna 409; empresa não ativa retorna 422. Edição sem mudança do CNPJ normalizado dispensa nova consulta externa, mas valida formato/DV e duplicidade. O próprio host é excluído da busca de duplicados. Hosts inativos continuam reservando o CNPJ. Não há validação externa na desativação. Falhas da consulta não salvam o host. Registros legados não foram corrigidos ou excluídos automaticamente.
+O repositório repete a verificação de duplicidade dentro da transação, sob pg_advisory_xact_lock(721904, 1), utilizado no cadastro e alteração do CNPJ. Isso serializa essas gravações entre instâncias desta API. Não existe índice único novo: gravações externas que ignorem o lock não são protegidas. Uma restrição única no banco exige auditoria/normalização dos registros legados e revisão de migration; permanece melhoria pendente. A transação existente de cadastro com role HOST foi preservada.
+Protótipo: consulta automática após 500 ms ao completar o CNPJ. Resultados de consultas antigas são ignorados. Nome e endereço são sugestões aplicadas somente por botões de confirmação; não sobrescrevem o formulário automaticamente. Cidade/UF são exibidas mas seguem fora da persistência de Address. A consulta não comprova representação da empresa pelo usuário. Minha Receita é uma base secundária e pode estar desatualizada; ausência não comprova inexistência definitiva.
+Validação: build sem erros (sete avisos CS8618 preexistentes), node --check, 50 testes do protótipo com API simulada e 30 verificações C# com dependências simuladas (DV, normalização, respostas inválidas, ausência, timeout, cancelamento, regras de criação/edição, situação ativa, duplicidade e propriedade). Consulta real somente de leitura pelo adaptador C# confirmou resposta válida e ativa para o exemplo público do provedor. A suíte não executou cadastros reais nem teste concorrente contra PostgreSQL. NuGet não conseguiu consultar a base de vulnerabilidades (NU1900) na execução do harness; isso não impediu a compilação/testes. PDFs não regenerados. Nenhuma migration criada por esta integração.
+Fontes: https://docs.minhareceita.org/como-usar/ ; https://docs.minhareceita.org/sobre-os-dados/ ; https://www.gov.br/receitafederal/pt-br/centrais-de-conteudo/publicacoes/documentos-tecnicos/cnpj/manual-dv-cnpj.pdf
+
+### Organização do tratamento de CNPJ — 25/10/2026
+O método CnpjProblem foi movido de HostController para Domain/Exceptions/CnpjExceptionExtensions.cs. Os três catches chamam ex.CnpjProblem(this), preservando o ProblemDetails gerado por ControllerBase. Status, rotas e corpos permanecem iguais; o protótipo não exige alteração. Build CnpjCheck validado: zero erros e sete avisos CS8618 preexistentes.

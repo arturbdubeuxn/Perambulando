@@ -473,3 +473,8 @@ Verificação executada nesta extração: dotnet build --no-restore --configurat
 Ajustada a responsabilidade do auxiliar: GetLinksToAdd(currentCategories, links) foi movido de CategoryService/ICategoryService para ProgrammingXCategoryService/IProgrammingXCategoryService, com a mesma implementação e retorno dos vínculos recebidos. GetCategoryIdsToRemove permanece no CategoryService. ProgrammingService agora recebe IProgrammingXCategoryService no construtor e chama esse serviço na edição. Foram adicionados somente os registros Scoped do serviço e de IProgrammingXCategoryRepository/ProgrammingXCategoryRepository no bloco existente de Program.cs, necessários para resolver a nova dependência.
 
 Rotas, DTOs, autenticação, respostas e lógica de persistência foram preservados; .http e protótipo continuam compatíveis. Nenhuma pasta ou migration criada. Build CategoryHelpers sem restore aprovado: zero erros e sete avisos CS8618 preexistentes; git diff --check aprovado. Não houve teste CRUD, reinício da API ou acesso ao banco real nesta etapa. PDFs preservados.
+
+24/10/2026: consulta ViaCEP e preenchimento assistido implementados; veja Controllers e DTOs. Cidade/UF persistidos e integração desses campos à Geoapify permanecem pendentes. Sem migration ou atualização de PDFs.
+
+
+25/10/2026: Minha Receita integrada para consulta automática e validação de CNPJ de hosts. Veja Controllers, Regras, DTOs, BD e Models. Branch codex/minha-receita-cnpj; sem migration nova ou exportação de PDF.

@@ -4,6 +4,8 @@ namespace Projetos___4.Domain.Interfaces.Repository
 {
     public interface IHostRepository
     {
+        Task<bool> CnpjExistsAsync(string cnpj, int excludedHostId = 0);
+
         Task<Hosts?> Create(Hosts host, Func<Task> assignRole);
 
         Task<Hosts?> GetByIdAsync(int hostId);
