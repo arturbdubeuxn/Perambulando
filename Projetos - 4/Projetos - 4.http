@@ -5,6 +5,8 @@
 @nome = Maria
 @email = maria@gmail.com
 @senha = SenhaForte123@!
+@CNPJHost = PREENCHA_O_CNPJ_DA_SUA_EMPRESA
+# CNPJHost deve ser válido, ativo e ainda não vinculado a outro host.
 @CategoryId = 1
 @EditCategoryId = 2
 
@@ -125,7 +127,7 @@ Authorization: Bearer {{login.response.body.$.accessToken}}
 
 {
   "typeofhost": 2,
-  "cnpj": "12.345.678/0001-90",
+  "cnpj": "{{CNPJHost}}",
   "logoUrl": "https://example.com/logo.png",
   "instagranUrl": "https://www.instagram.com/host_teste",
   "address": {
@@ -166,7 +168,7 @@ Authorization: Bearer {{createHost.response.body.$.auth.accessToken}}
 
 {
   "typeofhost": 2,
-  "cnpj": "12.345.678/0001-90",
+  "cnpj": "{{CNPJHost}}",
   "logoUrl": "https://example.com/logo-atualizado.png",
   "instagranUrl": "https://www.instagram.com/host_teste",
   "addressId": {{hostDetails.response.body.$.address.id}},
@@ -397,3 +399,31 @@ Authorization: Bearer {{login.response.body.$.accessToken}}
   "password": "{{senha}}",
   "typeofUser": 0
 }
+
+### ADDRESS - Consultar ViaCEP (não grava endereço)
+GET {{Projetos___4_HostAddress}}/api/Address/GetByCEP?cep=50030-220
+Accept: application/json
+Authorization: Bearer {{login.response.body.$.accessToken}}
+
+### ADDRESS - CEP inválido: esperado 400
+GET {{Projetos___4_HostAddress}}/api/Address/GetByCEP?cep=123
+Authorization: Bearer {{login.response.body.$.accessToken}}
+
+### ADDRESS - CEP inexistente: esperado 404 se o provedor confirmar ausência
+GET {{Projetos___4_HostAddress}}/api/Address/GetByCEP?cep=99999999
+Authorization: Bearer {{login.response.body.$.accessToken}}
+
+### HOST - Consultar CNPJ (somente leitura; não comprova representação)
+# Exemplo público do provedor. Não use uma empresa de terceiros para cadastrar um host real.
+GET {{Projetos___4_HostAddress}}/api/Host/GetByCNPJ?cnpj=33683111000280
+Authorization: Bearer {{login.response.body.$.accessToken}}
+Accept: application/json
+
+### HOST - CNPJ com dígitos inválidos: 400
+GET {{Projetos___4_HostAddress}}/api/Host/GetByCNPJ?cnpj=12345678000190
+Authorization: Bearer {{login.response.body.$.accessToken}}
+
+# Create/Edit: CNPJ obrigatório para todos os tipos; salve apenas CNPJ de empresa que representa.
+# Novo CNPJ: consulta ativa obrigatória; duplicidade inclusive hosts inativos => 409.
+# Alteração somente de máscara não exige nova consulta. CNPJ não ativo => 422.
+# Não localizado na base => 404; falha/limite/timeout do provedor => 503, sem salvar.

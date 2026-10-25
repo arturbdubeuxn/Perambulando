@@ -62,6 +62,10 @@ builder.Services.AddHttpClient<IGeocodingService, GeoapifyGeocodingService>(clie
   .RemoveAllLoggers();
 
 // INJEÇÃO DE DEPENDÊNCIAS
+builder.Services.AddHttpClient<IPostalCodeService, ViaCepService>(client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(8);
+}).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
 builder.Services.AddScoped<IAddressRepository, AddressRepository>();
 builder.Services.AddScoped<IAddressService, AddressService>();
 builder.Services.AddScoped<IAddressAppService, AddressAppService>();
@@ -70,6 +74,11 @@ builder.Services.AddScoped<IUserAppService, UserAppService>();
 builder.Services.AddScoped<JwtTokenService>();
 builder.Services.AddScoped<IHostAppService,HostAppService>();
 builder.Services.AddScoped<IHostService,HostService>();
+builder.Services.AddScoped<ICnpjValidations, CnpjValidations>();
+builder.Services.AddHttpClient<ICompanyRegistrationService, MinhaReceitaService>(client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(10);
+}).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
 builder.Services.AddScoped<IHostRepository,HostRepository>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IProgrammingRepository,ProgrammingRepository>();

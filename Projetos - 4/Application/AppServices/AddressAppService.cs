@@ -13,6 +13,20 @@ public class AddressAppService : IAddressAppService
         _addressService = addressService;
     }
 
+    public async Task<PostalAddressDTO?> GetByCEPAsync(string cep, CancellationToken cancellationToken = default)
+    {
+        var address = await _addressService.GetByCEPAsync(cep, cancellationToken);
+        if (address == null)
+        {
+            return null;
+        }
+        return new PostalAddressDTO
+        {
+            CEP = address.CEP, Street = address.Street, Neighborhood = address.Neighborhood,
+            City = address.City, State = address.State
+        };
+    }
+
     public async Task<List<AddressDetailsDTO>> GetAllAddressAsync(string search)
     {
         var addresses = await _addressService.GetAllAddressAsync(search);

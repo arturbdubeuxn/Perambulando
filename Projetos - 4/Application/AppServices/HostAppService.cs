@@ -24,6 +24,27 @@ namespace Projetos___4.Application.AppServices
             _addressAppService = addressAppService;
         }
 
+        public async Task<CompanyRegistrationDTO> GetByCnpjAsync(string cnpj, CancellationToken cancellationToken = default)
+        {
+            var company = await _hostService.GetByCnpjAsync(cnpj, cancellationToken);
+            return new CompanyRegistrationDTO
+            {
+                CNPJ = company.CNPJ,
+                LegalName = company.LegalName,
+                TradeName = company.TradeName,
+                RegistrationStatus = company.RegistrationStatus,
+                StatusDescription = company.StatusDescription,
+                CheckedAt = company.CheckedAt,
+                Street = company.Street,
+                Number = company.Number,
+                Complement = company.Complement,
+                Neighborhood = company.Neighborhood,
+                CEP = company.CEP,
+                City = company.City,
+                State = company.State
+            };
+        }
+
         public async Task<HostDetailsDTO?> GetByIdAsync(int hostId)
         {
             var host = await _hostService.GetByIdAsync(hostId);

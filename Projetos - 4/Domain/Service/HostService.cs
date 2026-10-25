@@ -1,3 +1,5 @@
+using Projetos___4.Domain.Exceptions;
+using Projetos___4.Domain.Validations.Interface;
 using Microsoft.AspNetCore.Identity;
 using Projetos___4.Application.DTO;
 using Projetos___4.Domain.Interfaces;
@@ -11,13 +13,17 @@ namespace Projetos___4.Domain.Service
 {
     public class HostService : IHostService
     {
+        private readonly ICnpjValidations _cnpjValidations;
+        private readonly ICompanyRegistrationService _companyRegistrationService;
         private readonly UserManager<User> _userManager;
         private readonly IUserRepository _userRepository;
         private readonly IHostRepository _hostRepository;
         private readonly IAddressService _addressService;
         private readonly RoleManager<IdentityRole> _roleManager;
-        public HostService(UserManager<User> userManager, IUserRepository userRepository, IHostRepository hostRepository, RoleManager<IdentityRole> roleManager, IAddressService addressService)
+        public HostService(UserManager<User> userManager, IUserRepository userRepository, IHostRepository hostRepository, RoleManager<IdentityRole> roleManager, IAddressService addressService, ICnpjValidations cnpjValidations, ICompanyRegistrationService companyRegistrationService)
         {
+            _cnpjValidations = cnpjValidations;
+            _companyRegistrationService = companyRegistrationService;
             _userManager = userManager;
             _userRepository = userRepository;
             _hostRepository = hostRepository;
@@ -25,6 +31,36 @@ namespace Projetos___4.Domain.Service
             _roleManager = roleManager;
         }
 
+
+        public async Task<CompanyRegistration> GetByCnpjAsync(string cnpj, CancellationToken cancellationToken = default)
+        {
+            var normalized = _cnpjValidations.ValidateCnpj(cnpj);
+            var company = await _companyRegistrationService.GetByCnpjAsync(normalized, cancellationToken);
+            if (company == null)
+            {
+                throw new CnpjException(CnpjFailure.NotFound, "CNPJ não localizado na base consultada. A base pode estar desatualizada.");
+            }
+            return company;
+        }
+
+        private async Task<string> ValidateHostCnpjAsync(string cnpj, int hostId, string? previousCnpj = null)
+        {
+            var normalized = _cnpjValidations.ValidateCnpj(cnpj);
+            if (await _hostRepository.CnpjExistsAsync(normalized, hostId))
+            {
+                throw new CnpjException(CnpjFailure.Duplicate, "Já existe um host cadastrado com este CNPJ.");
+            }
+            var previous = previousCnpj?.Trim().Replace(".", "").Replace("/", "").Replace("-", "").ToUpperInvariant();
+            if (previous != normalized)
+            {
+                var company = await GetByCnpjAsync(normalized);
+                if (company.RegistrationStatus != 2)
+                {
+                    throw new CnpjException(CnpjFailure.Inactive, "O CNPJ precisa estar ativo na base consultada para cadastrar o host.");
+                }
+            }
+            return normalized;
+        }
 
         public async Task<Hosts?> Create(Hosts host, string userId)
         {
@@ -52,6 +88,7 @@ namespace Projetos___4.Domain.Service
                 throw new InvalidOperationException("Role HOST is not registered.");
             }
 
+            host.CNPJ = await ValidateHostCnpjAsync(host.CNPJ, 0);
             host.Address = await _addressService.AddAddress(host.AddressId, host.Address, userId);
             host.AddressId = host.Address.Id;
 
@@ -94,6 +131,7 @@ namespace Projetos___4.Domain.Service
                 return null;
             }
 
+            host.CNPJ = await ValidateHostCnpjAsync(host.CNPJ, existing.Id, existing.CNPJ);
             var address = await _addressService.AddAddress(host.AddressId, host.Address, userId);
 
             existing.Typeofhost = host.Typeofhost;

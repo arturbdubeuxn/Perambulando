@@ -1,7 +1,8 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Projetos___4.Application.Interfaces;
+using Projetos___4.Domain.Exceptions;
 using Projetos___4.Domain.Model;
 
 namespace Projetos___4.Presentation.Controllers;
@@ -16,6 +17,28 @@ public class AddressController : Controller
     {
         _addressAppService = addressAppService;
     }
+    [HttpGet("GetByCEP")]
+    public async Task<IActionResult> GetByCEP([FromQuery] string cep)
+    {
+        try
+        {
+            var address = await _addressAppService.GetByCEPAsync(cep, HttpContext.RequestAborted);
+            if (address == null)
+            {
+                return Problem(statusCode: 404, title: "CEP não encontrado", detail: "Confira o CEP informado.");
+            }
+            return Ok(address);
+        }
+        catch (ArgumentException ex)
+        {
+            return Problem(statusCode: 400, title: "CEP inválido", detail: ex.Message);
+        }
+        catch (PostalCodeException ex)
+        {
+            return Problem(statusCode: 503, title: "Consulta de CEP indisponível", detail: ex.Message);
+        }
+    }
+
     [HttpGet("GetAllAddress")]
     [Authorize]
     public async Task<IActionResult> GetAllAddress([FromQuery] string? search = null)
