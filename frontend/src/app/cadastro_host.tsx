@@ -1,4 +1,5 @@
-import { Fredoka_700Bold, useFonts } from '@expo-google-fonts/fredoka';
+import { Fredoka_700Bold } from '@expo-google-fonts/fredoka/700Bold';
+import { useFonts } from 'expo-font';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useState } from 'react';

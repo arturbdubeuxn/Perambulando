@@ -2,7 +2,7 @@
 
 > Ambiente local de banco atualizado em 26/10/2026: o PostgreSQL 17.11 com PostGIS 3.6.4 definido pelo projeto usa `127.0.0.1:5434`, pois 5432 e 5433 já estão ocupadas por instalações anteriores preservadas. Compose e `appsettings.Development.json` local foram alinhados; as 16 migrations existentes foram aplicadas ao volume novo. O banco anterior foi preservado, mas seus registros não foram migrados. Nenhum código funcional, model, migration ou contrato HTTP foi alterado. Consulte [Docker](05-docker.md).
 
-> Atualização estrutural de 26/10/2026: o código foi organizado como um único repositório com `backend/` e `frontend/`. A solução e o projeto .NET mantêm o nome `Projetos - 4` dentro de `backend/`. `frontend/` contém apenas o projeto base Expo/React Native com TypeScript, sem funcionalidades ou integração com a API. `docs/`, `docker/` e `compose.postgis.yaml` permanecem na raiz. O backend não teve contratos, regras, modelos, migrations ou configuração de execução alterados. Consulte [Arquitetura frontend e backend](08-arquitetura-frontend-backend.md) para a descrição completa. Validações: build da solução no novo caminho e verificações do frontend descritas ao final desta seção. Pendências: implementar telas e integração somente mediante solicitação. PDFs não foram regenerados.
+> Atualização estrutural de 26/10/2026: o código foi organizado como um único repositório com `backend/` e `frontend/`. A solução e o projeto .NET mantêm o nome `Projetos - 4` dentro de `backend/`. `frontend/` contém a aplicação Expo/React Native Web com TypeScript, identidade visual Perambulando e rotas locais para criação de evento e cadastro de host, ainda sem integração com a API. `docs/`, `docker/` e `compose.postgis.yaml` permanecem na raiz. O backend não teve contratos, regras, modelos, migrations ou configuração de execução alterados. Consulte [Arquitetura frontend e backend](08-arquitetura-frontend-backend.md) para a descrição completa. PDFs não foram regenerados.
 
 ## Estrutura do repositório — 26/10/2026
 
@@ -22,7 +22,7 @@ npm install
 npm start
 ```
 
-O frontend permanece no estado inicial do template. Não foram adicionados navegação, telas, cliente HTTP, variáveis de URL da API, autenticação, armazenamento de JWT nem regras de negócio.
+O frontend possui as interfaces responsivas de criação de evento (`/`) e cadastro de host (`/cadastro_host`), com Expo Router e identidade visual Perambulando. Os campos usam somente estado local; não foram adicionados cliente HTTP, variáveis de URL da API, autenticação, armazenamento de JWT, persistência nem regras de negócio.
 
 Validações realizadas em 26/10/2026: `dotnet build ".\backend\Projetos - 4.slnx" --no-restore` concluído com zero erros e sete avisos CS8618 preexistentes; `tsc --noEmit` aprovado; configuração pública do Expo carregada como SDK 58 para Android e iOS; `expo-doctor` aprovou 20/20 verificações. Node.js 24.20.0 LTS e npm 11.19.0 foram instalados no escopo do usuário. Não foram iniciados emulador, API ou banco, nem realizados testes funcionais. Como não houve mudança de contrato ou funcionalidade da API, o protótipo externo não foi alterado. PDFs preservados.
 
