@@ -35,7 +35,7 @@ O Compose desta etapa contém somente o banco e reutiliza um volume externo. As 
 - Banco persistente com volume e uma política definida para migrations, backup e restauração.
 - Definição de HTTPS/redirecionamento, pois a aplicação chama `UseHttpsRedirection`.
 
-No Compose: serviço database; container perambulando-postgres; imagem perambulando/postgres-postgis:17; volume externo perambulando_pgdata; porta 127.0.0.1:5432. O volume deve existir e já conter o cluster. Essa configuração não inicializa um banco vazio nem altera senhas de um cluster existente.
+No Compose atual: serviço database; container perambulando-postgres; imagem perambulando/postgres-postgis:17; volume externo perambulando_pgdata; porta 127.0.0.1:5434 no host para 5432 no container. O volume deve existir e já conter o cluster. Essa configuração não inicializa um banco vazio nem altera senhas de um cluster existente.
 
 ## 4. Rede: diferença entre local e container
 
@@ -84,3 +84,14 @@ Veja a [configuração e os critérios da integração](README.md). Validação:
 Nenhuma imagem, container ou volume foi alterado para Address. O schema novo ainda não foi criado. Não reinicie a API nova esperando compatibilidade com o banco antigo; em Development, alterações de modelo pendentes são verificadas antes de MigrateAsync. A transferência dos dados e a revisão/aplicação da migration são etapas futuras, após aprovação.
 
 Nenhuma migration ou PDF gerado nesta etapa. [Revisão pendente](validacoes/refatoracao-address-revisao-2026-10-21.md).
+# Ambiente local PostGIS em porta dedicada — 26/10/2026
+
+Nesta máquina, a porta 5432 já pertence ao serviço nativo PostgreSQL 18 e a porta 5433 pertence a um container PostgreSQL 16 anterior. Para preservar ambos sem alterar ou excluir seus dados, o serviço `database` do projeto publica o PostgreSQL 17 com PostGIS em `127.0.0.1:5434`, mantendo a porta interna padrão 5432. A configuração local de desenvolvimento da API usa a mesma porta 5434.
+
+O volume externo novo `perambulando_pgdata` é exclusivo do PostgreSQL 17/PostGIS deste projeto. O volume antigo `perambulando_postgres_data`, usado pelo PostgreSQL 16, não foi migrado, montado, modificado ou excluído. O PostgreSQL 18 nativo também permanece ativo. Esta escolha evita montar um cluster de uma versão principal em outra, o que não é suportado.
+
+Implementação: imagem `perambulando/postgres-postgis:17` construída a partir do Dockerfile versionado; volume `perambulando_pgdata` criado e inicializado; Compose e configuração local alinhados na porta 5434. O container definitivo `perambulando-postgres` permanece ativo com healthcheck aprovado.
+
+Validações: PostgreSQL 17.11; PostGIS 3.6.4 disponível e habilitado; autenticação com a configuração local aprovada; 16 migrations existentes aplicadas; 17 tabelas no schema público; API iniciada em `http://localhost:5014`; `GET /openapi/v1.json` respondeu HTTP 200. A API temporária foi encerrada após a validação. Nenhuma migration, model ou contrato HTTP foi alterado. PDFs não foram regenerados.
+
+Pendência: o volume PostgreSQL 16 anterior foi preservado, mas seus dados não foram migrados para o banco novo. O PostGIS 17 contém o schema criado pelas migrations e inicia sem os registros do banco anterior. Qualquer transferência deve ser feita depois, por backup/restauração compatível entre versões, mediante solicitação explícita.
