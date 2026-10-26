@@ -1,6 +1,6 @@
 # Correção da migration AddAddress — 21/10/2026
 
-Branch: Artur-Desktop. Arquivo: Projetos - 4/Data/Migrations/20261021193025_AddAddress.cs.
+Branch: Artur-Desktop. Arquivo atual: backend/Projetos - 4/Data/Migrations/20261021193025_AddAddress.cs.
 
 ## Alterações feitas
 

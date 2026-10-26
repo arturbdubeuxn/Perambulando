@@ -1,5 +1,31 @@
 # Documentação do Perambulando
 
+> Ambiente local de banco atualizado em 26/10/2026: o PostgreSQL 17.11 com PostGIS 3.6.4 definido pelo projeto usa `127.0.0.1:5434`, pois 5432 e 5433 já estão ocupadas por instalações anteriores preservadas. Compose e `appsettings.Development.json` local foram alinhados; as 16 migrations existentes foram aplicadas ao volume novo. O banco anterior foi preservado, mas seus registros não foram migrados. Nenhum código funcional, model, migration ou contrato HTTP foi alterado. Consulte [Docker](05-docker.md).
+
+> Atualização estrutural de 26/10/2026: o código foi organizado como um único repositório com `backend/` e `frontend/`. A solução e o projeto .NET mantêm o nome `Projetos - 4` dentro de `backend/`. `frontend/` contém apenas o projeto base Expo/React Native com TypeScript, sem funcionalidades ou integração com a API. `docs/`, `docker/` e `compose.postgis.yaml` permanecem na raiz. O backend não teve contratos, regras, modelos, migrations ou configuração de execução alterados. Consulte [Arquitetura frontend e backend](08-arquitetura-frontend-backend.md) para a descrição completa. Validações: build da solução no novo caminho e verificações do frontend descritas ao final desta seção. Pendências: implementar telas e integração somente mediante solicitação. PDFs não foram regenerados.
+
+## Estrutura do repositório — 26/10/2026
+
+- Backend: `backend/Projetos - 4.slnx` e `backend/Projetos - 4/Projetos - 4.csproj`.
+- Frontend: `frontend/`, criado com Expo SDK 58, React Native 0.88 e TypeScript 6.
+- Compartilhado: `docs/`, `docker/` e `compose.postgis.yaml` permanecem na raiz.
+- A separação é feita dentro do mesmo repositório Git; não foram criados repositórios Git aninhados.
+
+Comandos básicos:
+
+```powershell
+dotnet build ".\backend\Projetos - 4.slnx"
+dotnet run --project ".\backend\Projetos - 4\Projetos - 4.csproj"
+
+cd frontend
+npm install
+npm start
+```
+
+O frontend permanece no estado inicial do template. Não foram adicionados navegação, telas, cliente HTTP, variáveis de URL da API, autenticação, armazenamento de JWT nem regras de negócio.
+
+Validações realizadas em 26/10/2026: `dotnet build ".\backend\Projetos - 4.slnx" --no-restore` concluído com zero erros e sete avisos CS8618 preexistentes; `tsc --noEmit` aprovado; configuração pública do Expo carregada como SDK 58 para Android e iOS; `expo-doctor` aprovou 20/20 verificações. Node.js 24.20.0 LTS e npm 11.19.0 foram instalados no escopo do usuário. Não foram iniciados emulador, API ou banco, nem realizados testes funcionais. Como não houve mudança de contrato ou funcionalidade da API, o protótipo externo não foi alterado. PDFs preservados.
+
 > Atualização de 21/10/2026: a refatoração de Address está preparada no código e aguarda revisão **antes da migration**. O banco ainda tem o schema anterior. Consulte a [revisão dos contratos e da transferência de dados](validacoes/refatoracao-address-revisao-2026-10-21.md); as descrições antigas de endereço neste arquivo representam a versão anterior.
 
 
@@ -16,6 +42,7 @@ Na mesma branch foram completados AddressNumber/AddressComplement em hosts e pro
 | [05 - Docker](05-docker.md) | Situação encontrada, configuração necessária e operação futura |
 | [06 - Banco de dados](06-banco-de-dados.md) | PostgreSQL, EF Core, tabelas, relacionamentos, índices e migrations |
 | [07 - Entidades e models](07-entidades-models.md) | Classes do domínio, propriedades, padrões e navegações |
+| [08 - Arquitetura frontend e backend](08-arquitetura-frontend-backend.md) | Separação dos diretórios, conteúdo, responsabilidades, execução e fluxo entre aplicativo, API e banco |
 
 As versões PDF ficam em `pdf/`. As fontes Markdown são a base editável. Para regenerar todos os PDFs, execute `python exportar_pdfs.py` nesta pasta com Python e ReportLab disponíveis. No ambiente Codex, prefira o Python do runtime disponibilizado pela ferramenta de dependências. A exportação não atualiza o conteúdo técnico automaticamente: confira os documentos afetados antes de exportar.
 
@@ -29,6 +56,7 @@ As versões PDF ficam em `pdf/`. As fontes Markdown são a base editável. Para 
 | Campo ou mapeamento de entrada/saída | DTOs; Controllers; Entidades e BD se persistido |
 | Entidade, configuração EF, índice ou migration | Entidades; BD; Regras de negócio |
 | Container, imagem, rede, volume ou variável de ambiente | Docker; BD; Tokens conforme a variável |
+| Estrutura, dependência ou comunicação entre frontend e backend | Arquitetura frontend e backend; Controllers e DTOs quando houver mudança de contrato |
 
 Atualize os Markdown afetados e suas datas a cada alteração. PDFs somente devem ser atualizados quando o usuário pedir explicitamente; podem representar uma edição anterior às fontes. Confira também o protótipo e o arquivo `.http` quando houver alteração funcional. Não marque testes de execução como realizados quando a análise tiver sido apenas estática.
 
