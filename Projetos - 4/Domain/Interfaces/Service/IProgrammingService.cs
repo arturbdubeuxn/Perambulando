@@ -4,6 +4,8 @@ namespace Projetos___4.Domain.Interfaces.Service
 {
     public interface IProgrammingService
     {
+        Task<List<Programming>> GetAllProgrammingsAsync(int take, int skip);
+
         Task<Programming?> GetByIdAsync(int programmingId);
         Task<List<Category>> GetAllCategoriesbyProgrammingId(int programmingId);
         Task<Programming?> DeleteProgrammingAsync(int id, int hostId, string userId);

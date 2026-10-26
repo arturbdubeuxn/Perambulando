@@ -50,6 +50,9 @@ builder.Services
 builder.Services.Configure<IdentityOptions>(options =>
 {
     options.User.RequireUniqueEmail = true;
+    options.Lockout.AllowedForNewUsers = true;
+    options.Lockout.MaxFailedAccessAttempts = 5;
+    options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
     options.ClaimsIdentity.UserIdClaimType = "sub";
     options.ClaimsIdentity.UserNameClaimType = "name";
     options.ClaimsIdentity.RoleClaimType = "role";
@@ -88,9 +91,9 @@ builder.Services.AddScoped<IHostRepository,HostRepository>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IProgrammingRepository,ProgrammingRepository>();
 builder.Services.AddScoped<IProgrammingService, ProgrammingService>();
-builder.Services.AddScoped<IProgrammingValidations, ProgrammingValidations>();
 builder.Services.AddScoped<IProgrammingXCategoryRepository, ProgrammingXCategoryRepository>();
 builder.Services.AddScoped<IProgrammingXCategoryService, ProgrammingXCategoryService>();
+builder.Services.AddScoped<IProgrammingXCategoryAppService, ProgrammingXCategoryAppService>();
 builder.Services.AddScoped<IProgrammingAppService, ProgrammingAppService>();
 builder.Services.AddScoped<IProgrammingMapping, ProgrammingMapping>();
 builder.Services.AddScoped<IAddressMapping, AddressMapping>();

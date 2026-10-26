@@ -244,3 +244,74 @@ O bloqueio existente de inicialização em Development detectará alterações p
 ## Consulta de host para alteração — 26/10/2026
 
 VerificationbyId agora aceita um parâmetro interno isAdmin (padrão false) e filtra Id/IsActive junto de UserId ou permissão administrativa confirmada pelo HostService. A role é consultada pelo UserManager com o usuário ativo, nunca aceita do corpo da requisição. A unicidade do CNPJ conserva as verificações e o advisory lock anteriores; não foi adicionado índice/migration. Nenhum schema, dado ou snapshot de migration foi alterado nesta revisão.
+
+
+## R03 — unicidade dos vínculos de categorias (26/10/2026)
+
+Configurados no EF os índices únicos IX_UserXCategories_UserId_CategoryId e IX_ProgrammingXCategories_ProgrammingId_CategoryId. Ainda não existem garantias de aplicação desses índices no banco: nenhuma migration foi gerada/aplicada. O Docker não ficou acessível para auditoria real. Os repositórios usam transações/advisory locks nos namespaces 721905 (usuário) e 721906 (programação); locks serializam chamadas da API e o índice futuro garante unicidade também contra outros escritores.
+
+Scripts em validacoes: auditar-vinculos-categorias.sql é somente leitura; deduplicar-vinculos-categorias-revisao.sql é material para revisão, mantém menor Id, aborta com FKs externas e termina em ROLLBACK. Nenhum SQL foi executado. Revisar backup, duplicidades e migration em janela sem gravações antes de aplicar ao banco. Persistência/concorrência real ainda não foram testadas.
+
+Validação: build sem erros; 13 verificações locais de modelo/snapshots/409, 41 cenários de mapeamento e 52 testes do protótipo com dependências simuladas aprovados. Sem teste de persistência no PostgreSQL, alteração de dados, migration ou PDF. [Registro completo e pendências](validacoes/unicidade-vinculos-categorias-2026-10-26.md).
+
+
+## R03 — Docker disponível, auditoria e testes reais (26/10/2026)
+
+Auditoria READ ONLY em perambulando: UserXCategories possui 13 linhas, ProgrammingXCategories 28; zero pares duplicados e zero excedentes nas duas tabelas. Nenhuma FK externa aponta para os IDs dos vínculos. Os índices compostos únicos ainda não foram criados. Não é necessária limpeza com o estado atual; repetir auditoria caso ocorram novas gravações antes da migration.
+
+As 13 verificações de integração passaram. O banco descartável foi removido; o banco principal manteve as contagens e não foi alterado. Nenhuma migration, limpeza de dados ou PDF executado. [Relatório e comando de teste](validacoes/unicidade-vinculos-categorias-2026-10-26.md).
+
+
+## Bloqueio de login e stamps do Identity — 26/10/2026
+
+Modelo EF restaura cinco campos de Users: AccessFailedCount, LockoutEnabled (default true), LockoutEnd, SecurityStamp e ConcurrencyStamp; restaura também ConcurrencyStamp de AspNetRoles. Os dois ConcurrencyStamp são tokens de concorrência. Auditoria somente leitura confirmou que essas colunas ainda não existem no banco perambulando. Migration não gerada/aplicada; revisar backfill dos stamps e habilitação das contas existentes antes da implantação.
+
+Implementação, roteiro da migration e teste reproduzível: [revisão R01](validacoes/identity-bloqueio-login-2026-10-26.md).
+
+## Registro do serviço de vínculos de programação — 26/10/2026
+
+Corrigida a dependência ausente IProgrammingXCategoryAppService no container de DI. A falha ao construir ProgrammingAppService impedia o EF de obter o Context pelo provider da aplicação e provocava o erro secundário de DbContextOptions<Context>. Build aprovado com zero erros e sete avisos CS8618 preexistentes. O terminal desta sessão não tem dotnet-ef; a criação de migration deve ser repetida pelo Package Manager Console do Visual Studio. Nenhuma migration foi gerada/aplicada nesta correção.
+
+## Verificação após AddFavorite — 26/10/2026
+
+Estado auditado: AddFavorite (20261026163834) consta no histórico; nenhum migration pendente e snapshot alinhado ao modelo. Confirmados cinco campos Identity em Users, ConcurrencyStamp de AspNetRoles, tabela/FKs/índice único de Favorites e unicidade dos pares em UserXCategories e ProgrammingXCategories, sem duplicidades. Pendência: 23 usuários e duas roles ficaram com stamps nulos; SecurityStamp nulo causa falha na contabilização de senha incorreta. Não houve correção de dados no banco principal durante a auditoria.
+
+Evidências e teste reproduzível: [auditoria da migration](validacoes/validacao-migration-addfavorite-2026-10-26.md).
+
+## Limpeza autorizada das contas antigas — 26/10/2026
+
+Limpeza executada em transação, com backup prévio e confirmação do usuário para cascatas. Excluídos 23 usuários antigos, 29 hosts e 13 programações e seus dependentes. Estado confirmado após a exclusão: Users/Hosts/Programmings/UserXCategories/ProgrammingXCategories/Favorites vazios; 12 Categories e 35 Addresses preservados; ADMIN e HOST preservadas, ambas com ConcurrencyStamp preenchido. Schema e histórico de migrations não foram alterados.
+
+## Edição de datas e preços decimais — 26/10/2026
+
+Programações passam a mapear MinPrice/MaxPrice com HasPrecision(12,2), tipo numeric(12,2). Migration 20261026175332_ProgrammingPricesDecimal gerada com apenas as duas alterações de coluna; Designer/snapshot atualizados. Testada em banco PostgreSQL descartável, mas não aplicada ao principal. Auditoria principal encontrou zero programações, zero preços incompatíveis e colunas ainda real. Aplicar a migration revisada antes de iniciar a API com esse modelo.
+
+Detalhes e teste reproduzível: [revisão de datas/preços](validacoes/programming-datas-precos-2026-10-26.md).
+
+## Extração de métodos na edição de programação — 26/10/2026
+
+EditWithCategoriesAsync foi dividido em métodos privados dentro de ProgrammingRepository. Todos usam o mesmo Context; auxiliares não abrem transações nem salvam. Continua existindo uma transação e um SaveChangesAsync para a operação completa. Não houve alteração de schema ou migration nesta refatoração.
+
+Validação desta extração: build aprovado; 21 verificações existentes de programação repetidas com sucesso em PostgreSQL isolado, usando AppService/Service/repositórios reais. Banco temporário removido; banco principal não alterado. Não foram criados novos testes nem alterado o tratamento de erros nesta etapa.
+
+## Consulta dos vínculos de uma programação — 26/10/2026
+
+Nova consulta interna em ProgrammingXCategories filtra ProgrammingId e retorna os registros completos de vínculo. Mantém rastreamento do Context para reaproveitamento na edição; não grava dados, não muda schema e não exige migration. Não foi criado endpoint HTTP.
+
+## Joins nos interesses do usuário — 26/10/2026
+
+Consultas internas de UserXCategories fazem join com Categories pela FK. Comparações entre listas já carregadas usam LINQ em memória; escritas continuam por AddAsync/RemoveRange/SaveChangesAsync. Índice único de par, bloqueio transacional por usuário e filtro de erro de unicidade preservados. Nenhuma alteração de schema ou migration nesta refatoração.
+
+Implementação e testes: [consultas com joins](validacoes/user-categories-joins-2026-10-26.md).
+
+## Edição de interesses com foreach — 26/10/2026
+
+Edição de interesses usa Db.Remove e Db.Add em laços, seguida de um SaveChangesAsync dentro da transação existente. Não altera schema nem migrations. Build aprovado; nenhum teste de banco executado nesta simplificação. Pendência observada no AddAsync atual: somente marca inclusões no contexto e retorna; falta SaveChangesAsync no fluxo de cadastro.
+
+## Model no fluxo de cadastro de favoritos — 26/10/2026
+
+FavoriteRepository.AddAsync recebe Favorite em vez de IDs separados. Usa as chaves do objeto para o bloqueio e a consulta; persiste o objeto mapeado apenas quando não existe o par. Para par existente, retorna o registro armazenado ou o reativa, preservando IDs e dados de criação. Transação, índice único, carregamento de programação/host e SaveChangesAsync mantidos. Sem alteração de schema ou migration.
+
+## Listagem paginada de programações — 26/10/2026
+
+Consulta paginada de Programmings usa AsNoTracking, Include(Address), filtro de programação/host ativos, ORDER BY StartDate/Id e Skip(skip).Take(take) antes da materialização. A paginação é executada pelo EF no PostgreSQL, sem carregar toda a coleção. Não exige migration ou alteração de schema. Offset maior que o total retorna lista vazia.

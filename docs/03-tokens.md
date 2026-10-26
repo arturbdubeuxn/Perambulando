@@ -128,3 +128,24 @@ O JWT continua identificando o usuário e habilitando a entrada nas rotas com ro
 ## DTO de usuário compartilhado — 26/10/2026
 
 Cadastro/edição agora recebem UserDTO. A edição continua atualizando nome/e-mail/tipo e retornando auth com JWT atualizado; Password, mesmo se enviado, não é usado para alterar senha nem claims. A senha permanece obrigatória somente na criação da conta. Login continua com UserLoginDTO. Protótipo preserva atualização automática do JWT e não envia senha na edição; esse comportamento foi exercitado por teste com API simulada. Nenhuma mudança de chave, emissão, roles, duração ou renovação de token.
+
+
+## Bloqueio de login e stamps do Identity — 26/10/2026
+
+AccessFailedCount, LockoutEnabled, LockoutEnd, SecurityStamp e ConcurrencyStamp voltam ao modelo persistido. Política explícita: cinco falhas, bloqueio de 15 minutos, habilitado para contas novas. O bloqueio impede novos logins; não revoga JWTs existentes. Armazenar SecurityStamp não adiciona validação de stamp aos JWTs. Contratos, claims, roles e expiração permanecem iguais. É necessária migration revisada no banco principal antes de usar o código.
+
+Implementação, roteiro da migration e teste reproduzível: [revisão R01](validacoes/identity-bloqueio-login-2026-10-26.md).
+
+## Verificação após AddFavorite — 26/10/2026
+
+Confirmada aplicação de AddFavorite. Campos Identity existem e as 23 contas antigas têm bloqueio habilitado, mas SecurityStamp/ConcurrencyStamp continuam nulos nessas contas; as duas roles também têm ConcurrencyStamp nulo. O erro User security stamp cannot be null foi reproduzido em conta isolada ao informar senha incorreta. Preencher stamps antigos é necessário para completar a correção. Isso não cria revogação automática de JWTs.
+
+Evidências e teste reproduzível: [auditoria da migration](validacoes/validacao-migration-addfavorite-2026-10-26.md).
+
+## Limpeza autorizada das contas antigas — 26/10/2026
+
+As 23 contas antigas com stamps ausentes foram removidas com autorização explícita. Roles ADMIN/HOST preservadas e ConcurrencyStamp inicializado nas duas. Para novos testes, limpar a sessão do protótipo, cadastrar nova conta e fazer login. Esta limpeza não adiciona revogação criptográfica aos JWTs antigos; a tarefa de validação de usuário ativo/JWT permanece separada.
+
+## Endpoint público de paginação — 26/10/2026
+
+GET /api/Programming/GetAllProgrammings é AllowAnonymous. Não exige login, roles nem token e não emite/renova JWT. O protótipo omite o token mesmo quando a aba tem sessão autenticada.

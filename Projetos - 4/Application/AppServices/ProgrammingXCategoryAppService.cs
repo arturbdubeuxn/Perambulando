@@ -8,14 +8,12 @@ namespace Projetos___4.Application.AppServices
 {
     public class ProgrammingXCategoryAppService : IProgrammingXCategoryAppService
     {
-        private readonly IProgrammingXCategoryService _programmingXCategoryService;
 
         private readonly IProgrammingXCategoryMapping _programmingXCategoryMapping;
 
-        public ProgrammingXCategoryAppService(IProgrammingXCategoryService programmingXCategoryService, IProgrammingXCategoryMapping programmingXCategoryMapping)
+        public ProgrammingXCategoryAppService(IProgrammingXCategoryMapping programmingXCategoryMapping)
         {
             _programmingXCategoryMapping = programmingXCategoryMapping;
-            _programmingXCategoryService = programmingXCategoryService;
         }
         public List<ProgrammingXCategory> CreateProgrammingLinks(Programming programming, List<int> categoriesIds)
         {
@@ -28,11 +26,5 @@ namespace Projetos___4.Application.AppServices
             return links;
         }
 
-        public async Task<ProgrammingXCategoryResponseDTO> CreateProgrammingXCategoryAsync(int categoryId, int programmingId)
-        {
-            var programmingXCategory = _programmingXCategoryMapping.ToModel(categoryId, programmingId);
-            var result = await _programmingXCategoryService.CreateProgrammingXCategoryAsync(programmingXCategory);
-            return _programmingXCategoryMapping.ToDTO(result);
-        }
     }
 }

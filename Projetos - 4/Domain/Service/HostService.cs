@@ -83,25 +83,17 @@ namespace Projetos___4.Domain.Service
                 throw new InvalidOperationException("User not found.");
             }
 
-            if (!await _roleManager.RoleExistsAsync("HOST"))
-            {
-                throw new InvalidOperationException("Role HOST is not registered.");
-            }
-
             host.CNPJ = await ValidateHostCnpjAsync(host.CNPJ, 0);
             host.Address = await _addressService.AddAddress(host.AddressId, host.Address, userId);
             host.AddressId = host.Address.Id;
 
             var result = await _hostRepository.Create(host, async () =>
             {
-                if (!await _userManager.IsInRoleAsync(user, "HOST"))
-                {
                     var roleResult = await _userManager.AddToRoleAsync(user, "HOST");
                     if (!roleResult.Succeeded)
                     {
                         throw new InvalidOperationException("Host role assignment failed.");
                     }
-                }
             });
 
             if (result == null)
@@ -117,7 +109,7 @@ namespace Projetos___4.Domain.Service
             return _hostRepository.GetByIdAsync(hostId);
         }
 
-        private async Task<Hosts?> GetHostForModificationAsync(int hostId, string userId)
+        private async Task<Hosts?> HostVerification(int hostId, string userId)
         {
             if (hostId <= 0 || string.IsNullOrWhiteSpace(userId))
             {
@@ -141,7 +133,7 @@ namespace Projetos___4.Domain.Service
                 return null;
             }
 
-            var existing = await GetHostForModificationAsync(host.Id, userId);
+            var existing = await HostVerification(host.Id, userId);
 
             if (existing == null)
             {
@@ -172,7 +164,7 @@ namespace Projetos___4.Domain.Service
                 return null;
             }
 
-            var host = await GetHostForModificationAsync(hostId, userId);
+            var host = await HostVerification(hostId, userId);
 
             if (host == null)
             {

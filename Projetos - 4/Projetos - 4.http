@@ -1,3 +1,5 @@
+# Login: após a migration do Identity, cinco senhas incorretas bloqueiam a conta por 15 minutos (401 genérico).
+# Programações: início futuro somente no cadastro; edição aceita iniciadas/encerradas. Preços com até duas casas decimais.
 # Cadastro/edição de usuário usam UserDTO; typeofUser obrigatório nos dois. Senha só no cadastro; edição não altera senha.
 # Alterar/desativar host: JWT do responsável ou de ADMIN autorizado; admin é confirmado no Identity pelo servidor.
 # Cadastro e edição de host usam HostDTO; typeofhost é obrigatório (0, 1 ou 2).
@@ -216,6 +218,8 @@ Accept: application/json
 # Escolha opcional: pule esta requisição ou envie [] para não adicionar nada.
 # No PUT EditCategoryToUser, [] remove todas as preferências atuais.
 # Resposta 200: DTO com userId e categoryIds; a mensagem de sucesso anterior foi substituída.
+# Pode executar este POST novamente: vínculos existentes são reaproveitados e a resposta continua 200.
+# Um conflito externo de unicidade retorna 409; nenhum vínculo novo é gravado parcialmente.
 # @name addCategoryToUser
 POST {{Projetos___4_HostAddress}}/api/Category/AddCategoryToUser
 Content-Type: application/json
@@ -235,6 +239,7 @@ Authorization: Bearer {{login.response.body.$.accessToken}}
 ### CATEGORY - Editar categorias de interesse (200 com todos os vínculos atualizados)
 # Execute login e consulte GetallCategories para escolher IDs existentes.
 # Envie a seleção completa desejada: ausentes serão removidos; repetidos são ignorados.
+# Em edição concorrente, 409 indica que a seleção mudou durante a operação; recarregue os interesses e tente novamente.
 # @name editUserCategories
 PUT {{Projetos___4_HostAddress}}/api/Category/EditCategoryToUser
 Content-Type: application/json
@@ -252,6 +257,12 @@ Authorization: Bearer {{login.response.body.$.accessToken}}
 # ============================================================
 # PROGRAMMING
 # ============================================================
+
+### PROGRAMMING - Listar programações com paginação (200, sem login)
+# take = quantidade; skip = quantos registros ignorar. Segunda página: take=10&skip=10.
+# @name allProgrammings
+GET {{Projetos___4_HostAddress}}/api/Programming/GetAllProgrammings?take=10&skip=0
+Accept: application/json
 
 ### PROGRAMMING - Programações pelas categorias de interesse (200)
 # Execute addCategoryToUser antes. Uma lista vazia é válida quando não houver correspondências.
@@ -303,6 +314,7 @@ Accept: application/json
 # Execute createProgrammingAfterHost e programmingDetails antes. PUT substitui todos os campos editáveis.
 # Envie a lista final de categorias. Vínculos retirados são removidos; novos IDs são adicionados.
 # Ajuste EditCategoryId no início do arquivo para uma categoria existente.
+# Se outra requisição alterar categorias durante a operação, retorna 409; recarregue os detalhes antes de reenviar.
 # @name editProgramming
 # Edição: datas em UTC, início futuro, término posterior, categorias positivas sem repetição.
 PUT {{Projetos___4_HostAddress}}/api/Programming/{{createHost.response.body.$.result.id}}/Edit/{{createProgrammingAfterHost.response.body.$.id}}
@@ -320,8 +332,8 @@ Authorization: Bearer {{createHost.response.body.$.auth.accessToken}}
   "imageUrl": "https://example.com/festival.png",
   "ticketUrl": "https://example.com/ingressos",
   "instagranUrl": "https://www.instagram.com/host_teste",
-  "minPrice": 40,
-  "maxPrice": 80,
+  "minPrice": 40.50,
+  "maxPrice": 80.90,
   "categoryIds": [{{EditCategoryId}}]
 }
 

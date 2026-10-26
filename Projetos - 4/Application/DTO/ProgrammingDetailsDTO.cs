@@ -20,8 +20,8 @@ public class ProgrammingDetailsDTO
     public string HostLogoUrl { get; set; } = string.Empty;
     public DateTime CreatedDate { get; set; }
     public DateTime UpdateDate { get; set; }
-    public float MinPrice { get; set; }
-    public float MaxPrice { get; set; }
+    public decimal MinPrice { get; set; }
+    public decimal MaxPrice { get; set; }
 
     public List<CategoryResponseDTO>? Categories { get; set; }
 }

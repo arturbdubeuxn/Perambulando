@@ -27,6 +27,12 @@ namespace Projetos___4.Application.AppServices
             _programmingXCategoryAppService = programmingXCategoryAppService;
         }
 
+        public async Task<List<ProgrammingResponseDTO>> GetAllProgrammingsAsync(int take, int skip)
+        {
+            var programmings = await _programmingService.GetAllProgrammingsAsync(take, skip);
+            return programmings.Select(_programmingMapping.ToDTO).ToList();
+        }
+
         public async Task<ProgrammingDetailsDTO?> GetByIdAsync(int programmingId)
         {
             var programming = await _programmingService.GetByIdAsync(programmingId);

@@ -8,6 +8,7 @@ public class ProgrammingConfigurations : IEntityTypeConfiguration<Programming>
 {
     public void Configure(EntityTypeBuilder<Programming> builder)
     {
-
+        builder.Property(programming => programming.MinPrice).HasPrecision(12, 2);
+        builder.Property(programming => programming.MaxPrice).HasPrecision(12, 2);
     }
 }

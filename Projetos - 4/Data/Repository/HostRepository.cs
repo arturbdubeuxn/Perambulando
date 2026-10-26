@@ -23,9 +23,6 @@ namespace Projetos___4.Data.Repository
 
         private async Task CheckCnpjForSaveAsync(Hosts host)
         {
-            // Mesmo lock em create/edit: serializa a verificação final entre instâncias da API.
-            // Não substitui um índice único para gravações externas à aplicação.
-            await Db.Database.ExecuteSqlRawAsync("SELECT pg_advisory_xact_lock(721904, 1)");
             if (await CnpjExistsAsync(host.CNPJ, host.Id))
             {
                 throw new CnpjException(CnpjFailure.Duplicate, "Já existe um host cadastrado com este CNPJ.");
@@ -77,7 +74,6 @@ namespace Projetos___4.Data.Repository
         public async Task<Hosts> EditAsync(Hosts host)
         {
             await using var transaction = await Db.Database.BeginTransactionAsync();
-            // Desativação não deve revalidar CNPJ legado; create/alteração de CNPJ são protegidos.
             if (Db.Entry(host).Property(item => item.CNPJ).OriginalValue != host.CNPJ)
             {
                 await CheckCnpjForSaveAsync(host);

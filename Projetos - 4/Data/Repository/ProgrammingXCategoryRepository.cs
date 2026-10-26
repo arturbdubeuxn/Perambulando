@@ -14,35 +14,13 @@ namespace Projetos___4.Data.Repository
             Db = db;
         }
 
-        public async Task<ProgrammingXCategory> CreateProgrammingXCategoryAsync(ProgrammingXCategory programmingXCategory)
+        public Task<List<ProgrammingXCategory>> GetAllByProgrammingIdAsync(int programmingId)
         {
-            ArgumentNullException.ThrowIfNull(programmingXCategory);
-            await using var transaction = await Db.Database.BeginTransactionAsync();
-            await Db.Database.ExecuteSqlInterpolatedAsync(
-                $"SELECT pg_advisory_xact_lock(721906, {programmingXCategory.ProgrammingId})");
-            try
-            {
-                var existing = await Db.ProgrammingXCategories
-                    .OrderBy(link => link.Id).FirstOrDefaultAsync(link =>
-                        link.ProgrammingId == programmingXCategory.ProgrammingId &&
-                        link.CategoryId == programmingXCategory.CategoryId);
-                if (existing != null)
-                {
-                    await transaction.CommitAsync();
-                    return existing;
-                }
-
-                Db.ProgrammingXCategories.Add(programmingXCategory);
-                await Db.SaveChangesAsync();
-                await transaction.CommitAsync();
-                return programmingXCategory;
-            }
-            catch (DbUpdateException ex) when (ex.InnerException is PostgresException postgres &&
-                postgres.SqlState == PostgresErrorCodes.UniqueViolation &&
-                postgres.ConstraintName == "IX_ProgrammingXCategories_ProgrammingId_CategoryId")
-            {
-                throw new CategoryLinksConflictException();
-            }
+            return Db.ProgrammingXCategories
+                .Where(link => link.ProgrammingId == programmingId)
+                .OrderBy(link => link.Id)
+                .ToListAsync();
         }
-    }
+        }
+    
 }

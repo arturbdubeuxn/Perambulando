@@ -14,12 +14,11 @@ namespace Projetos___4.Domain.Service
         private readonly IHostRepository _hostRepository;
         private readonly IAddressService _addressService;
         private readonly ICategoryRepository _categoryRepository;
-        private readonly IProgrammingValidations _programmingValidations;
         private readonly ICategoryService _categoryService;
         private readonly IProgrammingXCategoryService _programmingXCategoryService;
 
 
-        public ProgrammingService(IProgrammingRepository programmingRepository, IUserRepository userRepository, IHostRepository hostRepository, ICategoryRepository categoryRepository, IAddressService addressService, IProgrammingValidations programmingValidations,
+        public ProgrammingService(IProgrammingRepository programmingRepository, IUserRepository userRepository, IHostRepository hostRepository, ICategoryRepository categoryRepository, IAddressService addressService,
 ICategoryService categoryService, IProgrammingXCategoryService programmingXCategoryService)
         {
             _programmingRepository = programmingRepository;
@@ -27,10 +26,24 @@ ICategoryService categoryService, IProgrammingXCategoryService programmingXCateg
             _hostRepository = hostRepository;
             _addressService = addressService;
             _categoryRepository = categoryRepository;
-            _programmingValidations = programmingValidations;
             _categoryService = categoryService;
             _programmingXCategoryService = programmingXCategoryService;
         }
+        public Task<List<Programming>> GetAllProgrammingsAsync(int take, int skip)
+        {
+            if (take <= 0)
+            {
+                throw new ArgumentException("Take deve ser maior que zero.", nameof(take));
+            }
+
+            if (skip < 0)
+            {
+                throw new ArgumentException("Skip deve ser maior ou igual a zero.", nameof(skip));
+            }
+
+            return _programmingRepository.GetAllProgrammingsAsync(take, skip);
+        }
+
         public Task<Programming?> GetByIdAsync(int programmingId)
         {
             return _programmingRepository.GetByIdAsync(programmingId);
@@ -82,8 +95,6 @@ ICategoryService categoryService, IProgrammingXCategoryService programmingXCateg
 
         public async Task<Programming?> EditProgrammingAsync(Programming programming, List<ProgrammingXCategory> links, string userId)
         {
-            _programmingValidations.ValidateProgramming(programming, links, DateTime.UtcNow);
-
             if (string.IsNullOrWhiteSpace(userId) ||
                 !await _hostRepository.UserOwnsActiveHostAsync(programming, userId))
             {
@@ -101,6 +112,7 @@ ICategoryService categoryService, IProgrammingXCategoryService programmingXCateg
             var address = await _addressService.AddAddress(addressId, newAddress, userId);
 
             var currentCategories = await _categoryRepository.GetAllCategoriesbyProgrammingId(existing.Id);
+            var currentLinks = await _programmingXCategoryService.GetAllByProgrammingIdAsync(existing.Id);
             var categoryIdsToRemove = _categoryService.GetCategoryIdsToRemove(currentCategories, links);
             var linksToAdd = _programmingXCategoryService.GetLinksToAdd(currentCategories, links);
 
@@ -118,13 +130,17 @@ ICategoryService categoryService, IProgrammingXCategoryService programmingXCateg
             existing.MaxPrice = programming.MaxPrice;
             existing.UpdateDate = DateTime.UtcNow;
 
-            var edited = await _programmingRepository.EditWithCategoriesAsync(existing, linksToAdd, categoryIdsToRemove, currentCategories.Select(category => category.Id).ToList());
+            var edited = await _programmingRepository.EditWithCategoriesAsync(existing, linksToAdd, categoryIdsToRemove, currentLinks);
             return edited;
         }
 
         public async Task<Programming> CreateProgrammingAsync(Programming programming, List<ProgrammingXCategory> links, string userId)
         {
-           _programmingValidations.ValidateProgramming(programming, links, DateTime.UtcNow);
+           if (programming.StartDate <= DateTime.UtcNow)
+           {
+               throw new ArgumentException("A data de início deve ser posterior à data atual.");
+           }
+
            if (string.IsNullOrWhiteSpace(userId))
            {
                throw new InvalidOperationException("Esse usuário não é o dono do host ativo para este programa.");

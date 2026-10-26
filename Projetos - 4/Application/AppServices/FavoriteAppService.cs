@@ -20,8 +20,9 @@ namespace Projetos___4.Application.AppServices
 
         public async Task<FavoriteResponseDTO> AddAsync(string? userId, int programmingId)
         {
-            var favorite = await _favoriteService.AddAsync(userId, programmingId);
-            return _favoriteMapping.ToDTO(favorite);
+            var favorite = _favoriteMapping.ToModel(userId ?? string.Empty, programmingId);
+            var result = await _favoriteService.AddAsync(favorite);
+            return _favoriteMapping.ToDTO(result);
         }
 
         public async Task<List<FavoriteResponseDTO>> GetAllByUserIdAsync(string? userId)

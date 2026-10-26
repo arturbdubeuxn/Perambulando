@@ -33,21 +33,26 @@ namespace Projetos___4.Domain.Service
             }
         }
 
-        public async Task<Favorite> AddAsync(string? userId, int programmingId)
+        public async Task<Favorite> AddAsync(Favorite favorite)
         {
-            await ValidateUserAsync(userId);
-            if (programmingId <= 0)
+            ArgumentNullException.ThrowIfNull(favorite);
+            await ValidateUserAsync(favorite.UserId);
+            if (favorite.ProgrammingId <= 0)
             {
                 throw new ArgumentException("O ID da programação deve ser maior que zero.");
             }
 
-            var programming = await _programmingRepository.GetByIdAsync(programmingId);
+            var programming = await _programmingRepository.GetByIdAsync(favorite.ProgrammingId);
             if (programming == null || !programming.IsActive || !programming.Host.IsActive)
             {
                 throw new KeyNotFoundException("Programação indisponível.");
             }
 
-            return await _favoriteRepository.AddAsync(userId!, programmingId);
+            favorite.IsActive = true;
+            favorite.CreatedAt = DateTime.UtcNow; 
+            favorite.UpdatedAt = DateTime.UtcNow; 
+
+            return await _favoriteRepository.AddAsync(favorite);
         }
 
         public async Task<List<Favorite>> GetAllByUserIdAsync(string? userId)
@@ -56,7 +61,7 @@ namespace Projetos___4.Domain.Service
             return await _favoriteRepository.GetAllByUserIdAsync(userId!);
         }
 
-        public async Task<Favorite> DeleteAsync(string? userId, int programmingId)
+        public async Task<Favorite> DeleteAsync(string userId, int programmingId)
         {
             await ValidateUserAsync(userId);
             if (programmingId <= 0)
@@ -64,14 +69,17 @@ namespace Projetos___4.Domain.Service
                 throw new ArgumentException("O ID da programação deve ser maior que zero.");
             }
 
-            // Permite desfavoritar mesmo quando a programação ou o host foi desativado.
-            var favorite = await _favoriteRepository.DeleteAsync(userId!, programmingId);
-            if (favorite == null)
+            var obj = await _favoriteRepository.GetFavoritebyUserAndProgrammingId(userId, programmingId);
+
+            if(obj == null)
             {
-                throw new KeyNotFoundException("Favorito não encontrado para este usuário.");
+                throw new ArgumentException("O ID da programação deve ser maior que zero.");
             }
 
-            return favorite;
+            obj.IsActive = false;
+            obj.UpdatedAt = DateTime.UtcNow;
+
+            return await _favoriteRepository.DeleteAsync(obj);
         }
     }
 }

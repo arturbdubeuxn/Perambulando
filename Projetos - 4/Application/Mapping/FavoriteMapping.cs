@@ -6,6 +6,15 @@ namespace Projetos___4.Application.Mapping;
 
 public class FavoriteMapping : IFavoriteMapping
 {
+    public Favorite ToModel(string userId, int programmingId)
+    {
+        return new Favorite
+        {
+            UserId = userId,
+            ProgrammingId = programmingId
+        };
+    }
+
     public FavoriteResponseDTO ToDTO(Favorite favorite)
     {
         ArgumentNullException.ThrowIfNull(favorite);
@@ -13,7 +22,6 @@ public class FavoriteMapping : IFavoriteMapping
         {
             UserId = favorite.UserId,
             ProgrammingId = favorite.ProgrammingId,
-            HostId = favorite.Programming.HostId
         };
     }
 }

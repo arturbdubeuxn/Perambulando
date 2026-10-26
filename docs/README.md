@@ -514,3 +514,74 @@ Rotas, DTOs, autenticação, respostas e lógica de persistência foram preserva
 
 
 26/10/2026: [Avaliação de SOLID, Strategy e regras de negócio](validacoes/avaliacao-solid-strategy-regras-2026-10-26.md), com notas, acertos e 16 achados/decisões ordenados por prioridade. Revisão somente: nenhuma correção de produção ou migration executada. Build aprovado, verificações controladas e 52 testes simulados do protótipo.
+
+
+26/10/2026: R03 preparado no código: POST de interesses idempotente, índices únicos no modelo e conflito 409 para edições simultâneas. [Detalhes e pendências de banco](validacoes/unicidade-vinculos-categorias-2026-10-26.md). Auditoria real indisponível por Docker não acessível; nenhuma migration/limpeza executada. 13 verificações locais, 41 cenários de mapeamento e 52 testes do protótipo aprovados. Sem PDF novo.
+
+
+26/10/2026: Docker disponível. [Auditoria e testes reais de R03](validacoes/unicidade-vinculos-categorias-2026-10-26.md): zero duplicidades em 13 interesses e 28 vínculos de programação; 13 verificações reais em banco descartável aprovadas, incluindo concorrência/rollback/índices. Banco descartável removido. Banco principal preservado; índices únicos continuam pendentes de migration revisada. Não é necessária limpeza no estado auditado.
+
+
+## Bloqueio de login e stamps do Identity — 26/10/2026
+
+Correção R01 preparada: persistência dos campos de bloqueio e stamps do Identity, cinco falhas/15 minutos e proteção de concorrência de usuários/roles. Banco principal auditado somente em leitura; migration pendente de revisão, incluindo backfill das contas existentes. Protótipo informa a política sem alterar rotas ou contratos. PDFs preservados.
+
+Implementação, roteiro da migration e teste reproduzível: [revisão R01](validacoes/identity-bloqueio-login-2026-10-26.md).
+
+## Registro do serviço de vínculos de programação — 26/10/2026
+
+Correção de inicialização do EF: IProgrammingXCategoryAppService registrado como scoped em Program.cs. Build aprovado; nenhuma alteração de contrato HTTP, regra, DTO ou schema. Migration não gerada/aplicada. A CLI dotnet-ef não está disponível no terminal da sessão; repetir pelo Package Manager Console do Visual Studio.
+
+## Verificação após AddFavorite — 26/10/2026
+
+Migration AddFavorite confirmada no banco principal, sem migrations pendentes ou diferença de snapshot. Estrutura Identity, Favorites e índices únicos de categorias instalada. Ainda há pendência R01: stamps das 23 contas antigas e duas roles não foram inicializados; senha incorreta em conta com SecurityStamp nulo causa exceção no Identity. Banco principal acessado somente em leitura nesta verificação; PDFs preservados.
+
+Evidências e teste reproduzível: [auditoria da migration](validacoes/validacao-migration-addfavorite-2026-10-26.md).
+
+## Limpeza autorizada das contas antigas — 26/10/2026
+
+Limpeza autorizada concluída: 23 contas antigas e seus 29 hosts/13 programações removidos com dependentes; roles ADMIN/HOST preservadas com stamps inicializados. Restam 12 categorias e 35 endereços. Cadastro/login precisam ser refeitos para novos testes. Backup local preservado no workspace Perambulando/tmp/perambulando-before-old-users-20261026.dump. PDFs não regenerados.
+
+## Edição de datas e preços decimais — 26/10/2026
+
+R05 corrigido: edição aceita eventos iniciados/encerrados, cadastro mantém início futuro. R09 preparado: preços decimal/numeric(12,2), até duas casas, com migration ProgrammingPricesDecimal gerada e pendente de aplicação no banco principal. Build e 21 verificações PostgreSQL isoladas aprovados; protótipo atualizado com sintaxe e 52 testes simulados aprovados. PDFs preservados.
+
+Detalhes e teste reproduzível: [revisão de datas/preços](validacoes/programming-datas-precos-2026-10-26.md).
+
+## Extração de métodos na edição de programação — 26/10/2026
+
+EditWithCategoriesAsync separado em quatro auxiliares privados no repositório existente, preservando transação única e SaveChangesAsync único. Interface e chamada do service alinhadas à assinatura de três parâmetros. Sem mudanças de rota, DTO, regras ou schema; PDFs preservados.
+
+Validação desta extração: build aprovado; 21 verificações existentes de programação repetidas com sucesso em PostgreSQL isolado, usando AppService/Service/repositórios reais. Banco temporário removido; banco principal não alterado. Não foram criados novos testes nem alterado o tratamento de erros nesta etapa.
+
+## Consulta dos vínculos de uma programação — 26/10/2026
+
+GetAllByProgrammingIdAsync disponibilizado nas camadas Repository/Service de ProgrammingXCategory e conectado ao argumento currentLinks da edição. Retorno List<ProgrammingXCategory>, vazio se não houver vínculos. Sem novas pastas, rotas, DTOs ou alterações de schema; PDFs preservados.
+
+Validação da nova consulta: build aprovado com zero erros e oito avisos existentes. Nenhuma consulta/gravação em banco ou teste HTTP foi executado nesta etapa.
+
+## Joins nos interesses do usuário — 26/10/2026
+
+Refatorados AddAsync/EditAsync de UserXCategoryRepository para sintaxe de consulta com joins. Contratos HTTP e DTOs preservados. Alinhada chamada do service ao argumento expectedCategoryIds e retiradas de duas interfaces declarações de CreateProgrammingXCategoryAsync cujas implementações já tinham sido removidas. Build aprovado; verificações PostgreSQL descritas no relatório vinculado. PDFs preservados.
+
+Implementação e testes: [consultas com joins](validacoes/user-categories-joins-2026-10-26.md).
+
+## Edição de interesses com foreach — 26/10/2026
+
+EditAsync de interesses simplificado com foreach e operações diretas do Context, mantendo as proteções existentes e retorno de todos os vínculos atualizados. Build aprovado com zero erros e oito avisos existentes. AddAsync mantido como escrito pelo usuário, ainda sem SaveChangesAsync; essa pendência de persistência foi informada. Sem alteração de rotas, DTOs, schema ou PDFs.
+
+## Mapping de favorito para model — 26/10/2026
+
+FavoriteMapping/IFavoriteMapping agora têm ToModel(string userId, int programmingId). Nenhuma mudança de contrato HTTP ou persistência. Build tentado, bloqueado pelo erro existente CS1501 em UserXCategoryService: chamada EditAsync com quatro argumentos versus assinatura atual de três. Essa refatoração de interesses não foi alterada na tarefa de mapping. PDFs preservados.
+
+## Model no fluxo de cadastro de favoritos — 26/10/2026
+
+Cadastro de favoritos utiliza ToModel no AppService e passa Favorite por Service/Repository, com interfaces alinhadas. Preservados validações, idempotência/reativação e resposta HTTP. Build tentado: permanece bloqueado por CS1501 em UserXCategoryService (EditAsync chamado com quatro argumentos; interface atual aceita três). Nenhum erro novo de favoritos foi reportado pelo compilador. Sem testes de execução/banco ou PDFs nesta etapa.
+
+## Listagem paginada de programações — 26/10/2026
+
+Adicionado GetAllProgrammingsAsync(take, skip) nas camadas existentes, com retorno de ProgrammingResponseDTO no AppService. Exemplos: (10,0) primeira página; (10,10) segunda. Função interna, sem nova action HTTP ou alteração de protótipo. Build tentado, bloqueado pelo erro existente CS1501 em UserXCategoryService: EditAsync chamado com quatro argumentos, mas assinatura atual aceita três. Nenhum teste de execução/banco realizado nesta etapa; PDFs preservados.
+
+## Endpoint público de paginação — 26/10/2026
+
+Endpoint público GET /api/Programming/GetAllProgrammings?take=10&skip=0 criado e incluído no .http e no protótipo. Padrões take=10/skip=0; 200 com lista e 400 para paginação inválida. Corrigida chamada antiga de EditAsync de interesses com quatro argumentos para a assinatura atual de três. Build aprovado com zero erros e dez avisos existentes. node --check em app.js/catalog.mjs e 53 testes com API simulada aprovados; catálogo real confirmou rota pública e queries numéricas. Sem teste HTTP com banco principal, alteração de schema ou exportação de PDFs.

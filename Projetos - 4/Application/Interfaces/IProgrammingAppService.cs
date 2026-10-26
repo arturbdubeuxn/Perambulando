@@ -4,6 +4,8 @@ namespace Projetos___4.Application.Interfaces
 {
     public interface IProgrammingAppService
     {
+        Task<List<ProgrammingResponseDTO>> GetAllProgrammingsAsync(int take, int skip);
+
         Task<ProgrammingDetailsDTO?> GetByIdAsync(int programmingId);
         Task<ProgrammingResponseDTO?> DeleteProgrammingAsync(int id, int hostId, string userId);
         Task<IEnumerable<ProgrammingResponseDTO>> GetAllProgrammingsbyHostId(int hostId, string userId);

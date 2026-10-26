@@ -13,14 +13,11 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
         builder.Property(user => user.NormalizedUserName).HasMaxLength(256);
         builder.Property(user => user.Email).HasMaxLength(256);
         builder.Property(user => user.NormalizedEmail).HasMaxLength(256);
+        builder.Property(user => user.LockoutEnabled).HasDefaultValue(true);
         builder.Ignore(user => user.PhoneNumber);
         builder.Ignore(user => user.PhoneNumberConfirmed);
-        builder.Ignore(user => user.AccessFailedCount);
-        builder.Ignore(user => user.LockoutEnabled);
-        builder.Ignore(user => user.LockoutEnd);
         builder.Ignore(user => user.TwoFactorEnabled);
-        builder.Ignore(user => user.SecurityStamp);
-        builder.Ignore(user => user.ConcurrencyStamp);
+        builder.Property(user => user.ConcurrencyStamp).IsConcurrencyToken();
         builder.Ignore(user => user.EmailConfirmed);
     }
 }

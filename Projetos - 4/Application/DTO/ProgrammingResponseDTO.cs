@@ -16,7 +16,7 @@ public class ProgrammingResponseDTO
     public int AddressId { get; set; }
     public DateTime CreatedDate { get; set; }
     public DateTime UpdateDate { get; set; }
-    public float MinPrice { get; set; }
-    public float MaxPrice { get; set; }
+    public decimal MinPrice { get; set; }
+    public decimal MaxPrice { get; set; }
     public AddressDetailsDTO Address { get; set; } = new();
 }

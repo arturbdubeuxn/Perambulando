@@ -47,22 +47,12 @@ namespace Projetos___4.Domain.Service
 
         public async Task<List<UserXCategory>> EditAsync(string userId, IReadOnlyCollection<UserXCategory> newLinks)
         {
-
-            ArgumentNullException.ThrowIfNull(newLinks);
-
             var newCategories = newLinks.Select(link => link.CategoryId).Distinct()
                 .Select(id => new Category { Id = id }).ToList();
 
-            if (string.IsNullOrWhiteSpace(userId))
-            {
-                throw new ArgumentException("Informe o usuário.", nameof(userId));
-            }
-
             var activeCategories = await _categoryService.GetallCategories();
-            var activeCategoryIds = activeCategories.Where(category => category.IsActive)
-                .Select(category => category.Id).ToHashSet();
 
-            if (newCategories.Any(category => category.Id <= 0 || !activeCategoryIds.Contains(category.Id)))
+            if (newCategories.Any(category => category.Id <= 0))
             {
                 throw new ArgumentException("Uma ou mais categorias não existem ou estão inativas.", nameof(newLinks));
             }
@@ -103,7 +93,7 @@ namespace Projetos___4.Domain.Service
                 CategoryId = c.Id
             }).ToList();
 
-            return await _userXCategoryRepository.EditAsync(userId, LinkstoAdd, LinkstoDelete, currentCategories.Select(category => category.Id).ToList());
+            return await _userXCategoryRepository.EditAsync(userId, LinkstoAdd, LinkstoDelete);
         }
     }
 }

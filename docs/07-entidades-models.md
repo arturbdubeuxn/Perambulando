@@ -214,3 +214,44 @@ Nova entidade em Domain/Model/Favorite.cs, seguindo a organização existente, c
 Os nomes CreatedAt/UpdatedAt seguem o padrão existente de UserXCategory para os campos de data apresentados no desenho. O UserId é string para compatibilidade com ASP.NET Identity. A entidade representa o vínculo de um usuário com uma programação; o par é único. IsActive suporta remoção lógica e reativação. Não foi necessário adicionar coleções de navegação às entidades User/Programming.
 
 A API retorna FavoriteResponseDTO, sem expor as navegações das entidades. O modelo EF foi validado em memória (tipos, tabela, índice único e FKs); a tabela depende da futura migration, ainda não gerada/aplicada.
+
+
+## R03 — unicidade dos vínculos de categorias (26/10/2026)
+
+Os campos de UserXCategory e ProgrammingXCategory não mudaram; seus pares usuário/categoria e programação/categoria foram configurados como únicos no modelo. Reenvio de interesse deve reaproveitar a entidade existente, preservando Id/datas; duplicidades antigas não foram removidas. Os novos índices dependem de auditoria e migration revisada.
+
+Validação: build sem erros; 13 verificações locais de modelo/snapshots/409, 41 cenários de mapeamento e 52 testes do protótipo com dependências simuladas aprovados. Sem teste de persistência no PostgreSQL, alteração de dados, migration ou PDF. [Registro completo e pendências](validacoes/unicidade-vinculos-categorias-2026-10-26.md).
+
+
+## R03 — Docker disponível, auditoria e testes reais (26/10/2026)
+
+Os índices únicos configurados no modelo foram criados e testados somente em um banco descartável. Ambos rejeitaram inserções duplicadas diretas. O banco principal mantém o schema anterior até revisão/aplicação da migration.
+
+As 13 verificações de integração passaram. O banco descartável foi removido; o banco principal manteve as contagens e não foi alterado. Nenhuma migration, limpeza de dados ou PDF executado. [Relatório e comando de teste](validacoes/unicidade-vinculos-categorias-2026-10-26.md).
+
+
+## Bloqueio de login e stamps do Identity — 26/10/2026
+
+User continua herdando IdentityUser. O mapeamento deixa de ignorar AccessFailedCount, LockoutEnabled, LockoutEnd e SecurityStamp; ConcurrencyStamp de User e IdentityRole é token de concorrência. LockoutEnabled tem default true no schema futuro. Os demais Ignore permanecem. DTOs não expõem esses campos. Migration do banco principal pendente de revisão.
+
+Implementação, roteiro da migration e teste reproduzível: [revisão R01](validacoes/identity-bloqueio-login-2026-10-26.md).
+
+## Verificação após AddFavorite — 26/10/2026
+
+Os mapeamentos de Identity, Favorites e unicidade dos vínculos agora estão refletidos no banco após AddFavorite. A inclusão de colunas anuláveis não inicializou stamps de registros anteriores. SecurityStamp nulo causa exceção ao registrar falha de login; é necessário preencher os stamps antigos. Nenhum model de produção foi alterado nesta auditoria.
+
+Evidências e teste reproduzível: [auditoria da migration](validacoes/validacao-migration-addfavorite-2026-10-26.md).
+
+## Limpeza autorizada das contas antigas — 26/10/2026
+
+A pendência de stamps dos registros anteriores foi encerrada pela exclusão autorizada das 23 contas antigas e inicialização de ConcurrencyStamp das roles ADMIN e HOST preservadas. A exclusão respeitou os relacionamentos ON DELETE CASCADE existentes. Modelos e configurações EF não foram alterados nesta limpeza.
+
+## Edição de datas e preços decimais — 26/10/2026
+
+Programming.MinPrice e MaxPrice agora são decimal, com precisão 12 e escala 2 configuradas no EF. DTOs de entrada/resposta/detalhes acompanham o tipo sem cast. Nenhum novo atributo de data: apenas a regra de início futuro foi restringida ao cadastro. A edição mantém as datas UTC ordenadas, aceitando eventos iniciados/encerrados.
+
+Detalhes e teste reproduzível: [revisão de datas/preços](validacoes/programming-datas-precos-2026-10-26.md).
+
+## Mapping de favorito para model — 26/10/2026
+
+Adicionado FavoriteMapping.ToModel(userId, programmingId) na Application. O model Favorite mantém seus valores padrão para IsActive, CreatedAt e UpdatedAt; o mapper preenche apenas as duas chaves de vínculo. Nenhuma alteração em model, schema, DI, validação ou endpoint.

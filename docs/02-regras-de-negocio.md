@@ -600,3 +600,76 @@ ProgrammingAppService chama o método no cadastro e na edição após validar/ma
 Os vínculos seguem para CreateProgrammingAsync/EditProgrammingAsync do domínio, preservando as verificações de categorias/propriedade e a gravação conjunta pelo repositório existente. Nenhuma nova action, pasta, rota ou alteração de corpo JSON/retorno foi criada. Protótipo e exemplos HTTP permanecem compatíveis.
 
 Validação: build MappingCheck aprovado, zero erros e sete avisos CS8618 preexistentes; comparação de 41 cenários de entradas/respostas com a baseline dos AppServices aprovada, incluindo criação/edição e identidade da entidade referenciada nos vínculos; resolução de DI aprovada com serviços simulados. node --check e 52 testes do protótipo com API simulada aprovados. Sem banco, persistência/concorrência real, reinício da API, migration ou atualização de PDFs.
+
+
+## R03 — unicidade dos vínculos de categorias (26/10/2026)
+
+A adição de interesses verifica existência dentro de transação/lock por usuário e reaproveita o vínculo. Serviços de edição preservam seus cálculos de inclusão/remoção e enviam a seleção observada ao repositório; este relê os vínculos sob lock e rejeita mudança concorrente com CategoryLinksConflictException. O conflito protege o processamento no servidor, não uma versão entre GET e PUT do formulário. A gravação conjunta da programação é preservada.
+
+Validação: build sem erros; 13 verificações locais de modelo/snapshots/409, 41 cenários de mapeamento e 52 testes do protótipo com dependências simuladas aprovados. Sem teste de persistência no PostgreSQL, alteração de dados, migration ou PDF. [Registro completo e pendências](validacoes/unicidade-vinculos-categorias-2026-10-26.md).
+
+
+## R03 — Docker disponível, auditoria e testes reais (26/10/2026)
+
+Confirmados no PostgreSQL: adição idempotente, 16 solicitações paralelas sem duplicação para cada tipo de vínculo, rejeição de edições com seleção antiga e rollback completo em falha de FK. A comparação de seleções protege a operação no servidor; não substitui versão de formulário.
+
+As 13 verificações de integração passaram. O banco descartável foi removido; o banco principal manteve as contagens e não foi alterado. Nenhuma migration, limpeza de dados ou PDF executado. [Relatório e comando de teste](validacoes/unicidade-vinculos-categorias-2026-10-26.md).
+
+
+## Bloqueio de login e stamps do Identity — 26/10/2026
+
+A política Identity passa a permitir bloqueio de contas novas, após cinco falhas, por 15 minutos. Contagem e prazo são persistidos entre requisições; senha correta durante o bloqueio é recusada. Login correto após desbloqueio reinicia o contador. LockoutEnabled tem default true para a futura adição da coluna às contas existentes. O banco principal ainda aguarda migration revisada.
+
+Implementação, roteiro da migration e teste reproduzível: [revisão R01](validacoes/identity-bloqueio-login-2026-10-26.md).
+
+## Registro do serviço de vínculos de programação — 26/10/2026
+
+Registrado IProgrammingXCategoryAppService com ProgrammingXCategoryAppService como scoped no Program.cs. ProgrammingAppService depende dessa interface para montar os vínculos de categorias. A ausência do registro impedia a construção do provider de serviços; nenhuma regra, rota, DTO ou resposta foi alterada.
+
+## Verificação após AddFavorite — 26/10/2026
+
+Schema de bloqueio e índices únicos de categorias confirmados no banco principal após AddFavorite. Todas as 23 contas estão com LockoutEnabled=true. Entretanto, os stamps antigos não foram preenchidos: uma senha incorreta com SecurityStamp nulo lança exceção em AccessFailedAsync. R01 continua pendente de backfill; R03 já tem os dois índices únicos instalados, sem pares duplicados.
+
+Evidências e teste reproduzível: [auditoria da migration](validacoes/validacao-migration-addfavorite-2026-10-26.md).
+
+## Limpeza autorizada das contas antigas — 26/10/2026
+
+Após confirmação explícita do usuário, foram excluídos os 23 usuários com stamps ausentes e seus dados dependentes. ADMIN e HOST foram preservadas e receberam ConcurrencyStamp somente onde ausente. Não restaram contas antigas com SecurityStamp nulo. Categorias e endereços foram preservados; nenhuma regra de negócio de produção mudou.
+
+## Edição de datas e preços decimais — 26/10/2026
+
+Início futuro é regra somente de cadastro, em ProgrammingService.CreateProgrammingAsync. Edição completa de evento iniciado/encerrado é permitida, inclusive alterações das datas, mantendo UTC e EndDate > StartDate. Propriedade/host ativo permanecem. Preços usam decimal com duas casas; são rejeitadas frações extras, preservadas as regras de mínimo/máximo/gratuidade. Não há congelamento de campos após o início.
+
+Detalhes e teste reproduzível: [revisão de datas/preços](validacoes/programming-datas-precos-2026-10-26.md).
+
+## Extração de métodos na edição de programação — 26/10/2026
+
+Refatoração interna de EditWithCategoriesAsync sem alterar regras: GetCurrentLinksAsync consulta os vínculos; AddNewAddress prepara o endereço novo; RemoveCategoryLinks marca exclusões; AddCategoryLinks prepara adições sem repetição. Apenas o método público abre a transação, chama SaveChangesAsync e confirma o commit. Assinatura pública, interface e chamada do service alinhadas aos três parâmetros atuais. Mantidos rastreamento EF e tratamento de DbUpdateException já existentes.
+
+Validação desta extração: build aprovado; 21 verificações existentes de programação repetidas com sucesso em PostgreSQL isolado, usando AppService/Service/repositórios reais. Banco temporário removido; banco principal não alterado. Não foram criados novos testes nem alterado o tratamento de erros nesta etapa.
+
+## Consulta dos vínculos de uma programação — 26/10/2026
+
+Adicionado GetAllByProgrammingIdAsync(int programmingId) em ProgrammingXCategoryRepository e ProgrammingXCategoryService, com interfaces correspondentes. Retorna todos os vínculos da programação como List<ProgrammingXCategory>, ordenados pelo ID, sem filtrar categoria inativa e sem carregar navegações. Retorna lista vazia quando não há vínculos. A edição usa essa consulta para preencher currentLinks exigido pela assinatura atual do repositório.
+
+## Joins nos interesses do usuário — 26/10/2026
+
+AddAsync/EditAsync de UserXCategoryRepository foram refatorados para consultas from/join/select. Preservados deduplicação, reutilização de vínculos, remoções e retorno atualizado. Ambos utilizam a transação e o mesmo bloqueio por usuário; EditAsync compara expectedCategoryIds e o service envia o snapshot já consultado. Categorias inativas não são ocultadas pelo repositório; a validação de novas seleções continua no service.
+
+Implementação e testes: [consultas com joins](validacoes/user-categories-joins-2026-10-26.md).
+
+## Edição de interesses com foreach — 26/10/2026
+
+EditAsync de UserXCategoryRepository simplificado: consulta os vínculos reais do usuário, remove com foreach/Db.Remove e adiciona com foreach/Db.Add, evitando repetir categorias já presentes. Retorna a lista final ordenada com IDs persistidos. Mantidos snapshot esperado, bloqueio por usuário, transação e um SaveChangesAsync. O AddAsync simplificado pelo usuário foi preservado; atualmente não chama SaveChangesAsync e não há gravação posterior no service/app service, portanto suas inclusões ainda não são persistidas.
+
+## Model no fluxo de cadastro de favoritos — 26/10/2026
+
+FavoriteAppService.AddAsync agora monta Favorite via IFavoriteMapping.ToModel e envia o objeto a FavoriteService.AddAsync(Favorite). O service mantém validação de usuário ativo, ID positivo e programação/host ativos, e encaminha o objeto ao repositório. Inclusão idempotente e reativação de favorito mantidas; registro já existente é reaproveitado.
+
+## Listagem paginada de programações — 26/10/2026
+
+GetAllProgrammingsAsync(int take, int skip) adicionado em Repository, Service e AppService, com interfaces correspondentes. Retorna somente programações ativas de hosts ativos, incluindo endereço. Ordenação por StartDate e Id antes de Skip/Take. O service exige take > 0 e skip >= 0. Sem restrição nova de datas: eventos iniciados/encerrados ativos também podem aparecer. Não retorna contagem total.
+
+## Endpoint público de paginação — 26/10/2026
+
+A listagem paginada agora está exposta publicamente por ProgrammingController.GetAllProgrammings. Consulta programações e hosts ativos, com endereço, ordenadas por StartDate/Id; take/skip continuam validados pelo service. A controller apenas chama o AppService e converte ArgumentException em 400. Também foi alinhada a chamada antiga de UserXCategoryService.EditAsync aos três argumentos já definidos na interface/repositório, removendo o erro CS1501 de compilação.

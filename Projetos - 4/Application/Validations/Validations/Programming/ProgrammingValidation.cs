@@ -23,19 +23,14 @@ public class ProgrammingValidation : IValidation<ProgrammingDTO>
             throw new ArgumentException("Informe as datas em UTC, com o sufixo Z.");
         }
 
-        if (dto.StartDate <= now)
-        {
-            throw new ArgumentException("A data de início deve ser posterior à data atual.");
-        }
-
         if (dto.StartDate >= dto.EndDate)
         {
             throw new ArgumentException("A data final deve ser posterior à data inicial.");
         }
 
-        if (!float.IsFinite(dto.MinPrice) || !float.IsFinite(dto.MaxPrice))
+        if (decimal.Round(dto.MinPrice, 2) != dto.MinPrice || decimal.Round(dto.MaxPrice, 2) != dto.MaxPrice)
         {
-            throw new ArgumentException("Os preços devem ser valores finitos.");
+            throw new ArgumentException("Os preços devem ter no máximo duas casas decimais.");
         }
 
         if (dto.MinPrice < 0 || dto.MaxPrice < 0)

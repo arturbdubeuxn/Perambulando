@@ -12,20 +12,18 @@ namespace Projetos___4.Domain.Service
         {
             _programmingXCategoryRepository = programmingXCategoryRepository;
         }
+
+        public Task<List<ProgrammingXCategory>> GetAllByProgrammingIdAsync(int programmingId)
+        {
+            return _programmingXCategoryRepository.GetAllByProgrammingIdAsync(programmingId);
+        }
+
         public List<ProgrammingXCategory> GetLinksToAdd(List<Category> currentCategories, List<ProgrammingXCategory> links)
         {
             var currentCategoryIds = currentCategories.Select(category => category.Id).ToHashSet();
             return links.Where(link => !currentCategoryIds.Contains(link.CategoryId)).ToList();
         }
 
-        public Task<ProgrammingXCategory> CreateProgrammingXCategoryAsync(ProgrammingXCategory programmingXCategory)
-        {
-            if(programmingXCategory == null)
-            {
-                throw new ArgumentNullException(nameof(programmingXCategory));
-            }
-
-            return _programmingXCategoryRepository.CreateProgrammingXCategoryAsync(programmingXCategory);
-        }
+        
     }
 }

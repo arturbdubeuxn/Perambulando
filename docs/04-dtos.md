@@ -691,3 +691,35 @@ ProgrammingAppService chama o método no cadastro e na edição após validar/ma
 Os vínculos seguem para CreateProgrammingAsync/EditProgrammingAsync do domínio, preservando as verificações de categorias/propriedade e a gravação conjunta pelo repositório existente. Nenhuma nova action, pasta, rota ou alteração de corpo JSON/retorno foi criada. Protótipo e exemplos HTTP permanecem compatíveis.
 
 Validação: build MappingCheck aprovado, zero erros e sete avisos CS8618 preexistentes; comparação de 41 cenários de entradas/respostas com a baseline dos AppServices aprovada, incluindo criação/edição e identidade da entidade referenciada nos vínculos; resolução de DI aprovada com serviços simulados. node --check e 52 testes do protótipo com API simulada aprovados. Sem banco, persistência/concorrência real, reinício da API, migration ou atualização de PDFs.
+
+
+## R03 — unicidade dos vínculos de categorias (26/10/2026)
+
+Nenhum DTO ou corpo JSON foi alterado. O POST repetido de interesses devolve os IDs solicitados sem duplicá-los e não inclui interesses fora da requisição. A seleção observada é um parâmetro interno entre serviço e repositório, não um campo enviado pelo cliente. Conflitos passam a ser ProblemDetails 409 nas actions existentes.
+
+Validação: build sem erros; 13 verificações locais de modelo/snapshots/409, 41 cenários de mapeamento e 52 testes do protótipo com dependências simuladas aprovados. Sem teste de persistência no PostgreSQL, alteração de dados, migration ou PDF. [Registro completo e pendências](validacoes/unicidade-vinculos-categorias-2026-10-26.md).
+
+
+## R03 — Docker disponível, auditoria e testes reais (26/10/2026)
+
+A continuação de R03 validou os repositórios reais sem alterar DTOs ou mapeamentos. Repetições reaproveitam IDs e edições conflitantes lançam CategoryLinksConflictException. A interface não recebeu novos campos.
+
+As 13 verificações de integração passaram. O banco descartável foi removido; o banco principal manteve as contagens e não foi alterado. Nenhuma migration, limpeza de dados ou PDF executado. [Relatório e comando de teste](validacoes/unicidade-vinculos-categorias-2026-10-26.md).
+
+## Edição de datas e preços decimais — 26/10/2026
+
+ProgrammingDTO, ProgrammingResponseDTO e ProgrammingDetailsDTO usam decimal em MinPrice/MaxPrice. Entrada admite 0 a 9999999999.99 via Range(typeof(decimal), ...), com limites interpretados em cultura invariável. Validação compartilhada exige no máximo duas casas. JSON continua numérico. O mesmo ProgrammingDTO atende criação e edição; datas passadas só são permitidas na edição.
+
+Detalhes e teste reproduzível: [revisão de datas/preços](validacoes/programming-datas-precos-2026-10-26.md).
+
+## Mapping de favorito para model — 26/10/2026
+
+FavoriteMapping passa a oferecer ToModel(string userId, int programmingId), declarado também em IFavoriteMapping. Cria Favorite com UserId e ProgrammingId; não exige DTO novo. ToDTO continua convertendo o favorito para FavoriteResponseDTO. O novo método fica disponível para uso, sem alterar o fluxo existente de persistência.
+
+## Model no fluxo de cadastro de favoritos — 26/10/2026
+
+O ToModel de FavoriteMapping passou a ser usado pelo cadastro no AppService. UserId vem do usuário autenticado e ProgrammingId do parâmetro da action; userId null é convertido em string vazia e continua sendo recusado pela validação de autenticação do service. ToDTO recebe o resultado persistido, inclusive quando o repositório reaproveita favorito existente. FavoriteResponseDTO e o contrato HTTP não mudaram.
+
+## Endpoint público de paginação — 26/10/2026
+
+GetAllProgrammings recebe take e skip como int pela query, com padrões 10/0. Não há DTO de entrada nem corpo. Resposta é List<ProgrammingResponseDTO> com os campos existentes, incluindo endereço; não inclui contagem total nem metadados de paginação.

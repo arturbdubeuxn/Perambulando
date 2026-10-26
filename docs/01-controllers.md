@@ -835,3 +835,44 @@ Durante a revisão foi encontrada uma linha incompleta `var links = await _` em 
 Validação: build MappingCheck aprovado, zero erros e sete avisos CS8618 preexistentes; 41 cenários de entradas/saídas dos oito AppServices comparados com uma baseline anterior à extração, com os mesmos resultados JSON. A verificação resolve os AppServices e dependências por DI (ValidateOnBuild/ValidateScopes), usando serviços/Identity simulados. Cobre endereços novos/existentes, detalhes e listagens, categorias e vínculos, dados reduzidos de favorito, normalização de usuário e consultas sem resultado. As validações são simuladas nessa comparação, pois o foco é preservar o mapeamento; não representa nova execução dos testes de regras de negócio ou dos provedores.
 
 node --check em app.js/catalog.mjs e 52 testes do protótipo com API simulada aprovados. Contratos HTTP, autorização, IDs, formatos de resposta e JWT preservados; formulários e exemplos .http permanecem compatíveis. Nenhum teste CRUD contra API/banco real, reinício de API, alteração de schema, migration ou atualização de PDFs nesta etapa.
+
+
+## R03 — unicidade dos vínculos de categorias (26/10/2026)
+
+POST /api/Category/AddCategoryToUser reaproveita vínculos existentes e mantém 200 para repetição válida. Edições de interesses/programação retornam ProblemDetails 409 se as categorias mudarem durante o processamento ou houver conflito nos índices de vínculo. O frontend deve recarregar a seleção antes de reenviar; sem retry automático. Rotas, autorização e corpos permanecem iguais. A criação individual de vínculo agora verifica existência e salva na própria transação; CreateProgrammingLinks continua apenas montando objetos.
+
+Validação: build sem erros; 13 verificações locais de modelo/snapshots/409, 41 cenários de mapeamento e 52 testes do protótipo com dependências simuladas aprovados. Sem teste de persistência no PostgreSQL, alteração de dados, migration ou PDF. [Registro completo e pendências](validacoes/unicidade-vinculos-categorias-2026-10-26.md).
+
+
+## R03 — Docker disponível, auditoria e testes reais (26/10/2026)
+
+Os repositórios de interesses e categorias de programação foram exercitados no PostgreSQL real em banco isolado. Conflitos de seleção foram confirmados no repositório; a tradução para ProblemDetails 409 já está no código, mas endpoints HTTP/JWT não foram executados nesta continuação. Contratos HTTP preservados.
+
+As 13 verificações de integração passaram. O banco descartável foi removido; o banco principal manteve as contagens e não foi alterado. Nenhuma migration, limpeza de dados ou PDF executado. [Relatório e comando de teste](validacoes/unicidade-vinculos-categorias-2026-10-26.md).
+
+
+## Bloqueio de login e stamps do Identity — 26/10/2026
+
+Login mantém POST /api/User/auth/Login, UserLoginDTO e retorno JWT no sucesso. Com o schema atualizado, cinco senhas incorretas bloqueiam a conta por 15 minutos. Senha errada ou conta bloqueada mantêm ProblemDetails 401 genérico. Nenhuma nova action ou status foi criado.
+
+Implementação, roteiro da migration e teste reproduzível: [revisão R01](validacoes/identity-bloqueio-login-2026-10-26.md).
+
+## Verificação após AddFavorite — 26/10/2026
+
+A migration 20261026163834_AddFavorite foi aplicada pelo usuário e confirmada no PostgreSQL. Há pendência funcional no login de contas antigas: SecurityStamp nulo provoca InvalidOperationException ao registrar senha incorreta e pode resultar em 500. O contrato esperado continua 401. A auditoria não modificou usuários reais.
+
+Evidências e teste reproduzível: [auditoria da migration](validacoes/validacao-migration-addfavorite-2026-10-26.md).
+
+## Limpeza autorizada das contas antigas — 26/10/2026
+
+Limpeza autorizada do banco de testes: 23 usuários antigos removidos, com exclusão em cascata dos 29 hosts e 13 programações vinculados e respectivos interesses/vínculos/favoritos. Para testar os endpoints, cadastre nova conta e obtenha novo JWT; IDs e respostas de cadastros anteriores não devem ser reutilizados. Nenhuma rota ou contrato mudou.
+
+## Edição de datas e preços decimais — 26/10/2026
+
+POST de programação continua exigindo início futuro. PUT aceita programações iniciadas ou encerradas, mantendo UTC e término posterior ao início. Ambos continuam com ProgrammingDTO e retornos existentes; preços são números JSON decimais, de 0 a 9999999999.99 e até duas casas. Infrações retornam 400 pelos mecanismos atuais. Nenhuma nova action foi criada.
+
+Detalhes e teste reproduzível: [revisão de datas/preços](validacoes/programming-datas-precos-2026-10-26.md).
+
+## Endpoint público de paginação — 26/10/2026
+
+Novo endpoint público: GET /api/Programming/GetAllProgrammings?take=10&skip=0. Parâmetros opcionais na query: take int (padrão 10, maior que zero) e skip int (padrão 0, não negativo). Sem JWT e sem corpo. Retorna 200 com array de ProgrammingResponseDTO, inclusive [] quando vazio; argumentos inválidos retornam ProblemDetails 400. Valores não inteiros são recusados pelo binding do ApiController com 400. Exemplo da segunda página: take=10&skip=10.

@@ -29,6 +29,10 @@ namespace Projetos___4._4Data.Migrations
                     b.Property<string>("Id")
                         .HasColumnType("text");
 
+                    b.Property<string>("ConcurrencyStamp")
+                        .IsConcurrencyToken()
+                        .HasColumnType("text");
+
                     b.Property<string>("Name")
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)");
@@ -225,6 +229,40 @@ namespace Projetos___4._4Data.Migrations
                     b.ToTable("Categories", (string)null);
                 });
 
+            modelBuilder.Entity("Projetos___4.Domain.Model.Favorite", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("ProgrammingId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProgrammingId");
+
+                    b.HasIndex("UserId", "ProgrammingId")
+                        .IsUnique();
+
+                    b.ToTable("Favorites", (string)null);
+                });
+
             modelBuilder.Entity("Projetos___4.Domain.Model.Hosts", b =>
                 {
                     b.Property<int>("Id")
@@ -329,11 +367,13 @@ namespace Projetos___4._4Data.Migrations
                     b.Property<bool>("IsFree")
                         .HasColumnType("boolean");
 
-                    b.Property<float>("MaxPrice")
-                        .HasColumnType("real");
+                    b.Property<decimal>("MaxPrice")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("numeric(12,2)");
 
-                    b.Property<float>("MinPrice")
-                        .HasColumnType("real");
+                    b.Property<decimal>("MinPrice")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("numeric(12,2)");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -376,14 +416,22 @@ namespace Projetos___4._4Data.Migrations
 
                     b.HasIndex("CategoryId");
 
-                    b.HasIndex("ProgrammingId");
+                    b.HasIndex("ProgrammingId", "CategoryId")
+                        .IsUnique();
 
-                    b.ToTable("ProgrammingXCategories");
+                    b.ToTable("ProgrammingXCategories", (string)null);
                 });
 
             modelBuilder.Entity("Projetos___4.Domain.Model.User", b =>
                 {
                     b.Property<string>("Id")
+                        .HasColumnType("text");
+
+                    b.Property<int>("AccessFailedCount")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("ConcurrencyStamp")
+                        .IsConcurrencyToken()
                         .HasColumnType("text");
 
                     b.Property<DateTime>("CreatedAt")
@@ -396,6 +444,14 @@ namespace Projetos___4._4Data.Migrations
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean");
 
+                    b.Property<bool>("LockoutEnabled")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true);
+
+                    b.Property<DateTimeOffset?>("LockoutEnd")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<string>("NormalizedEmail")
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)");
@@ -405,6 +461,9 @@ namespace Projetos___4._4Data.Migrations
                         .HasColumnType("character varying(256)");
 
                     b.Property<string>("PasswordHash")
+                        .HasColumnType("text");
+
+                    b.Property<string>("SecurityStamp")
                         .HasColumnType("text");
 
                     b.Property<int>("Typeofuser")
@@ -454,7 +513,8 @@ namespace Projetos___4._4Data.Migrations
 
                     b.HasIndex("CategoryId");
 
-                    b.HasIndex("UserId");
+                    b.HasIndex("UserId", "CategoryId")
+                        .IsUnique();
 
                     b.ToTable("UserXCategories", (string)null);
                 });
@@ -508,6 +568,25 @@ namespace Projetos___4._4Data.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("Projetos___4.Domain.Model.Favorite", b =>
+                {
+                    b.HasOne("Projetos___4.Domain.Model.Programming", "Programming")
+                        .WithMany()
+                        .HasForeignKey("ProgrammingId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Projetos___4.Domain.Model.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Programming");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("Projetos___4.Domain.Model.Hosts", b =>

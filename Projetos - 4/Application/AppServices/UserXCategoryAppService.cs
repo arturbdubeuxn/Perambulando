@@ -27,18 +27,26 @@ namespace Projetos___4.Application.AppServices
         public async Task<UserXCategoryDTO> AddCategoryToUserAsync(List<int> categorysId, string userId)
         {
             var dto = _userXCategoryMapping.ToRequestDTO(categorysId, userId);
+
             _userXCategoryValidation.Validate(dto, DateTime.UtcNow);
+
             var links = _userXCategoryMapping.ToModels(dto);
+
             var savedLinks = await _userXCategoryService.AddAsync(dto.UserId, links);
+
             return _userXCategoryMapping.ToDTO(savedLinks, dto.UserId);
         }
 
         public async Task<UserXCategoryDTO> EditCategoryToUserAsync(List<int> categorysId, string userId)
         {
             var dto = _userXCategoryMapping.ToRequestDTO(categorysId, userId);
+
             _userXCategoryValidation.Validate(dto, DateTime.UtcNow);
+
             var links = _userXCategoryMapping.ToModels(dto);
+
             var savedLinks = await _userXCategoryService.EditAsync(dto.UserId, links);
+
             return _userXCategoryMapping.ToDTO(savedLinks, dto.UserId);
         }
     }

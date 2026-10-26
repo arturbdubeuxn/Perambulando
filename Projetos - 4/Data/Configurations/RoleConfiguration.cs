@@ -11,6 +11,6 @@ public class RoleConfiguration : IEntityTypeConfiguration<IdentityRole>
         builder.ToTable("AspNetRoles");
         builder.Property(role => role.Name).HasMaxLength(256);
 
-        builder.Ignore(role => role.ConcurrencyStamp);
+        builder.Property(role => role.ConcurrencyStamp).IsConcurrencyToken();
     }
 }

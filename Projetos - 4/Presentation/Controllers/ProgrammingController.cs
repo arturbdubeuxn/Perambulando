@@ -17,14 +17,28 @@ namespace Projetos___4.Presentation.Controllers
     {
         private readonly IProgrammingAppService _programmingAppService;
         private readonly UserManager<User> _userManager;
-        private readonly IHostAppService _hostAppService;
-        public ProgrammingController(IProgrammingAppService programmingAppService, IHostAppService hostAppService, UserManager<User> userManager)
+        public ProgrammingController(IProgrammingAppService programmingAppService, UserManager<User> userManager)
         {
             _programmingAppService = programmingAppService;
             _userManager = userManager;
-            _hostAppService = hostAppService;
         }
 
+
+        [AllowAnonymous]
+        [HttpGet("GetAllProgrammings")]
+        public async Task<IActionResult> GetAllProgrammings([FromQuery] int take = 10, [FromQuery] int skip = 0)
+        {
+            try
+            {
+                var programmings = await _programmingAppService.GetAllProgrammingsAsync(take, skip);
+                return Ok(programmings);
+            }
+            catch (ArgumentException ex)
+            {
+                return Problem(statusCode: StatusCodes.Status400BadRequest,
+                    title: "Paginação inválida", detail: ex.Message);
+            }
+        }
 
         [AllowAnonymous]
         [HttpGet("Details/{programmingId:int}")]
