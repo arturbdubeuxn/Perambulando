@@ -149,3 +149,11 @@ As 23 contas antigas com stamps ausentes foram removidas com autorização expl�
 ## Endpoint público de paginação — 26/10/2026
 
 GET /api/Programming/GetAllProgrammings é AllowAnonymous. Não exige login, roles nem token e não emite/renova JWT. O protótipo omite o token mesmo quando a aba tem sessão autenticada.
+
+## Restauração após reorganização do backend — 26/10/2026
+
+O appsettings.json local não foi levado na mudança para backend/Projetos - 4, provocando a exceção Configure Jwt:Key with at least 32 bytes. Restaurada a seção JWT de uma cópia local anterior em backend/Projetos - 4/appsettings.json, ignorado pelo Git, sem troca da chave ou exposição de segredo. A conexão local também foi recuperada (PostgreSQL 5432); appsettings.Development.json compartilhado do merge aponta para 5434 e foi preservado. Em Development, o Program.cs existente recarrega appsettings.json local após os arquivos padrão, portanto essa configuração local prevalece. Parar e reiniciar a depuração para recarregar.
+
+## Conexão HTTPS do protótipo — 26/10/2026
+
+Proxy do protótipo usa certificados confiáveis padrão e do sistema para HTTPS local, mantendo validação TLS e hostname. Não foi usado rejectUnauthorized=false nem desabilitada a verificação de certificados. O proxy continua sem seguir redirecionamentos de requisições: informa o destino HTTPS somente para promoção HTTP→HTTPS no mesmo host e caminho. A verificação de conexão pode repetir somente GET nesse endereço; chamadas de cadastro/edição não são repetidas automaticamente. JWT e configuração da API permanecem iguais.

@@ -255,3 +255,7 @@ Detalhes e teste reproduzível: [revisão de datas/preços](validacoes/programmi
 ## Mapping de favorito para model — 26/10/2026
 
 Adicionado FavoriteMapping.ToModel(userId, programmingId) na Application. O model Favorite mantém seus valores padrão para IsActive, CreatedAt e UpdatedAt; o mapper preenche apenas as duas chaves de vínculo. Nenhuma alteração em model, schema, DI, validação ou endpoint.
+
+## Restauração após reorganização do backend — 26/10/2026
+
+Restauração dos mappings na Application do backend novo não alterou models, relacionamentos ou configurações EF. Preços continuam decimal e endereços continuam convertidos por AddressMapping. Persistência e regras continuam nas camadas existentes. A única compatibilização fora dos mappings foi o validador antigo de programação que ainda usava float.IsFinite com propriedades decimal.

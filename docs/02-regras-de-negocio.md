@@ -673,3 +673,7 @@ GetAllProgrammingsAsync(int take, int skip) adicionado em Repository, Service e 
 ## Endpoint público de paginação — 26/10/2026
 
 A listagem paginada agora está exposta publicamente por ProgrammingController.GetAllProgrammings. Consulta programações e hosts ativos, com endereço, ordenadas por StartDate/Id; take/skip continuam validados pelo service. A controller apenas chama o AppService e converte ArgumentException em 400. Também foi alinhada a chamada antiga de UserXCategoryService.EditAsync aos três argumentos já definidos na interface/repositório, removendo o erro CS1501 de compilação.
+
+## Restauração após reorganização do backend — 26/10/2026
+
+Após o merge/reorganização, os oito mappings e suas oito interfaces ficaram fora do projeto ativo. Foram restaurados em backend/Projetos - 4/Application/Mapping e Mapping/Interfaces, idênticos à implementação anterior. AppServices e registros scoped existentes foram preservados. Validadores antigos dos DTOs já removidos e cópia duplicada de UserValidation não fazem mais parte da compilação; validadores unificados permanecem. Ajustada uma referência float.IsFinite em ProgrammingValidations reaparecida no merge para a verificação decimal de duas casas, compatível com os preços atuais.

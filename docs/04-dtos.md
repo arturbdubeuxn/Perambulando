@@ -723,3 +723,7 @@ O ToModel de FavoriteMapping passou a ser usado pelo cadastro no AppService. Use
 ## Endpoint público de paginação — 26/10/2026
 
 GetAllProgrammings recebe take e skip como int pela query, com padrões 10/0. Não há DTO de entrada nem corpo. Resposta é List<ProgrammingResponseDTO> com os campos existentes, incluindo endereço; não inclui contagem total nem metadados de paginação.
+
+## Restauração após reorganização do backend — 26/10/2026
+
+Restaurados AddressMapping, CategoryMapping, UserMapping, HostMapping, ProgrammingMapping, FavoriteMapping, UserXCategoryMapping e ProgrammingXCategoryMapping e suas interfaces no backend reorganizado. Mantidos ToModel/ToDTO, ToEditModel de usuário, modelos de vínculos e DTOs de detalhes/resposta. Os arquivos foram comparados por hash com as implementações locais anteriores: 16 correspondências. Não foram recriados DTOs antigos de create/edit excluídos pelo usuário.

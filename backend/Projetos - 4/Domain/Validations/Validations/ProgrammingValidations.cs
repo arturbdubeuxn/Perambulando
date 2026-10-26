@@ -45,9 +45,9 @@ public class ProgrammingValidations : IProgrammingValidations
             throw new ArgumentException("A data final deve ser posterior à data inicial.");
         }
 
-        if (!float.IsFinite(programming.MinPrice) || !float.IsFinite(programming.MaxPrice))
+        if (decimal.Round(programming.MinPrice, 2) != programming.MinPrice || decimal.Round(programming.MaxPrice, 2) != programming.MaxPrice)
         {
-            throw new ArgumentException("Os preços devem ser valores finitos.");
+            throw new ArgumentException("Os preços devem ter no máximo duas casas decimais.");
         }
 
         if (programming.MinPrice < 0 || programming.MaxPrice < 0)

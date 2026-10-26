@@ -876,3 +876,7 @@ Detalhes e teste reproduzível: [revisão de datas/preços](validacoes/programmi
 ## Endpoint público de paginação — 26/10/2026
 
 Novo endpoint público: GET /api/Programming/GetAllProgrammings?take=10&skip=0. Parâmetros opcionais na query: take int (padrão 10, maior que zero) e skip int (padrão 0, não negativo). Sem JWT e sem corpo. Retorna 200 com array de ProgrammingResponseDTO, inclusive [] quando vazio; argumentos inválidos retornam ProblemDetails 400. Valores não inteiros são recusados pelo binding do ApiController com 400. Exemplo da segunda página: take=10&skip=10.
+
+## Conexão HTTPS do protótipo — 26/10/2026
+
+No perfil HTTPS do Visual Studio, as chamadas a http://localhost:5014 podem responder 307 para https://localhost:7042. Isso é redirecionamento de transporte, não uma resposta JSON null do endpoint. Contratos e controllers não mudaram nesta correção. O protótipo agora explica o redirecionamento e o botão Verificar conexão pode ajustar o endereço para HTTPS e repetir apenas a consulta GET.

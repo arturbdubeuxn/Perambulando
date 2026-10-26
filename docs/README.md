@@ -613,3 +613,11 @@ Adicionado GetAllProgrammingsAsync(take, skip) nas camadas existentes, com retor
 ## Endpoint público de paginação — 26/10/2026
 
 Endpoint público GET /api/Programming/GetAllProgrammings?take=10&skip=0 criado e incluído no .http e no protótipo. Padrões take=10/skip=0; 200 com lista e 400 para paginação inválida. Corrigida chamada antiga de EditAsync de interesses com quatro argumentos para a assinatura atual de três. Build aprovado com zero erros e dez avisos existentes. node --check em app.js/catalog.mjs e 53 testes com API simulada aprovados; catálogo real confirmou rota pública e queries numéricas. Sem teste HTTP com banco principal, alteração de schema ou exportação de PDFs.
+
+## Restauração após reorganização do backend — 26/10/2026
+
+Projeto ativo após reorganização: backend/Projetos - 4/Projetos - 4.csproj. Oito mappings e oito interfaces restaurados no caminho novo; AppServices e DI existentes preservados. Build completo aprovado com zero erros e dez avisos existentes; build normal também gerou o executável esperado pelo Visual Studio. Recuperado appsettings.json local ignorado pelo Git com JWT anterior e conexão local PostgreSQL 5432, sem modificar o appsettings.Development.json compartilhado (5434). Verificação temporária em Production na porta 5015 e GET público paginado retornou HTTP 200; processo encerrado, sem migrations. Protótipo aponta agora para backend/Projetos - 4; node --check e 53 testes simulados aprovados, catálogo com 26 rotas. PDFs não regenerados.
+
+## Conexão HTTPS do protótipo — 26/10/2026
+
+Corrigido null na conexão do protótipo: o perfil HTTPS devolvia 307 vazio da porta 5014 para 7042. Proxy agora responde com diagnóstico de redirecionamento e usa a confiança TLS do sistema; botão Verificar conexão ajusta HTTPS e repete somente GET. Validação real: HTTP 307 com mensagem/destino e HTTPS 200 com 12 categorias. 56 testes com API simulada e node --check de server.mjs/app.js aprovados. Protótipo reiniciado; usuário deve recarregar a página. Nenhuma gravação no banco, alteração em Program.cs/CORS ou PDF.
