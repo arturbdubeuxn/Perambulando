@@ -621,3 +621,9 @@ Projeto ativo após reorganização: backend/Projetos - 4/Projetos - 4.csproj. O
 ## Conexão HTTPS do protótipo — 26/10/2026
 
 Corrigido null na conexão do protótipo: o perfil HTTPS devolvia 307 vazio da porta 5014 para 7042. Proxy agora responde com diagnóstico de redirecionamento e usa a confiança TLS do sistema; botão Verificar conexão ajusta HTTPS e repete somente GET. Validação real: HTTP 307 com mensagem/destino e HTTPS 200 com 12 categorias. 56 testes com API simulada e node --check de server.mjs/app.js aprovados. Protótipo reiniciado; usuário deve recarregar a página. Nenhuma gravação no banco, alteração em Program.cs/CORS ou PDF.
+
+## Movimentação definitiva dos mappings — 26/10/2026
+
+Após a remoção indevida da cópia de backend, os 16 arquivos restantes de Projetos - 4/Application/Mapping foram movidos com git mv para backend/Projetos - 4/Application/Mapping. Nenhum mapping permanece rastreado no diretório antigo. Caminhos absolutos e git -C na raiz foram usados para evitar que a execução dentro de backend altere o destino. A movimentação está preparada no índice, sem commit ou push automáticos; lógica, interfaces, rotas e banco preservados.
+
+Validação: build do projeto em diretório temporário de saída aprovado com zero erros e dez avisos existentes, sem interferir na API em depuração. Git reconheceu os 16 arquivos como renomeações sem alteração de conteúdo. Sem mudança no protótipo, testes novos, migrations ou PDFs nesta movimentação.
