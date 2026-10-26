@@ -32,7 +32,7 @@ namespace Projetos___4.Presentation.Controllers
             _programmingAppService = programmingAppService;
         }
         [HttpPost("auth/Register")]
-        public async Task<IActionResult> Register([FromBody] UserRegisterDTO dto)
+        public async Task<IActionResult> Register([FromBody] UserDTO dto)
         {
             if (dto == null)
             {
@@ -111,7 +111,7 @@ namespace Projetos___4.Presentation.Controllers
 
         [Authorize]
         [HttpPut("Edit")]
-        public async Task<IActionResult> Edit([FromBody] UserEditDTO dto)
+        public async Task<IActionResult> Edit([FromBody] UserDTO dto)
         {
             var userId = _userManager.GetUserId(User);
 

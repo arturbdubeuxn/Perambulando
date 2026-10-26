@@ -118,3 +118,13 @@ dotnet run --project docs/validacoes/HostTransaction.Tests.csproj
 ```
 
 Build aprovado com sete avisos CS8618 preexistentes. Nenhum acesso ao banco da aplicação, migration ou chamada ao geocodificador. Não foi realizado teste integrado em PostgreSQL. Protótipo indisponível neste computador; documentação atualizada sem regenerar PDFs.
+
+
+## Autorização de alteração de host — 26/10/2026
+
+O JWT continua identificando o usuário e habilitando a entrada nas rotas com roles ADMIN/HOST. No serviço de host, edição/desativação também verifica usuário ativo e a associação atual à role ADMIN pelo UserManager. O repositório aceita acesso ao host ativo pelo dono ou pelo administrador confirmado internamente; não recebe isAdmin do cliente. Nenhuma claim, expiração ou emissão de token mudou. Revogar ADMIN no Identity retira o acesso administrativo a hosts de terceiros mesmo com token antigo ainda portando a claim. Validado com dependências simuladas; sem teste HTTP autenticado ou gravação real.
+
+
+## DTO de usuário compartilhado — 26/10/2026
+
+Cadastro/edição agora recebem UserDTO. A edição continua atualizando nome/e-mail/tipo e retornando auth com JWT atualizado; Password, mesmo se enviado, não é usado para alterar senha nem claims. A senha permanece obrigatória somente na criação da conta. Login continua com UserLoginDTO. Protótipo preserva atualização automática do JWT e não envia senha na edição; esse comportamento foi exercitado por teste com API simulada. Nenhuma mudança de chave, emissão, roles, duração ou renovação de token.

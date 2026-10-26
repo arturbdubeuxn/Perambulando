@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Projetos___4.Domain.Model;
 
@@ -9,6 +9,7 @@ namespace Projetos___4.Data.Configurations
             public void Configure(EntityTypeBuilder<UserXCategory> builder)
             {
                 builder.ToTable("UserXCategories");
+                builder.HasIndex(link => new { link.UserId, link.CategoryId }).IsUnique();
 
             }
         

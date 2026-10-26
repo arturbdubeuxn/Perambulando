@@ -1,3 +1,7 @@
+# Cadastro/edição de usuário usam UserDTO; typeofUser obrigatório nos dois. Senha só no cadastro; edição não altera senha.
+# Alterar/desativar host: JWT do responsável ou de ADMIN autorizado; admin é confirmado no Identity pelo servidor.
+# Cadastro e edição de host usam HostDTO; typeofhost é obrigatório (0, 1 ou 2).
+# Criação e edição de programação usam ProgrammingDTO; os corpos JSON permanecem iguais.
 # Programação: cadastro, edição e sugestões retornam DTOs, sem navegação host ou autoria interna do endereço.
 # Cadastro preserva id/addressId na raiz e Location dos detalhes; exclusão continua 204 sem corpo.
 # ADDRESS: migration AddAddress aplicada em 21/10/2026. Banco atualizado; selecione AddressId ou envie um novo objeto Address.
@@ -427,3 +431,30 @@ Authorization: Bearer {{login.response.body.$.accessToken}}
 # Novo CNPJ: consulta ativa obrigatória; duplicidade inclusive hosts inativos => 409.
 # Alteração somente de máscara não exige nova consulta. CNPJ não ativo => 422.
 # Não localizado na base => 404; falha/limite/timeout do provedor => 503, sem salvar.
+
+
+# ============================================================
+# FAVORITE — depende da revisão e aplicação futura da migration
+# ============================================================
+# Use uma programação ativa de host ativo. Qualquer usuário autenticado pode favoritar.
+# Não envie userId: ele vem do JWT. O ID da rota é o da programação, não do favorito.
+# Execute login antes. Para outra programação, substitua a variável abaixo.
+@FavoriteProgrammingId = 1
+
+### FAVORITE - Favoritar ou reativar (200; 400 ID inválido; 401; 404 indisponível)
+# @name createFavorite
+POST {{Projetos___4_HostAddress}}/api/Favorite/{{FavoriteProgrammingId}}/Create
+Accept: application/json
+Authorization: Bearer {{login.response.body.$.accessToken}}
+
+### FAVORITE - Listar meus favoritos disponíveis (200, inclusive [])
+# @name myFavorites
+GET {{Projetos___4_HostAddress}}/api/Favorite/GetAllByUserId
+Accept: application/json
+Authorization: Bearer {{login.response.body.$.accessToken}}
+
+### FAVORITE - Desfavoritar (200 com isActive false; 404 se não houver vínculo seu)
+# @name deleteFavorite
+PATCH {{Projetos___4_HostAddress}}/api/Favorite/{{FavoriteProgrammingId}}/Delete
+Accept: application/json
+Authorization: Bearer {{login.response.body.$.accessToken}}

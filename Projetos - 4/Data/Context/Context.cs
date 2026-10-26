@@ -13,6 +13,8 @@ namespace Projetos___4.Data.Context
         {
         }
 
+        public DbSet<Favorite> Favorites => Set<Favorite>();
+
         public DbSet<Address> Addresses => Set<Address>();
 
         public DbSet<Category> Categories => Set<Category>();

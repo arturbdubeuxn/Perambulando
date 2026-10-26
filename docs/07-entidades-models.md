@@ -205,3 +205,12 @@ O repositório repete a verificação de duplicidade dentro da transação, sob 
 Protótipo: consulta automática após 500 ms ao completar o CNPJ. Resultados de consultas antigas são ignorados. Nome e endereço são sugestões aplicadas somente por botões de confirmação; não sobrescrevem o formulário automaticamente. Cidade/UF são exibidas mas seguem fora da persistência de Address. A consulta não comprova representação da empresa pelo usuário. Minha Receita é uma base secundária e pode estar desatualizada; ausência não comprova inexistência definitiva.
 Validação: build sem erros (sete avisos CS8618 preexistentes), node --check, 50 testes do protótipo com API simulada e 30 verificações C# com dependências simuladas (DV, normalização, respostas inválidas, ausência, timeout, cancelamento, regras de criação/edição, situação ativa, duplicidade e propriedade). Consulta real somente de leitura pelo adaptador C# confirmou resposta válida e ativa para o exemplo público do provedor. A suíte não executou cadastros reais nem teste concorrente contra PostgreSQL. NuGet não conseguiu consultar a base de vulnerabilidades (NU1900) na execução do harness; isso não impediu a compilação/testes. PDFs não regenerados. Nenhuma migration criada por esta integração.
 Fontes: https://docs.minhareceita.org/como-usar/ ; https://docs.minhareceita.org/sobre-os-dados/ ; https://www.gov.br/receitafederal/pt-br/centrais-de-conteudo/publicacoes/documentos-tecnicos/cnpj/manual-dv-cnpj.pdf
+
+
+## Favorite — 26/10/2026
+
+Nova entidade em Domain/Model/Favorite.cs, seguindo a organização existente, com Id int, UserId string, ProgrammingId int, IsActive bool (inicialmente true), CreatedAt e UpdatedAt (UTC). Há navegações User e Programming, com FKs explícitas em FavoriteConfigurations e DbSet<Favorite> no Context.
+
+Os nomes CreatedAt/UpdatedAt seguem o padrão existente de UserXCategory para os campos de data apresentados no desenho. O UserId é string para compatibilidade com ASP.NET Identity. A entidade representa o vínculo de um usuário com uma programação; o par é único. IsActive suporta remoção lógica e reativação. Não foi necessário adicionar coleções de navegação às entidades User/Programming.
+
+A API retorna FavoriteResponseDTO, sem expor as navegações das entidades. O modelo EF foi validado em memória (tipos, tabela, índice único e FKs); a tabela depende da futura migration, ainda não gerada/aplicada.

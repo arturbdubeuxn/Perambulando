@@ -1,3 +1,5 @@
+using Npgsql;
+using Projetos___4.Domain.Exceptions;
 using Projetos___4.Domain.Interfaces.Repository;
 using Projetos___4.Domain.Model;
 using Microsoft.EntityFrameworkCore;
@@ -42,27 +44,51 @@ namespace Projetos___4.Data.Repository
             return programming;
         }
 
-        public async Task<Programming> EditWithCategoriesAsync(Programming programming, List<ProgrammingXCategory> linksToAdd, List<int> categoryIdsToRemove)
+        public async Task<Programming> EditWithCategoriesAsync(Programming programming,
+            List<ProgrammingXCategory> linksToAdd, List<int> categoryIdsToRemove,
+            IReadOnlyCollection<int> expectedCategoryIds)
         {
-            if (programming.Address.Id == 0)
+            ArgumentNullException.ThrowIfNull(expectedCategoryIds);
+            await using var transaction = await Db.Database.BeginTransactionAsync();
+            await Db.Database.ExecuteSqlInterpolatedAsync(
+                $"SELECT pg_advisory_xact_lock(721906, {programming.Id})");
+            try
             {
-                Db.Addresses.Add(programming.Address);
+                var currentLinks = await Db.ProgrammingXCategories
+                    .Where(link => link.ProgrammingId == programming.Id).ToListAsync();
+                var currentIds = currentLinks.Select(link => link.CategoryId).ToHashSet();
+                if (!currentIds.SetEquals(expectedCategoryIds))
+                {
+                    throw new CategoryLinksConflictException();
+                }
+
+                if (programming.Address.Id == 0)
+                {
+                    Db.Addresses.Add(programming.Address);
+                }
+
+                var linksToRemove = currentLinks.Where(link => categoryIdsToRemove.Contains(link.CategoryId)).ToList();
+                Db.ProgrammingXCategories.RemoveRange(linksToRemove);
+                currentIds.ExceptWith(categoryIdsToRemove);
+                foreach (var link in linksToAdd)
+                {
+                    if (currentIds.Add(link.CategoryId))
+                    {
+                        link.Programming = programming;
+                        Db.ProgrammingXCategories.Add(link);
+                    }
+                }
+
+                await Db.SaveChangesAsync();
+                await transaction.CommitAsync();
+                return programming;
             }
-
-            var linksToRemove = await Db.ProgrammingXCategories
-                .Where(link => link.ProgrammingId == programming.Id && categoryIdsToRemove.Contains(link.CategoryId))
-                .ToListAsync();
-
-            Db.ProgrammingXCategories.RemoveRange(linksToRemove);
-
-            foreach (var link in linksToAdd)
+            catch (DbUpdateException ex) when (ex.InnerException is PostgresException postgres &&
+                postgres.SqlState == PostgresErrorCodes.UniqueViolation &&
+                postgres.ConstraintName == "IX_ProgrammingXCategories_ProgrammingId_CategoryId")
             {
-                link.Programming = programming;
-                Db.ProgrammingXCategories.Add(link);
+                throw new CategoryLinksConflictException();
             }
-
-            await Db.SaveChangesAsync();
-            return programming;
         }
 
         public async Task<Programming> CreateWithCategoriesAsync(Programming programming, List<ProgrammingXCategory> links)

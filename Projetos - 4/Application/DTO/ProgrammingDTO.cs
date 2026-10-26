@@ -1,9 +1,8 @@
-using Projetos___4.Domain.Model;
 using System.ComponentModel.DataAnnotations;
 
 namespace Projetos___4.Application.DTO
 {
-    public class ProgrammingCreateDTO
+    public class ProgrammingDTO
     {
         [Required]
         public string Name { get; set; } = string.Empty;

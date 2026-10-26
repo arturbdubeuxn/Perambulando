@@ -224,3 +224,23 @@ Validação: build sem erros (sete avisos CS8618 preexistentes), node --check, 5
 Fontes: https://docs.minhareceita.org/como-usar/ ; https://docs.minhareceita.org/sobre-os-dados/ ; https://www.gov.br/receitafederal/pt-br/centrais-de-conteudo/publicacoes/documentos-tecnicos/cnpj/manual-dv-cnpj.pdf
 
 Verificação em 25/10/2026: ao reiniciar a API para testar CNPJ, a inicialização automática aplicou a migration preexistente 20261025121346_AddCEPApi. A integração CNPJ não gerou migration nova.
+
+
+## Favorites — modelo preparado em 26/10/2026; banco ainda sem alteração desta etapa
+
+Favorite foi adicionado ao Context e possui FavoriteConfigurations em Data/Configurations. Nenhuma migration foi gerada ou aplicada nesta etapa. Revisar as alterações de modelo antes de criar/aplicar a migration. Não confundir o mapeamento abaixo com tabela já existente no banco.
+
+- Tabela planejada: Favorites; PK Id int gerada pelo EF/PostgreSQL.
+- UserId string obrigatório, FK para User/Identity; não é int como no desenho, pois deve ter o mesmo tipo da chave de usuário atual.
+- ProgrammingId int obrigatório, FK para Programmings.
+- IsActive bool; CreatedAt e UpdatedAt DateTime em UTC definidos pela aplicação.
+- Índice único composto UserId/ProgrammingId, incluindo vínculos inativos. A remoção é lógica e o novo favorito reativa o vínculo existente.
+- FKs com Cascade para exclusão física de usuário/programação. Desativar IsActive desses registros não apaga os favoritos.
+- Adicionar/remover utiliza transação e advisory lock por usuário/programação para serializar chamadas concorrentes da API. O índice único será criado somente ao aplicar a futura migration.
+
+O bloqueio existente de inicialização em Development detectará alterações pendentes de modelo e impedirá iniciar a versão nova até revisar/migrar. Sua mensagem foi generalizada, pois não se refere mais apenas a Address. A API não foi reiniciada para contornar esse bloqueio. O modelo e suas FKs/índice foram inspecionados em memória, sem abrir conexão com o banco. Persistência/concorrência reais pendentes após revisão da migration.
+
+
+## Consulta de host para alteração — 26/10/2026
+
+VerificationbyId agora aceita um parâmetro interno isAdmin (padrão false) e filtra Id/IsActive junto de UserId ou permissão administrativa confirmada pelo HostService. A role é consultada pelo UserManager com o usuário ativo, nunca aceita do corpo da requisição. A unicidade do CNPJ conserva as verificações e o advisory lock anteriores; não foi adicionado índice/migration. Nenhum schema, dado ou snapshot de migration foi alterado nesta revisão.

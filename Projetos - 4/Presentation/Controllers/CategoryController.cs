@@ -1,3 +1,4 @@
+using Projetos___4.Domain.Exceptions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Identity;
@@ -64,6 +65,11 @@ public class CategoryController : ControllerBase
         {
             result = await _userXCategoryAppService.AddCategoryToUserAsync(categoryIds,userId);
         }
+        catch (CategoryLinksConflictException ex)
+        {
+            return Problem(statusCode: StatusCodes.Status409Conflict,
+                title: "Conflito de categorias", detail: ex.Message);
+        }
         catch (ArgumentException ex)
         {
             return Problem(statusCode: StatusCodes.Status400BadRequest,
@@ -88,6 +94,11 @@ public class CategoryController : ControllerBase
         try
         {
             links = await _userXCategoryAppService.EditCategoryToUserAsync(categoryIds,userId);
+        }
+        catch (CategoryLinksConflictException ex)
+        {
+            return Problem(statusCode: StatusCodes.Status409Conflict,
+                title: "Conflito de categorias", detail: ex.Message);
         }
         catch (ArgumentException ex)
         {

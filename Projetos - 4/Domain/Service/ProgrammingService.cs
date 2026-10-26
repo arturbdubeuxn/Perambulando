@@ -118,7 +118,7 @@ ICategoryService categoryService, IProgrammingXCategoryService programmingXCateg
             existing.MaxPrice = programming.MaxPrice;
             existing.UpdateDate = DateTime.UtcNow;
 
-            var edited = await _programmingRepository.EditWithCategoriesAsync(existing, linksToAdd, categoryIdsToRemove);
+            var edited = await _programmingRepository.EditWithCategoriesAsync(existing, linksToAdd, categoryIdsToRemove, currentCategories.Select(category => category.Id).ToList());
             return edited;
         }
 

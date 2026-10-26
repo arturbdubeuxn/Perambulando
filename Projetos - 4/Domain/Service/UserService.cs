@@ -1,4 +1,4 @@
-﻿using Projetos___4.Domain.Interfaces.Service;
+using Projetos___4.Domain.Interfaces.Service;
 using Projetos___4.Domain.Model;
 using Microsoft.AspNetCore.Identity;
 using Projetos___4.Domain.Interfaces;
@@ -18,6 +18,15 @@ namespace Projetos___4.Domain.Service
 
         public async Task<IdentityResult> Create(User user, string password)
         {
+            if (string.IsNullOrWhiteSpace(password))
+            {
+                return IdentityResult.Failed(new IdentityError
+                {
+                    Code = "PasswordRequired",
+                    Description = "Informe a senha para cadastrar o usuário."
+                });
+            }
+
             return await _userManager.CreateAsync(user, password);
         }
 

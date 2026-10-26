@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Projetos___4.Application.AppServices;
+using Projetos___4.Application.Mapping;
+using Projetos___4.Application.Mapping.Interfaces;
 using Projetos___4.Application.Interfaces;
 using Projetos___4.Application.Validations.Interfaces;
 using Projetos___4.Application.Validations.Validations.Programming;
@@ -66,6 +68,9 @@ builder.Services.AddHttpClient<IPostalCodeService, ViaCepService>(client =>
 {
     client.Timeout = TimeSpan.FromSeconds(8);
 }).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
+builder.Services.AddScoped<IFavoriteRepository, FavoriteRepository>();
+builder.Services.AddScoped<IFavoriteService, FavoriteService>();
+builder.Services.AddScoped<IFavoriteAppService, FavoriteAppService>();
 builder.Services.AddScoped<IAddressRepository, AddressRepository>();
 builder.Services.AddScoped<IAddressService, AddressService>();
 builder.Services.AddScoped<IAddressAppService, AddressAppService>();
@@ -87,18 +92,23 @@ builder.Services.AddScoped<IProgrammingValidations, ProgrammingValidations>();
 builder.Services.AddScoped<IProgrammingXCategoryRepository, ProgrammingXCategoryRepository>();
 builder.Services.AddScoped<IProgrammingXCategoryService, ProgrammingXCategoryService>();
 builder.Services.AddScoped<IProgrammingAppService, ProgrammingAppService>();
+builder.Services.AddScoped<IProgrammingMapping, ProgrammingMapping>();
+builder.Services.AddScoped<IAddressMapping, AddressMapping>();
+builder.Services.AddScoped<ICategoryMapping, CategoryMapping>();
+builder.Services.AddScoped<IUserMapping, UserMapping>();
+builder.Services.AddScoped<IHostMapping, HostMapping>();
+builder.Services.AddScoped<IFavoriteMapping, FavoriteMapping>();
+builder.Services.AddScoped<IUserXCategoryMapping, UserXCategoryMapping>();
+builder.Services.AddScoped<IProgrammingXCategoryMapping, ProgrammingXCategoryMapping>();
 builder.Services.AddScoped<ICategoryRepository, CategoryRepository>();
 builder.Services.AddScoped<ICategoryService, CategoryService>();
 builder.Services.AddScoped<ICategoryAppService, CategoryAppService>();
 builder.Services.AddScoped<IUserXCategoryRepository, UserXCategoryRepository>();
 builder.Services.AddScoped<IUserXCategoryService, UserXCategoryService>();
 builder.Services.AddScoped<IUserXCategoryAppService, UserXCategoryAppService>();
-builder.Services.AddScoped<IValidation<ProgrammingCreateDTO>, ProgrammingCreateValidation>();
-builder.Services.AddScoped<IValidation<ProgrammingEditDTO>, ProgrammingEditValidation>();
-builder.Services.AddScoped<IValidation<HostRegisterDTO>, HostCreateValidation>();
-builder.Services.AddScoped<IValidation<HostEditDTO>, HostEditValidation>();
-builder.Services.AddScoped<IValidation<UserRegisterDTO>, UserCreateValidation>();
-builder.Services.AddScoped<IValidation<UserEditDTO>, UserEditValidation>();
+builder.Services.AddScoped<IValidation<ProgrammingDTO>, ProgrammingValidation>();
+builder.Services.AddScoped<IValidation<HostDTO>, HostValidation>();
+builder.Services.AddScoped<IValidation<UserDTO>, UserValidation>();
 builder.Services.AddScoped<IValidation<UserXCategoryDTO>, UserXCategoryValidation>();
 
 
@@ -153,7 +163,7 @@ if (app.Environment.IsDevelopment())
 
     if (context.Database.HasPendingModelChanges())
     {
-        throw new InvalidOperationException("Há alterações de modelo aguardando revisão. Revise a refatoração de Address antes de gerar e aplicar a migration.");
+        throw new InvalidOperationException("Há alterações de modelo aguardando revisão. Revise as alterações antes de gerar e aplicar a migration.");
     }
     await context.Database.MigrateAsync();
 }

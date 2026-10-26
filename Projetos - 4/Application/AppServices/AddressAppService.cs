@@ -1,3 +1,4 @@
+using Projetos___4.Application.Mapping.Interfaces;
 using Projetos___4.Application.DTO;
 using Projetos___4.Application.Interfaces;
 using Projetos___4.Domain.Interfaces.Service;
@@ -8,8 +9,11 @@ public class AddressAppService : IAddressAppService
 {
     private readonly IAddressService _addressService;
 
-    public AddressAppService(IAddressService addressService)
+    private readonly IAddressMapping _addressMapping;
+
+    public AddressAppService(IAddressService addressService, IAddressMapping addressMapping)
     {
+        _addressMapping = addressMapping;
         _addressService = addressService;
     }
 
@@ -20,26 +24,14 @@ public class AddressAppService : IAddressAppService
         {
             return null;
         }
-        return new PostalAddressDTO
-        {
-            CEP = address.CEP, Street = address.Street, Neighborhood = address.Neighborhood,
-            City = address.City, State = address.State
-        };
+
+        return _addressMapping.ToPostalDTO(address);
     }
 
     public async Task<List<AddressDetailsDTO>> GetAllAddressAsync(string search)
     {
         var addresses = await _addressService.GetAllAddressAsync(search);
-
-        return addresses.Select(address => new AddressDetailsDTO
-        {
-            Id = address.Id,
-            Street = address.Street,
-            Number = address.Number,
-            Complement = address.Complement,
-            Neighborhood = address.Neighborhood,
-            CEP = address.CEP
-        }).ToList();
+        return addresses.Select(_addressMapping.ToDTO).ToList();
     }
 
     public async Task<AddressDetailsDTO> GetDetailsbyIdAsync(int addressId)
@@ -50,14 +42,6 @@ public class AddressAppService : IAddressAppService
             throw new ArgumentException("Endereço não encontrado.", nameof(addressId));
         }
 
-        return new AddressDetailsDTO
-        {
-            Id = address.Id,
-            Street = address.Street,
-            Number = address.Number,
-            Complement = address.Complement,
-            Neighborhood = address.Neighborhood,
-            CEP = address.CEP
-        };
+        return _addressMapping.ToDTO(address);
     }
 }

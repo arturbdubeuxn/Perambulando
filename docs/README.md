@@ -478,3 +478,39 @@ Rotas, DTOs, autenticação, respostas e lógica de persistência foram preserva
 
 
 25/10/2026: Minha Receita integrada para consulta automática e validação de CNPJ de hosts. Veja Controllers, Regras, DTOs, BD e Models. Branch codex/minha-receita-cnpj; sem migration nova ou exportação de PDF.
+
+
+26/10/2026: Favorite preparado nas camadas existentes, com endpoints autenticados, DTO, mapeamento EF, exemplos HTTP e protótipo. Veja Controllers, Regras, DTOs, Banco e Models. Sem migration gerada/aplicada; sem atualização de PDFs. Build e testes simulados aprovados; persistência real pendente da migration revisada.
+
+
+26/10/2026: DTOs de programação de criação/edição unificados em ProgrammingDTO, com ProgrammingValidation na Application. Host e usuário mantêm DTOs distintos pelas diferenças de contrato. Detalhes nos documentos de Controllers, Regras e DTOs. Build aprovado; catálogo e 51 testes simulados do protótipo aprovados. Sem migration ou PDF novo.
+
+
+26/10/2026: HostDTO unificou os DTOs de cadastro/edição de host. Typeofhost é obrigatório em ambos, inclusive presença explícita; HostValidation é compartilhado. Esta decisão substitui a separação registrada anteriormente. Veja Controllers, Regras e DTOs.
+
+
+26/10/2026: HostValidation adaptado ao padrão de verificações explícitas do ProgrammingValidation, incluindo campos do endereço novo. Veja Controllers, Regras e DTOs. Build, 64 verificações simuladas do backend e 51 testes do protótipo aprovados. Sem migration/PDF novo.
+
+
+26/10/2026: HostValidation passa a conter somente regra de negócio de seleção de endereço. Campos/anotações ficam nos DTOs; dados e autorização ficam no domínio/repositório. Corrigido acesso do ADMIN ativo à edição/desativação de hosts de terceiros. CNPJ único e bloqueio de programação por host inativo preservados. Produtos não existem no módulo atual. Build, 30 verificações simuladas e 51 testes do protótipo aprovados; sem migration/PDF novo.
+
+
+26/10/2026: DTOs/validadores de criação e edição de usuário unificados em UserDTO/UserValidation. Senha exigida somente no cadastro pelo serviço; edição preserva a senha. Tipo obrigatório em ambos. Build, 28 verificações simuladas do backend e 52 testes do protótipo aprovados. Sem migration/PDF novo.
+
+
+26/10/2026: conversão de ProgrammingDTO para Programming centralizada em ProgrammingMapping.ToModel, reutilizada no cadastro/edição do AppService. IDs das rotas e vínculos continuam no AppService. Build aprovado; contratos e 52 testes simulados do protótipo conferidos. Sem alteração de schema, migration ou PDF.
+
+
+26/10/2026: ProgrammingMapping.ToDTO centraliza ProgrammingResponseDTO nos cinco retornos correspondentes do AppService. Mapper de instância na pasta Mapping/Programming, registrado na DI. Build e 52 testes simulados do protótipo aprovados; sem alteração de contrato, migration ou PDF.
+
+
+26/10/2026: IProgrammingMapping declara ToModel/ToDTO e passou a ser a dependência do ProgrammingAppService, com registro Scoped da implementação. Compilação aprovada; contratos HTTP preservados. Sem migration/PDF novo.
+
+
+26/10/2026: padrão de mappers por interface aplicado a Host, User, Address, Category, Favorite, UserXCategory e ProgrammingXCategory. Detalhes de programação também centralizados; todos os AppServices usam os mappers registrados como Scoped. Build aprovado, 41 cenários comparados com a baseline anterior e 52 testes simulados do protótipo aprovados. Contratos e regras preservados; sem migration/PDF novo.
+
+
+26/10/2026: CreateProgrammingLinks implementado no ProgrammingXCategoryAppService com retorno síncrono de lista de modelos. Cadastro/edição de programação reutilizam o método, mantendo gravação no fluxo conjunto existente. Build, 41 cenários de comparação e 52 testes simulados aprovados; sem migration/PDF novo.
+
+
+26/10/2026: [Avaliação de SOLID, Strategy e regras de negócio](validacoes/avaliacao-solid-strategy-regras-2026-10-26.md), com notas, acertos e 16 achados/decisões ordenados por prioridade. Revisão somente: nenhuma correção de produção ou migration executada. Build aprovado, verificações controladas e 52 testes simulados do protótipo.

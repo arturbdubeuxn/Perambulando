@@ -1,3 +1,4 @@
+using Projetos___4.Application.Mapping.Interfaces;
 using Projetos___4.Application.Validations.Interfaces;
 using Microsoft.AspNetCore.Identity;
 using Projetos___4.Domain.Model;
@@ -11,61 +12,39 @@ namespace Projetos___4.Application.AppServices
     public class UserAppService : IUserAppService
     {
         private readonly IUserService _userService;
-        private readonly IValidation<UserRegisterDTO> _userCreateValidation;
-        private readonly IValidation<UserEditDTO> _userEditValidation;
-        public UserAppService(IUserService userService, IValidation<UserRegisterDTO> userCreateValidation, IValidation<UserEditDTO> userEditValidation)
+        private readonly IValidation<UserDTO> _userValidation;
+        private readonly IUserMapping _userMapping;
+
+        public UserAppService(IUserService userService, IValidation<UserDTO> userValidation, IUserMapping userMapping)
         {
+            _userMapping = userMapping;
             _userService = userService;
-            _userCreateValidation = userCreateValidation;
-            _userEditValidation = userEditValidation;
+            _userValidation = userValidation;
         }
 
         public async Task<UserProfileDTO?> GetProfileAsync(string userId)
         {
             var user = await _userService.GetProfileAsync(userId);
-
             if (user == null)
             {
                 return null;
             }
 
-            return new UserProfileDTO
-            {
-                Id = user.Id,
-                Name = user.UserName ?? string.Empty,
-                Email = user.Email ?? string.Empty,
-                TypeofUser = user.Typeofuser,
-                IsPro = user.isPro,
-                CreatedAt = user.CreatedAt
-            };
+            return _userMapping.ToDTO(user);
         }
 
-        public Task<IdentityResult?> EditUserAsync(UserEditDTO dto, string userId)
+        public Task<IdentityResult?> EditUserAsync(UserDTO dto, string userId)
         {
-            _userEditValidation.Validate(dto, DateTime.UtcNow);
-
-            var user = new User
-            {
-                UserName = dto.Name.Trim(),
-                Email = dto.Email.Trim(),
-                Typeofuser = dto.TypeofUser!.Value
-            };
-
+            _userValidation.Validate(dto, DateTime.UtcNow);
+            var user = _userMapping.ToEditModel(dto);
             return _userService.EditUserAsync(user, userId);
         }
 
-        public async Task<IdentityResult> Create(UserRegisterDTO dto)
+        public async Task<IdentityResult> Create(UserDTO dto)
         {
-            _userCreateValidation.Validate(dto, DateTime.UtcNow);
-
-            var newUser = new User
-            {
-                UserName = dto.Name,
-                Email = dto.Email,
-                Typeofuser = (User.TypeofUser)dto.TypeofUser,
-            };
-            var result = await _userService.Create(newUser, dto.Password);
-            return result;
+            _userValidation.Validate(dto, DateTime.UtcNow);
+            var newUser = _userMapping.ToModel(dto);
+            return await _userService.Create(newUser, dto.Password ?? string.Empty);
         }
     }
 }

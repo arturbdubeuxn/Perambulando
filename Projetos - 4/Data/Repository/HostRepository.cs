@@ -68,10 +68,10 @@ namespace Projetos___4.Data.Repository
                 .FirstOrDefaultAsync(host => host.Id == hostId && host.IsActive);
         }
 
-        public Task<Hosts?> VerificationbyId(int hostId, string userId)
+        public Task<Hosts?> VerificationbyId(int hostId, string userId, bool isAdmin = false)
         {
             return Db.Hosts.Include(host => host.Address).FirstOrDefaultAsync(h =>
-                h.Id == hostId && h.UserId == userId && h.IsActive);
+                h.Id == hostId && (h.UserId == userId || isAdmin) && h.IsActive);
         }
 
         public async Task<Hosts> EditAsync(Hosts host)

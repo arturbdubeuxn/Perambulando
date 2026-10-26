@@ -59,7 +59,7 @@ namespace Projetos___4.Presentation.Controllers
         [HttpPost("Create")]
         [Authorize]
 
-        public async Task<IActionResult> Create([FromBody] HostRegisterDTO dto)
+        public async Task<IActionResult> Create([FromBody] HostDTO dto)
         {
             var userId = _userManager.GetUserId(User);
 
@@ -120,7 +120,7 @@ namespace Projetos___4.Presentation.Controllers
 
         [Authorize(Roles = "ADMIN,HOST")]
         [HttpPut("{hostId:int}/Edit")]
-        public async Task<IActionResult> Edit([FromRoute, Range(1, int.MaxValue)] int hostId, [FromBody] HostEditDTO dto)
+        public async Task<IActionResult> Edit([FromRoute, Range(1, int.MaxValue)] int hostId, [FromBody] HostDTO dto)
         {
             var userId = _userManager.GetUserId(User);
 

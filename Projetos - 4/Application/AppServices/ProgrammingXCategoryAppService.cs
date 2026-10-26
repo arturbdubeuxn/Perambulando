@@ -1,3 +1,4 @@
+using Projetos___4.Application.Mapping.Interfaces;
 using Projetos___4.Application.DTO;
 using Projetos___4.Application.Interfaces;
 using Projetos___4.Domain.Interfaces.Service;
@@ -9,26 +10,29 @@ namespace Projetos___4.Application.AppServices
     {
         private readonly IProgrammingXCategoryService _programmingXCategoryService;
 
-        public ProgrammingXCategoryAppService(IProgrammingXCategoryService programmingXCategoryService)
+        private readonly IProgrammingXCategoryMapping _programmingXCategoryMapping;
+
+        public ProgrammingXCategoryAppService(IProgrammingXCategoryService programmingXCategoryService, IProgrammingXCategoryMapping programmingXCategoryMapping)
         {
+            _programmingXCategoryMapping = programmingXCategoryMapping;
             _programmingXCategoryService = programmingXCategoryService;
         }
+        public List<ProgrammingXCategory> CreateProgrammingLinks(Programming programming, List<int> categoriesIds)
+        {
+            var links = new List<ProgrammingXCategory>();
+            foreach (var categoryId in categoriesIds)
+            {
+                links.Add(_programmingXCategoryMapping.ToModel(categoryId, programming));
+            }
+
+            return links;
+        }
+
         public async Task<ProgrammingXCategoryResponseDTO> CreateProgrammingXCategoryAsync(int categoryId, int programmingId)
         {
-            var programmingXCategory = new ProgrammingXCategory
-            {
-                ProgrammingId = programmingId,
-                CategoryId = categoryId
-            };
-
+            var programmingXCategory = _programmingXCategoryMapping.ToModel(categoryId, programmingId);
             var result = await _programmingXCategoryService.CreateProgrammingXCategoryAsync(programmingXCategory);
-
-            return new ProgrammingXCategoryResponseDTO
-            {
-                Id = result.Id,
-                ProgrammingId = result.ProgrammingId,
-                CategoryId = result.CategoryId
-            };
+            return _programmingXCategoryMapping.ToDTO(result);
         }
     }
 }

@@ -117,6 +117,23 @@ namespace Projetos___4.Domain.Service
             return _hostRepository.GetByIdAsync(hostId);
         }
 
+        private async Task<Hosts?> GetHostForModificationAsync(int hostId, string userId)
+        {
+            if (hostId <= 0 || string.IsNullOrWhiteSpace(userId))
+            {
+                return null;
+            }
+
+            var user = await _userRepository.GetbyId(userId);
+            if (user == null || !user.IsActive)
+            {
+                return null;
+            }
+
+            var isAdmin = await _userManager.IsInRoleAsync(user, "ADMIN");
+            return await _hostRepository.VerificationbyId(hostId, userId, isAdmin);
+        }
+
         public async Task<Hosts?> EditHostAsync(Hosts host, string userId)
         {
             if (string.IsNullOrWhiteSpace(userId))
@@ -124,7 +141,7 @@ namespace Projetos___4.Domain.Service
                 return null;
             }
 
-            var existing = await _hostRepository.VerificationbyId(host.Id, userId);
+            var existing = await GetHostForModificationAsync(host.Id, userId);
 
             if (existing == null)
             {
@@ -155,7 +172,7 @@ namespace Projetos___4.Domain.Service
                 return null;
             }
 
-            var host = await _hostRepository.VerificationbyId(hostId, userId);
+            var host = await GetHostForModificationAsync(hostId, userId);
 
             if (host == null)
             {

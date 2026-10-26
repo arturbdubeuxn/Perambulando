@@ -1,4 +1,7 @@
-﻿using Projetos___4.Domain.Interfaces.Repository;
+using Microsoft.EntityFrameworkCore;
+using Npgsql;
+using Projetos___4.Domain.Exceptions;
+using Projetos___4.Domain.Interfaces.Repository;
 using Projetos___4.Domain.Model;
 
 namespace Projetos___4.Data.Repository
@@ -10,15 +13,36 @@ namespace Projetos___4.Data.Repository
         {
             Db = db;
         }
-        public Task<ProgrammingXCategory> CreateProgrammingXCategoryAsync(ProgrammingXCategory programmingXCategory)
-        {
-            if (programmingXCategory == null)
-            {
-                throw new ArgumentNullException(nameof(programmingXCategory));
-            }
 
-            Db.Add(programmingXCategory);
-            return Task.FromResult(programmingXCategory);
+        public async Task<ProgrammingXCategory> CreateProgrammingXCategoryAsync(ProgrammingXCategory programmingXCategory)
+        {
+            ArgumentNullException.ThrowIfNull(programmingXCategory);
+            await using var transaction = await Db.Database.BeginTransactionAsync();
+            await Db.Database.ExecuteSqlInterpolatedAsync(
+                $"SELECT pg_advisory_xact_lock(721906, {programmingXCategory.ProgrammingId})");
+            try
+            {
+                var existing = await Db.ProgrammingXCategories
+                    .OrderBy(link => link.Id).FirstOrDefaultAsync(link =>
+                        link.ProgrammingId == programmingXCategory.ProgrammingId &&
+                        link.CategoryId == programmingXCategory.CategoryId);
+                if (existing != null)
+                {
+                    await transaction.CommitAsync();
+                    return existing;
+                }
+
+                Db.ProgrammingXCategories.Add(programmingXCategory);
+                await Db.SaveChangesAsync();
+                await transaction.CommitAsync();
+                return programmingXCategory;
+            }
+            catch (DbUpdateException ex) when (ex.InnerException is PostgresException postgres &&
+                postgres.SqlState == PostgresErrorCodes.UniqueViolation &&
+                postgres.ConstraintName == "IX_ProgrammingXCategories_ProgrammingId_CategoryId")
+            {
+                throw new CategoryLinksConflictException();
+            }
         }
     }
 }

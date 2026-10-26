@@ -461,3 +461,142 @@ O repositório repete a verificação de duplicidade dentro da transação, sob 
 Protótipo: consulta automática após 500 ms ao completar o CNPJ. Resultados de consultas antigas são ignorados. Nome e endereço são sugestões aplicadas somente por botões de confirmação; não sobrescrevem o formulário automaticamente. Cidade/UF são exibidas mas seguem fora da persistência de Address. A consulta não comprova representação da empresa pelo usuário. Minha Receita é uma base secundária e pode estar desatualizada; ausência não comprova inexistência definitiva.
 Validação: build sem erros (sete avisos CS8618 preexistentes), node --check, 50 testes do protótipo com API simulada e 30 verificações C# com dependências simuladas (DV, normalização, respostas inválidas, ausência, timeout, cancelamento, regras de criação/edição, situação ativa, duplicidade e propriedade). Consulta real somente de leitura pelo adaptador C# confirmou resposta válida e ativa para o exemplo público do provedor. A suíte não executou cadastros reais nem teste concorrente contra PostgreSQL. NuGet não conseguiu consultar a base de vulnerabilidades (NU1900) na execução do harness; isso não impediu a compilação/testes. PDFs não regenerados. Nenhuma migration criada por esta integração.
 Fontes: https://docs.minhareceita.org/como-usar/ ; https://docs.minhareceita.org/sobre-os-dados/ ; https://www.gov.br/receitafederal/pt-br/centrais-de-conteudo/publicacoes/documentos-tecnicos/cnpj/manual-dv-cnpj.pdf
+
+
+## Favoritar programações — 26/10/2026
+
+Implementação preparada nas camadas existentes: FavoriteController → FavoriteAppService → FavoriteService → FavoriteRepository. As respectivas interfaces são registradas como Scoped. Usuário autenticado e ativo pode favoritar programações de qualquer host ativo, independentemente de ser dono ou possuir role HOST.
+
+Há um único vínculo por UserId/ProgrammingId, inclusive quando IsActive=false. Repetir o POST mantém o vínculo ativo; favoritar após remover reativa o mesmo ID, preservando CreatedAt e atualizando UpdatedAt. Desfavoritar altera IsActive para false e UpdatedAt, sem exclusão física. Repetir a remoção mantém o estado e retorna 200; vínculo inexistente para aquele usuário retorna 404. O cliente não informa o usuário; ele é obtido do JWT, e todas as consultas/alterações são limitadas a esse usuário. Favoritar não concede direito de editar a programação ou o host.
+
+A listagem exclui favoritos inativos e programações/hosts inativos, mas preserva os vínculos armazenados. Sem favoritos disponíveis retorna lista vazia. As alterações no mesmo par usuário/programação são serializadas no repositório com transação e pg_advisory_xact_lock(hashtext(UserId), ProgrammingId). O índice único composto do modelo é a proteção final contra vínculos duplicados após a futura migration. Concorrência e persistência reais não foram exercitadas nesta etapa.
+
+Validado: build com zero erros e sete avisos CS8618 preexistentes; 28 verificações simuladas de serviço/AppService/modelo EF e 51 testes do protótipo. Banco preservado, sem execução/geração de migration. A disponibilidade da programação é verificada no serviço antes da gravação; uma desativação concorrente pode ocultar imediatamente um favorito recém-criado, pela filtragem da listagem.
+
+
+## Revisão de DTOs de criação/edição — 26/10/2026
+
+- Programação: ProgrammingCreateDTO e ProgrammingEditDTO foram unificados em ProgrammingDTO. Os tipos, anotações e padrões eram equivalentes. Controller, IProgrammingAppService e ProgrammingAppService agora usam o tipo único; o AppService recebe somente IValidation<ProgrammingDTO>. As duas validações idênticas da Application foram substituídas por ProgrammingValidation, registrada uma única vez na DI.
+- Host: HostRegisterDTO e HostEditDTO permanecem separados. Typeofhost é TypeofHost no cadastro e TypeofHost? com Required na edição; a omissão assume o valor inicial no cadastro e falha na edição. Unificar exigiria mudar essa regra, o que não foi feito.
+- Usuário: UserRegisterDTO e UserEditDTO permanecem separados. Somente cadastro possui Password; o tipo de usuário também difere em enum/anulabilidade/Required.
+- Endereço: existe AddressCreateDTO, sem um par AddressEditDTO equivalente para unificar. O DTO de detalhes é de saída e permanece próprio.
+
+Rotas, verbos, autorização, propriedades JSON e respostas preservados. O catálogo do protótipo lê ProgrammingDTO nos dois endpoints e reconhece os mesmos campos de entrada. Exemplos HTTP mantêm os mesmos corpos. Validado: build DtoCheck sem erros, com sete avisos CS8618 preexistentes; catálogo create/edit conferido com ProgrammingDTO; node --check e 51 testes do protótipo aprovados com API simulada. Nenhuma gravação em banco, geração/aplicação de migration, reinicialização da API ou atualização de PDFs nesta etapa.
+
+
+## HostDTO unificado e tipo obrigatório — 26/10/2026
+
+HostRegisterDTO e HostEditDTO foram substituídos por HostDTO. Typeofhost agora é TypeofHost? com Required e EnumDataType nas duas operações. Ausência/null/valor fora do enum são rejeitados; zero continua sendo o tipo Productor válido. Os demais nomes e propriedades JSON foram preservados.
+
+HostCreateValidation e HostEditValidation foram substituídos por HostValidation : IValidation<HostDTO>. Ele verifica as anotações do DTO também em chamadas diretas ao AppService e preserva a exclusividade entre endereço existente/novo. Controller, interfaces, mapeamentos e DI foram adaptados; há um único validador e registro. Esta atualização substitui a decisão anterior, registrada na revisão de DTOs, de manter os DTOs de host separados.
+
+Catálogo do protótipo conferido: Create/Edit usam HostDTO e exibem typeofhost obrigatório como seleção. node --check e 51 testes com API simulada aprovados. Build DtoCheck aprovado, zero erros e sete avisos CS8618 preexistentes. Não houve reinício da API, alteração de banco, migration ou exportação de PDFs.
+
+Verificação complementar: 14 verificações de HostDTO/AppService aprovadas com serviço simulado, cobrindo ausência/null/enum inválido antes do serviço e os três tipos válidos na criação e edição. Sem HTTP ou banco real.
+
+
+## HostValidation com verificações explícitas — 26/10/2026
+
+HostValidation foi adaptado ao padrão atual de ProgrammingValidation: ArgumentNullException.ThrowIfNull(dto), verificações com if/chaves e ArgumentException com mensagem específica. Não usa mais Validator.TryValidateObject. Continua implementando IValidation<HostDTO> e sendo chamado no HostAppService antes do mapeamento de cadastro/edição.
+
+Valida tipo do host obrigatório e pertencente ao enum (incluindo zero válido); nome obrigatório/até 150; descrição obrigatória/até 2000; CNPJ obrigatório e formato numérico/alfanumérico com ou sem máscara/até 18; logo e Instagram até 2048; telefone até 30; AddressId positivo quando enviado; exatamente um entre AddressId e Address. Quando há endereço novo, verifica logradouro obrigatório/até 300, número obrigatório/até 20, complemento opcional/até 200, bairro opcional/até 150 e CEP de oito dígitos com hífen opcional. O próprio validador passa a verificar também esses campos do objeto Address, além da validação aninhada que já existe na entrada HTTP.
+
+A validação do formato do CNPJ não garante dígitos verificadores, situação ativa, existência ou unicidade: essas regras continuam no domínio e no provedor já integrados. Não foram adicionadas restrições de formato para telefone/URLs, além dos limites existentes no DTO.
+
+Rotas, DTOs, DI, autorização e formatos de sucesso preservados. As falhas do AppService continuam sendo ArgumentException, convertidas em HTTP 400 pelos catches existentes; anotações dos DTOs continuam atuando no model binding HTTP. O parâmetro now permanece na assinatura para seguir IValidation<T>, sem regra temporal para host. ProgrammingValidation foi preservado conforme alterado pelo usuário.
+
+Validação realizada: build DtoCheck com zero erros e sete avisos CS8618 preexistentes; 64 verificações de HostDTO/HostAppService com serviço simulado (cadastro/edição, null, obrigatórios, enum, formatos, limites e alternativas de endereço); node --check e 51 testes do protótipo aprovados com API simulada. Sem consulta externa, reinício da API, gravação em banco, migration ou atualização de PDFs.
+
+
+## Regras de negócio de host — revisão de 26/10/2026
+
+HostValidation foi reduzido à regra de escolher exatamente um endereço existente (AddressId) ou um endereço novo (Address), além da proteção contra argumento nulo. Foram retiradas as verificações que repetiam Required, EnumDataType, MaxLength, Range e RegularExpression de HostDTO/AddressCreateDTO. As anotações permanecem nos DTOs e são verificadas pelo model binding da API, inclusive no objeto aninhado. Chamadas diretas ao AppService não devem ser tratadas como substitutas dessa validação de entrada; HostValidation não revalida o formato dos campos.
+
+As regras que dependem de dados permanecem nas camadas responsáveis:
+
+- CNPJ único por host: HostService e HostRepository verificam o CNPJ normalizado, excluindo o próprio host na edição; inclui hosts inativos. O fluxo existente de transação/advisory lock continua na gravação. A verificação de dígitos, situação ativa e consulta Minha Receita já existente foi preservada.
+- Host inativo não cria programações: ProgrammingService usa UserOwnsActiveHostAsync antes de resolver endereço e gravar a programação. A consulta exige host ativo e pertencente ao usuário. Não há cadastro/modelo de produtos no código atual; a regra para produtos permanece pendente de um módulo de produtos, sem criar funcionalidades adicionais nesta etapa.
+- Alteração e desativação de host ativo: HostService.GetHostForModificationAsync verifica usuário existente/ativo e consulta UserManager.IsInRoleAsync(user, "ADMIN"). HostRepository.VerificationbyId recebe esse resultado interno e aceita o responsável ou administrador. O cliente não envia isAdmin nem escolhe a autoria. Terceiros e usuários inativos não alteram o host; a autoria original não é transferida quando um administrador edita. Hosts inativos continuam indisponíveis para edição/desativação pelos endpoints atuais.
+- Endereço válido: a exigência de endereço já existente para todos os tipos de host foi mantida, cobrindo Gastronomy e Business (estabelecimentos físicos). Seleção de ID inexistente é recusada por AddressService; endereço novo passa pelo DTO e pelo fluxo de resolução/geocodificação existente. Não se tornou opcional o endereço de Productor, pois isso exigiria revisar o contrato/relacionamento obrigatório atual.
+
+Os endpoints de host mantêm seus verbos, rotas e roles. Edição permitida retorna 200; desativação permitida retorna 204. Acesso negado/host indisponível retorna 404 como antes; JWT/role continuam sendo verificados na entrada. O acesso de ADMIN agora funciona também no serviço/repositório, não somente na anotação da controller.
+
+Validação realizada: build HostRulesCheck com zero erros e sete avisos CS8618 preexistentes; 30 verificações com dependências simuladas (dono, terceiro, administrador, usuário ausente/inativo, autoria preservada, CNPJ duplicado, endereço inválido, programação em host ativo/inativo e escolhas de endereço); node --check e 51 testes do protótipo com API simulada aprovados. Persistência, concorrência real, HTTP autenticado e provedores externos não foram exercitados. Não houve migration, reinício de API ou exportação de PDFs.
+
+
+## UserDTO e validação unificados — 26/10/2026
+
+UserRegisterDTO e UserEditDTO foram substituídos por UserDTO. UserCreateValidation e UserEditValidation foram substituídos por UserValidation : IValidation<UserDTO>, com único registro Scoped e uma dependência no UserAppService. Controller, IUserAppService e mapeamentos foram atualizados. O enum usa User.TypeofUser? com Required nas duas operações; cadastro agora também rejeita ausência do tipo.
+
+Password é string? no contrato compartilhado para permitir editar o perfil sem enviar senha. UserService.Create mantém a regra de senha obrigatória no cadastro, retornando erro Identity PasswordRequired para null/vazio/espaços antes de chamar o Identity. Regras de força/unicidade continuam no Identity. A edição ignora Password e não muda senha nem permissões. Não houve novo endpoint ou alteração do fluxo de autenticação. Isso substitui a decisão anterior de manter DTOs de usuário separados.
+
+No protótipo, a sincronização do catálogo marca a senha obrigatória no cadastro e oculta/remove esse campo da edição; o teste simulado verifica também a troca automática do JWT retornado pela edição. Os exemplos HTTP conservam senha somente no cadastro/login. Rotas, verbos e formatos de sucesso preservados; ausência de senha no cadastro continua retornando 400, agora pelo erro PasswordRequired. DTOs de login/exclusão/perfil permanecem próprios.
+
+Validação: build UserDtoCheck com zero erros e sete avisos CS8618 preexistentes; 28 verificações de DTO, validador, AppService e serviço com Identity/repositório simulados, incluindo senha obrigatória apenas no cadastro, enum, campos inválidos, preservação do hash/permissões e mapeamentos; catálogo dos dois endpoints conferido; node --check e 52 testes do protótipo com API simulada aprovados. Sem HTTP autenticado, acesso ao banco, reinício da API, migration ou atualização de PDFs.
+
+
+## Conversão de ProgrammingDTO centralizada — 26/10/2026
+
+Criada a classe estática ProgrammingMapping em Application/AppServices, na pasta já existente. ToModel(ProgrammingDTO dto) contém a conversão explícita dos campos de entrada para Programming, incluindo o endereço novo e a conversão de complemento/bairro nulos para string vazia. AddressId omitido continua sendo zero no modelo; endereço selecionado por ID continua sem navegação preenchida nessa etapa.
+
+CreateProgrammingAsync e EditProgrammingAsync validam o DTO antes de chamar ProgrammingMapping.ToModel(dto). O AppService atribui HostId da rota e, na edição, Id da rota. Esses identificadores não são preenchidos a partir de atributos enviados no DTO. Os vínculos de categorias continuam sendo montados no AppService, com referência à mesma entidade produzida pelo mapper. Mapeamentos de respostas, autorização e persistência do serviço foram preservados.
+
+Novos atributos editáveis devem ser adicionados ao DTO/modelo e ao ToModel, centralizando a conversão comum. Caso o serviço copie propriedades para uma entidade existente, a lógica de atualização também pode precisar incluir o novo atributo; a conversão centralizada não faz cópia automática de todas as propriedades nem substitui regras de negócio.
+
+Validação: build MappingCheck aprovado, zero erros e sete avisos CS8618 preexistentes; comparação dos dois fluxos e contratos do catálogo conferida; node --check e 52 testes existentes do protótipo com API simulada aprovados. Não houve teste de persistência ou CRUD real nesta refatoração. Nenhuma nova pasta, mudança de rota/DTO JSON, registro de DI, migration, reinício da API ou exportação de PDFs.
+
+
+## Conversão de Programming para resposta encapsulada — 26/10/2026
+
+ProgrammingMapping, na pasta Application/Mapping/Programming organizada pelo usuário (namespace Application.Mapping), agora contém ToDTO(Programming programming), retornando ProgrammingResponseDTO com os mesmos campos e AddressDetailsDTO que antes eram montados no AppService. ToModel foi preservado como método de instância. O mapper é registrado como Scoped e recebido pelo construtor de ProgrammingAppService; o using foi ajustado ao namespace existente.
+
+Cadastro, edição e retorno interno de desativação chamam _programmingMapping.ToDTO(result). As listagens por host e por interesses usam Select(_programmingMapping.ToDTO).ToList(). A consulta que retorna ProgrammingDetailsDTO mantém seu mapeamento próprio, incluindo host e categorias. Os retornos null existentes foram preservados antes da conversão.
+
+Address deve estar carregado no modelo, como já era exigido pelos blocos anteriores; as consultas do repositório incluem a navegação usada nas listagens. O mapper não consulta banco nem resolve geocodificação. Sem mudança de campos, autorização, rotas ou verbos; o PATCH de desativação continua respondendo HTTP 204 na controller.
+
+Validação: build MappingCheck aprovado, zero erros e sete avisos CS8618 preexistentes; revisão dos cinco usos do mapper e dos campos de resposta; node --check e 52 testes existentes do protótipo com API simulada aprovados. Não houve CRUD real ou teste de persistência nesta refatoração. Nenhuma migration, pasta nova, reinício da API ou exportação de PDFs.
+
+
+## Interface do mapper de programação — 26/10/2026
+
+A interface existente Application/Mapping/Interfaces/IProgrammingMapping agora declara Programming ToModel(ProgrammingDTO dto) e ProgrammingResponseDTO ToDTO(Programming programming). ProgrammingMapping implementa essa interface; ProgrammingAppService depende de IProgrammingMapping no campo e no construtor. A DI registra AddScoped<IProgrammingMapping, ProgrammingMapping>(), substituindo o registro apenas da classe concreta.
+
+Lógica de conversão, regras, rotas, DTOs JSON, autorização e respostas preservados. O protótipo e os exemplos HTTP continuam compatíveis; nenhuma alteração de formulário necessária. Build MappingCheck aprovado: zero erros e sete avisos CS8618 preexistentes. Verificação desta etapa limitada à compilação/revisão das referências; não foram repetidos testes de interface, CRUD real ou acesso ao banco. Sem migration, reinício de API ou exportação de PDFs.
+
+
+## Mapeamentos dos AppServices por interface — 26/10/2026
+
+O padrão de IProgrammingMapping foi aplicado aos demais AppServices. Os novos arquivos foram adicionados à pasta Application/Mapping existente e suas interfaces a Application/Mapping/Interfaces, sem novas pastas. Todos os contratos são registrados como Scoped e recebidos por construtor. ProgrammingMapping permanece no local organizado pelo usuário, Mapping/Programming, com namespace Application.Mapping.
+
+| Implementação / interface | Conversões |
+|---|---|
+| HostMapping / IHostMapping | HostDTO → Hosts; Hosts → HostResponseDTO, HostCreatedDTO e HostDetailsDTO; CompanyRegistration → CompanyRegistrationDTO |
+| UserMapping / IUserMapping | UserDTO → User no cadastro; ToEditModel preserva o Trim de nome/e-mail da edição; User → UserProfileDTO |
+| AddressMapping / IAddressMapping | AddressCreateDTO → Address; Address → AddressDetailsDTO; PostalAddress → PostalAddressDTO |
+| CategoryMapping / ICategoryMapping | Category → CategoryResponseDTO |
+| FavoriteMapping / IFavoriteMapping | Favorite → FavoriteResponseDTO com os três campos atuais: UserId, ProgrammingId e HostId |
+| UserXCategoryMapping / IUserXCategoryMapping | Montagem do DTO de seleção para validação, conversão em lista de vínculos distintos e conversão dos vínculos retornados em UserXCategoryDTO |
+| ProgrammingXCategoryMapping / IProgrammingXCategoryMapping | IDs → vínculo; categoria/entidade Programming → vínculo com referência à mesma entidade; vínculo → ProgrammingXCategoryResponseDTO |
+
+IProgrammingMapping também declara ToDetailsDTO(Programming, Hosts, IEnumerable<Category>? categories = null). ProgrammingMapping reutiliza IAddressMapping e ICategoryMapping. HostMapping utiliza IAddressMapping/IProgrammingMapping para o perfil e suas programações, sem depender de consultas dentro do mapper. Perfil do host mantém Categories=null nas programações quando não recebe categorias; consulta pública da programação continua consultando as categorias pelo serviço e devolvendo a lista. Não houve mudança desses formatos.
+
+Os AppServices mantêm validação, chamadas aos serviços, retornos null/erros existentes e atribuição dos IDs recebidos por rota. O foreach dos vínculos de programação continua no AppService, chamando o mapper para cada vínculo, sem gravar durante a conversão. A seleção de interesses continua removendo IDs repetidos e preservando a ordem dos vínculos retornados pelo serviço. Os mappers não consultam repositórios ou APIs, não fazem autorização e não mapeiam senha/hash/roles a partir dos DTOs. Nome/e-mail do cadastro de usuário permanecem como enviados, e o Trim continua específico da edição.
+
+Durante a revisão foi encontrada uma linha incompleta `var links = await _` em EditProgrammingAsync, impedindo compilar. A linha foi retirada no ajuste desse trecho; o fluxo de vínculos foi preservado. A dependência IProgrammingXCategoryAppService adicionada pelo usuário foi mantida.
+
+Validação: build MappingCheck aprovado, zero erros e sete avisos CS8618 preexistentes; 41 cenários de entradas/saídas dos oito AppServices comparados com uma baseline anterior à extração, com os mesmos resultados JSON. A verificação resolve os AppServices e dependências por DI (ValidateOnBuild/ValidateScopes), usando serviços/Identity simulados. Cobre endereços novos/existentes, detalhes e listagens, categorias e vínculos, dados reduzidos de favorito, normalização de usuário e consultas sem resultado. As validações são simuladas nessa comparação, pois o foco é preservar o mapeamento; não representa nova execução dos testes de regras de negócio ou dos provedores.
+
+node --check em app.js/catalog.mjs e 52 testes do protótipo com API simulada aprovados. Contratos HTTP, autorização, IDs, formatos de resposta e JWT preservados; formulários e exemplos .http permanecem compatíveis. Nenhum teste CRUD contra API/banco real, reinício de API, alteração de schema, migration ou atualização de PDFs nesta etapa.
+
+
+## Criação dos vínculos de programação encapsulada — 26/10/2026
+
+IProgrammingXCategoryAppService agora declara List<ProgrammingXCategory> CreateProgrammingLinks(Programming programming, List<int> categoriesIds). O retorno foi corrigido em relação à declaração incompleta que usava Task<ProgrammingXCategoryResponseDTO>: essa operação é síncrona, monta modelos em memória e não devolve um DTO de vínculo salvo.
+
+ProgrammingXCategoryAppService implementa o método, protege argumentos nulos e percorre a lista chamando IProgrammingXCategoryMapping.ToModel(categoryId, programming) para cada item. Todos os vínculos referenciam a mesma instância de Programming recebida; a ordem e possíveis repetições da entrada são preservadas para a validação já existente no domínio. O método não consulta nem salva vínculos individualmente. CreateProgrammingXCategoryAsync, que já existia para outro fluxo de gravação, permanece separado.
+
+ProgrammingAppService chama o método no cadastro e na edição após validar/mapear o DTO e atribuir os IDs da rota. Foram removidos a declaração duplicada de links e os foreach antigos que ainda referenciavam um campo de mapper retirado pelo usuário. A dependência IProgrammingXCategoryAppService e seu registro de DI já existiam e foram reaproveitados.
+
+Os vínculos seguem para CreateProgrammingAsync/EditProgrammingAsync do domínio, preservando as verificações de categorias/propriedade e a gravação conjunta pelo repositório existente. Nenhuma nova action, pasta, rota ou alteração de corpo JSON/retorno foi criada. Protótipo e exemplos HTTP permanecem compatíveis.
+
+Validação: build MappingCheck aprovado, zero erros e sete avisos CS8618 preexistentes; comparação de 41 cenários de entradas/respostas com a baseline dos AppServices aprovada, incluindo criação/edição e identidade da entidade referenciada nos vínculos; resolução de DI aprovada com serviços simulados. node --check e 52 testes do protótipo com API simulada aprovados. Sem banco, persistência/concorrência real, reinício da API, migration ou atualização de PDFs.

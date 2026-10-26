@@ -1,3 +1,4 @@
+using Projetos___4.Application.Mapping.Interfaces;
 using Microsoft.AspNetCore.Identity;
 using Projetos___4.Application.DTO;
 using Projetos___4.Application.Interfaces;
@@ -13,8 +14,11 @@ namespace Projetos___4.Application.AppServices
         private readonly IValidation<UserXCategoryDTO> _userXCategoryValidation;
         private readonly UserManager<User> _userManager;
 
-        public UserXCategoryAppService(IUserXCategoryService userXCategoryService, IValidation<UserXCategoryDTO> userXCategoryValidation, UserManager<User> userManager)
+        private readonly IUserXCategoryMapping _userXCategoryMapping;
+
+        public UserXCategoryAppService(IUserXCategoryService userXCategoryService, IValidation<UserXCategoryDTO> userXCategoryValidation, UserManager<User> userManager, IUserXCategoryMapping userXCategoryMapping)
         {
+            _userXCategoryMapping = userXCategoryMapping;
             _userXCategoryService = userXCategoryService;
             _userXCategoryValidation = userXCategoryValidation;
             _userManager = userManager;
@@ -22,82 +26,20 @@ namespace Projetos___4.Application.AppServices
 
         public async Task<UserXCategoryDTO> AddCategoryToUserAsync(List<int> categorysId, string userId)
         {
-            var dto = new UserXCategoryDTO
-            {
-                UserId = userId,
-                CategoryIds = categorysId
-
-            };
-
+            var dto = _userXCategoryMapping.ToRequestDTO(categorysId, userId);
             _userXCategoryValidation.Validate(dto, DateTime.UtcNow);
-
-            var results = new List<UserXCategory>();
-
-            foreach (var categoryId in dto.CategoryIds.Distinct())
-            {
-                var userXCategory = new UserXCategory
-                {
-                    UserId = dto.UserId,
-                    CategoryId = categoryId,
-                    CreatedAt = DateTime.UtcNow,
-                    UpdatedAt = DateTime.UtcNow
-                };
-
-                results.Add(userXCategory);
-            }
-            List<UserXCategory> userXCategories = await _userXCategoryService.AddAsync(dto.UserId, results);
-
-            var savedCategoryIds = new List<int>();
-
-            foreach (var userXCategory in userXCategories)
-            {
-                savedCategoryIds.Add(userXCategory.CategoryId);
-            }
-
-            return new UserXCategoryDTO
-            {
-                UserId = dto.UserId,
-                CategoryIds = savedCategoryIds
-            };
+            var links = _userXCategoryMapping.ToModels(dto);
+            var savedLinks = await _userXCategoryService.AddAsync(dto.UserId, links);
+            return _userXCategoryMapping.ToDTO(savedLinks, dto.UserId);
         }
 
         public async Task<UserXCategoryDTO> EditCategoryToUserAsync(List<int> categorysId, string userId)
         {
-            var dto = new UserXCategoryDTO
-            {
-                UserId = userId,
-                CategoryIds = categorysId
-            };
-
+            var dto = _userXCategoryMapping.ToRequestDTO(categorysId, userId);
             _userXCategoryValidation.Validate(dto, DateTime.UtcNow);
-
-            var links = new List<UserXCategory>();
-
-            foreach (var categoryId in dto.CategoryIds.Distinct())
-            {
-                links.Add(new UserXCategory
-                {
-                    UserId = dto.UserId,
-                    CategoryId = categoryId,
-                    CreatedAt = DateTime.UtcNow,
-                    UpdatedAt = DateTime.UtcNow
-                });
-            }
-
-            List<UserXCategory> userXCategories = await _userXCategoryService.EditAsync(dto.UserId, links);
-
-            var savedCategoryIds = new List<int>();
-
-            foreach (var userXCategory in userXCategories)
-            {
-                savedCategoryIds.Add(userXCategory.CategoryId);
-            }
-
-            return new UserXCategoryDTO
-            {
-                UserId = dto.UserId,
-                CategoryIds = savedCategoryIds
-            };
+            var links = _userXCategoryMapping.ToModels(dto);
+            var savedLinks = await _userXCategoryService.EditAsync(dto.UserId, links);
+            return _userXCategoryMapping.ToDTO(savedLinks, dto.UserId);
         }
     }
 }

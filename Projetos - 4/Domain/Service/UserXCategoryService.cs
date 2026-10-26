@@ -103,7 +103,7 @@ namespace Projetos___4.Domain.Service
                 CategoryId = c.Id
             }).ToList();
 
-            return await _userXCategoryRepository.EditAsync(userId, LinkstoAdd, LinkstoDelete);
+            return await _userXCategoryRepository.EditAsync(userId, LinkstoAdd, LinkstoDelete, currentCategories.Select(category => category.Id).ToList());
         }
     }
 }

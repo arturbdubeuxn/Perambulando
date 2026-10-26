@@ -7,11 +7,11 @@ namespace Projetos___4.Application.Interfaces
 
         Task<CompanyRegistrationDTO> GetByCnpjAsync(string cnpj, CancellationToken cancellationToken = default);
 
-        Task<HostCreatedDTO?> Create(HostRegisterDTO dto, string userId);
+        Task<HostCreatedDTO?> Create(HostDTO dto, string userId);
 
         Task<HostDetailsDTO?> GetByIdAsync(int hostId);
 
-        Task<HostResponseDTO?> EditHostAsync(HostEditDTO dto, int hostId, string userId);
+        Task<HostResponseDTO?> EditHostAsync(HostDTO dto, int hostId, string userId);
 
         Task<HostResponseDTO?> DeleteHostAsync(int hostId, string userId);
 

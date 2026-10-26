@@ -69,7 +69,7 @@ namespace Projetos___4.Presentation.Controllers
 
         [Authorize(Roles = "ADMIN,HOST")]
         [HttpPut("{hostId:int}/Edit/{Programmingid:int}")]
-        public async Task<IActionResult> Edit([FromRoute, Range(1, int.MaxValue)] int hostId, [FromRoute, Range(1, int.MaxValue)] int programmingId, [FromBody] ProgrammingEditDTO dto)
+        public async Task<IActionResult> Edit([FromRoute, Range(1, int.MaxValue)] int hostId, [FromRoute, Range(1, int.MaxValue)] int programmingId, [FromBody] ProgrammingDTO dto)
         {
             var userId = _userManager.GetUserId(User);
 
@@ -97,6 +97,11 @@ namespace Projetos___4.Presentation.Controllers
 
                 return Ok(result);
             }
+            catch (CategoryLinksConflictException ex)
+            {
+                return Problem(statusCode: StatusCodes.Status409Conflict,
+                    title: "Conflito de categorias", detail: ex.Message);
+            }
             catch (GeocodingException ex)
             {
                 return Problem(statusCode: ex.ServiceUnavailable
@@ -120,7 +125,7 @@ namespace Projetos___4.Presentation.Controllers
 
         [Authorize(Roles = "ADMIN, HOST")]
         [HttpPost("{HostId:int}/Create")]
-        public async Task<IActionResult> Create([FromRoute, Range(1, int.MaxValue)] int hostId, [FromBody] ProgrammingCreateDTO dto)
+        public async Task<IActionResult> Create([FromRoute, Range(1, int.MaxValue)] int hostId, [FromBody] ProgrammingDTO dto)
         {
             var userid = _userManager.GetUserId(User);
 
@@ -145,6 +150,11 @@ namespace Projetos___4.Presentation.Controllers
                 return Problem(statusCode: StatusCodes.Status404NotFound,
                     title: "Host indisponível",
                     detail: "Host não encontrado ou indisponível para este usuário.");
+            }
+            catch (CategoryLinksConflictException ex)
+            {
+                return Problem(statusCode: StatusCodes.Status409Conflict,
+                    title: "Conflito de categorias", detail: ex.Message);
             }
             catch (GeocodingException ex)
             {
