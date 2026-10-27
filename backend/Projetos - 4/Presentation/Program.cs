@@ -187,6 +187,25 @@ if (app.Environment.IsDevelopment())
     await context.Database.MigrateAsync();
 }
 
+var requiredRoles = new[] { "HOST", "ADMIN" };
+
+await using (var roleScope = app.Services.CreateAsyncScope())
+{
+    var roleManager = roleScope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
+
+    foreach (var roleName in requiredRoles)
+    {
+        if (!await roleManager.RoleExistsAsync(roleName))
+        {
+            var result = await roleManager.CreateAsync(new IdentityRole(roleName));
+            if (!result.Succeeded)
+            {
+                throw new InvalidOperationException($"Não foi possível criar a role {roleName}.");
+            }
+        }
+    }
+}
+
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();

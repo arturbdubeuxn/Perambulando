@@ -36,7 +36,11 @@ Uma conta pode ter vários hosts. O cadastro associa `host.UserId` ao usuário a
 
 Após cadastrar, o serviço atribui a role HOST se necessário. A resposta traz JWT atualizado para que a interface possa usar as funcionalidades protegidas sem novo login.
 
-A criação do host e a atribuição da role não formam uma operação atômica no código atual. Se o host for salvo e a role falhar, a action retorna erro informando essa situação. A role HOST deve existir previamente; não há criação dessa role no fluxo de cadastro.
+A criação do host e a atribuição da role formam uma operação atômica no fluxo atual: se a atribuição falhar, host e endereço novo são desfeitos. As roles estruturais `HOST` e `ADMIN` são verificadas na inicialização da API e criadas pelo `RoleManager` quando ausentes; o fluxo de cadastro apenas atribui `HOST` ao usuário correspondente.
+
+### Inicialização das roles estruturais — 27/10/2026
+
+Depois das migrations, a inicialização da API consulta o ASP.NET Core Identity e garante, de forma idempotente, a existência de `HOST` e `ADMIN`. A criação da role não concede permissão a nenhum usuário: `HOST` continua sendo atribuída somente depois do cadastro transacional do host, e `ADMIN` exige atribuição administrativa explícita. Falha ao criar uma role impede a inicialização, evitando que a API aceite cadastros em um banco incompleto.
 
 ## 4. Gestão do host
 

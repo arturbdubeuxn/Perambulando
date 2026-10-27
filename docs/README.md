@@ -688,3 +688,7 @@ A consulta de programações não foi alterada nesta correção: eventos em anda
 ## CORS do frontend web local — 27/10/2026
 
 O backend passou a aplicar a política nomeada `FrontendCors`, restrita ao Expo Web local em `http://localhost:8081` e `http://localhost:8082`, com métodos e cabeçalhos permitidos. A política é executada antes da autenticação e autorização. Nenhuma rota, DTO, regra de negócio, model, migration, configuração de banco ou container foi alterada. Consulte [Arquitetura frontend e backend](08-arquitetura-frontend-backend.md). Validação por compilação registrada; teste integrado no navegador permanece pendente. PDFs não foram regenerados.
+
+## Inicialização das roles estruturais — 27/10/2026
+
+Após as migrations, a API passa a garantir com `RoleManager` a existência idempotente de `HOST` e `ADMIN`. O ajuste corrige bancos novos ou esvaziados cuja tabela `AspNetRoles` não possui essas entradas. Criar a role não a atribui a usuários: `HOST` continua vinculada no cadastro transacional do host e `ADMIN` permanece dependente de atribuição explícita. Rotas, DTOs, claims, models, migrations, frontend e protótipo foram preservados. O build normal encontrou o executável bloqueado pela API já aberta; repetido com saída temporária, compilou com zero erros e zero avisos. A API não foi reiniciada e o banco não foi alterado durante esta validação. PDFs não foram regenerados.

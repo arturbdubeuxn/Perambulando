@@ -63,6 +63,8 @@ Autenticação responde quem é a pessoa. A autorização por role permite acess
 
 A conta pode iniciar sem role HOST. O cadastro de host recebe o JWT existente, associa o host ao usuário e atribui HOST se necessário. Depois gera um novo token que já contém as roles atuais.
 
+Na inicialização, o backend garante por `RoleManager` que as roles estruturais `HOST` e `ADMIN` existam no banco. Essa operação é idempotente e não atribui `ADMIN` automaticamente. Não houve alteração nas claims, na emissão ou na validação dos tokens; ela apenas assegura que a atribuição de `HOST` durante o cadastro encontre a role cadastrada.
+
 O frontend deve substituir o token local por `createHost.auth.accessToken`. O token anterior não passa a ganhar novas claims automaticamente. Não é necessário repetir o login se o novo token já foi aplicado.
 
 O mesmo princípio vale para `PUT /api/User/Edit`: aplicar `auth.accessToken` para refletir nome e demais claims atualizadas.

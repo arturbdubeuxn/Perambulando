@@ -165,6 +165,8 @@ O DTO de cadastro ainda não possui atributos que exijam os campos ou validem o 
 
 O serviço atribui a role `HOST` ao usuário, caso necessário. A resposta contém um JWT atualizado, evitando repetir o login.
 
+As roles estruturais `HOST` e `ADMIN` são garantidas de forma idempotente na inicialização da API, antes de os endpoints receberem requisições. Isso evita a falha de infraestrutura causada por uma tabela `AspNetRoles` vazia; não modifica o corpo, a autorização nem a resposta deste endpoint.
+
 Retornos: `201` com `{"result":{"id":10,"addressId":7,"name":"Minha empresa"},"auth":{"accessToken":"JWT","tokenType":"Bearer","expiresAt":"..."}}`; `401` para usuário ausente/inativo; `500` para as falhas tratadas de cadastro ou atribuição de role. Se a atribuição da role falhar, a transação desfaz o cadastro do host e do endereço novo.
 
 ### GET /api/Host/GetAllHostsbyUserId — Listar meus hosts
