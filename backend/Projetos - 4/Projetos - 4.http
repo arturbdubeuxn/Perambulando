@@ -506,3 +506,27 @@ Accept: application/json
 GET {{Projetos___4_HostAddress}}/api/Host/HostFilter?city=Recife&take=10&skip=0
 Accept: application/json
 Authorization: Bearer {{login.response.body.$.accessToken}}
+
+
+# US17: executar somente após revisão e aplicação da migration.
+# Configure Pro__SimulationEnabled=true para ativação simulada sem cobrança.
+# Execute login antes; repetir Activate não estende o período.
+### Consultar Pro (sem assinatura: 200, status 0)
+GET {{Projetos___4_HostAddress}}/api/Subscription/MySubscription
+Authorization: Bearer {{login.response.body.$.accessToken}}
+
+### Ativar Pro simulado (200; 403 com simulação desabilitada)
+POST {{Projetos___4_HostAddress}}/api/Subscription/Activate
+Authorization: Bearer {{login.response.body.$.accessToken}}
+
+### Repetir ativação: mesmas datas
+POST {{Projetos___4_HostAddress}}/api/Subscription/Activate
+Authorization: Bearer {{login.response.body.$.accessToken}}
+
+### Cancelar Pro (200, benefícios false); repetição mantém o resultado
+PATCH {{Projetos___4_HostAddress}}/api/Subscription/Cancel
+Authorization: Bearer {{login.response.body.$.accessToken}}
+
+### Conferir cancelamento com o mesmo JWT
+GET {{Projetos___4_HostAddress}}/api/Subscription/MySubscription
+Authorization: Bearer {{login.response.body.$.accessToken}}

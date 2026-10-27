@@ -2,7 +2,7 @@
 
 > Ambiente local de banco atualizado em 26/10/2026: o PostgreSQL 17.11 com PostGIS 3.6.4 definido pelo projeto usa `127.0.0.1:5434`, pois 5432 e 5433 já estão ocupadas por instalações anteriores preservadas. Compose e `appsettings.Development.json` local foram alinhados; as 16 migrations existentes foram aplicadas ao volume novo. O banco anterior foi preservado, mas seus registros não foram migrados. Nenhum código funcional, model, migration ou contrato HTTP foi alterado. Consulte [Docker](05-docker.md).
 
-> Atualização estrutural de 26/10/2026: o código foi organizado como um único repositório com `backend/` e `frontend/`. A solução e o projeto .NET mantêm o nome `Projetos - 4` dentro de `backend/`. `frontend/` contém apenas o projeto base Expo/React Native com TypeScript, sem funcionalidades ou integração com a API. `docs/`, `docker/` e `compose.postgis.yaml` permanecem na raiz. O backend não teve contratos, regras, modelos, migrations ou configuração de execução alterados. Consulte [Arquitetura frontend e backend](08-arquitetura-frontend-backend.md) para a descrição completa. Validações: build da solução no novo caminho e verificações do frontend descritas ao final desta seção. Pendências: implementar telas e integração somente mediante solicitação. PDFs não foram regenerados.
+> Atualização estrutural de 26/10/2026: o código foi organizado como um único repositório com `backend/` e `frontend/`. A solução e o projeto .NET mantêm o nome `Projetos - 4` dentro de `backend/`. `frontend/` contém a aplicação Expo/React Native Web com TypeScript, identidade visual Perambulando e rotas locais para criação de evento e cadastro de host, ainda sem integração com a API. `docs/`, `docker/` e `compose.postgis.yaml` permanecem na raiz. O backend não teve contratos, regras, modelos, migrations ou configuração de execução alterados. Consulte [Arquitetura frontend e backend](08-arquitetura-frontend-backend.md) para a descrição completa. PDFs não foram regenerados.
 
 ## Estrutura do repositório — 26/10/2026
 
@@ -22,7 +22,7 @@ npm install
 npm start
 ```
 
-O frontend permanece no estado inicial do template. Não foram adicionados navegação, telas, cliente HTTP, variáveis de URL da API, autenticação, armazenamento de JWT nem regras de negócio.
+O frontend possui as interfaces responsivas de criação de evento (`/`) e cadastro de host (`/cadastro_host`), com Expo Router e identidade visual Perambulando. Os campos usam somente estado local; não foram adicionados cliente HTTP, variáveis de URL da API, autenticação, armazenamento de JWT, persistência nem regras de negócio.
 
 Validações realizadas em 26/10/2026: `dotnet build ".\backend\Projetos - 4.slnx" --no-restore` concluído com zero erros e sete avisos CS8618 preexistentes; `tsc --noEmit` aprovado; configuração pública do Expo carregada como SDK 58 para Android e iOS; `expo-doctor` aprovou 20/20 verificações. Node.js 24.20.0 LTS e npm 11.19.0 foram instalados no escopo do usuário. Não foram iniciados emulador, API ou banco, nem realizados testes funcionais. Como não houve mudança de contrato ou funcionalidade da API, o protótipo externo não foi alterado. PDFs preservados.
 
@@ -684,3 +684,18 @@ Validação: build aprovado; 59 testes do protótipo com API simulada aprovados;
 Diagnóstico confirmado em leitura: GET /api/Programming/Filter?take=10&skip=0 retorna 3 programações (15, 16 e 17); a mesma busca com hostId=33 retorna somente a 17. O protótipo herdava state.hostId para uma query opcional, preenchendo automaticamente o host da última criação; preços opcionais também começavam em zero. Corrigido app.js: IDs são reaproveitados automaticamente somente em parâmetros de rota, e minPrice/maxPrice de query começam vazios. Filtros de host/preço continuam disponíveis quando preenchidos explicitamente. Cadastro/edição preservam seus valores padrão e IDs de rota.
 
 A consulta de programações não foi alterada nesta correção: eventos em andamento são permitidos até EndDate; encerrados permanecem fora da busca. As três programações verificadas ainda não haviam iniciado, portanto o resultado único não era causado por datas. 60 testes simulados do protótipo e node --check aprovados; duas consultas HTTP reais de leitura confirmaram os resultados acima. Nenhuma gravação no banco, migration ou reinicialização da API do Visual Studio. Após Ctrl+F5, novos formulários de filtro começam sem host/preços implícitos. PDFs preservados.
+
+
+## US17 — primeira etapa preparada em 27/10/2026
+
+Implementados no código: Subscription e configuração EF, repository, service, app service, mapping, interfaces, DTO e controller. Rotas autenticadas: POST /api/Subscription/Activate, GET /api/Subscription/MySubscription e PATCH /api/Subscription/Cancel. Titular vem do JWT; não há corpo de entrada. Retorno 200 com Id, Status, StartsAt, ExpiresAt, IsSimulation, CanFeatureProgrammings e CanViewStatistics (camelCase no JSON). Status numérico: 0 Inactive, 1 Active, 2 Cancelled, 3 Expired (calculado). Sem assinatura, datas/Id nulos e benefícios false. Identidade ausente/inativa: 401. Simulação desabilitada: Activate retorna 403.
+
+Regras confirmadas: assinatura por usuário cobrindo todos os hosts, um mês via AddMonths(1), sem renovação automática, repetição não estende vigência, cancelamento imediato e reativação inicia novo período. Datas UTC; limite final exclusivo. Pro:SimulationEnabled precisa ser explicitamente true (variável Pro__SimulationEnabled); configuração ausente desabilita ativação. Nenhuma cobrança. Cancelamento continua disponível com simulação desligada.
+
+Persistência proposta: tabela Subscriptions, índice único UserId, FK para AspNetUsers com Restrict. Escritas bloqueiam a linha do usuário dentro de transação PostgreSQL e atualizam User.isPro na mesma transação. Nenhum usuário existente recebe assinatura automaticamente. MySubscription calcula vigência; perfil/JWT ainda usam o booleano legado e precisam ser ajustados na próxima etapa. As permissões retornadas indicam elegibilidade; carrossel e estatísticas ainda não foram implementados.
+
+Validação: dotnet build aprovado, zero erros e dez avisos em arquivos existentes. 14 testes isolados com repositório/usuário simulados passaram: ausência de assinatura, identidade, simulação, duração, repetição, fronteiras de validade, cancelamento, reativação e expiração. Testes locais: C:/Users/rafae/Documents/ChatGPT/Perambulando/SubscriptionRules.Tests.csproj. Concorrência, SQL e HTTP ainda não foram testados em PostgreSQL.
+
+Migration não gerada nem aplicada; banco inalterado. O guard existente HasPendingModelChanges em Development deve impedir inicialização até revisão e preparação da migration. Depois de gerar a migration, a inicialização em Development a aplica automaticamente: revisar esse fluxo antes de iniciar contra banco real. Próxima etapa: revisar migration/SQL, estratégia para usuários legados e validar em banco descartável; depois integrar benefício efetivo ao perfil/JWT.
+
+Protótipo externo indicado no AGENTS.md (C:/Users/Artur/Documents/ChatGPT/Perambulando/prototipo-api) não existe neste computador e não foi atualizado. Exemplos .http adicionados. PDFs preservados.
