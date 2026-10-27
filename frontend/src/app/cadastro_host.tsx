@@ -28,6 +28,8 @@ const colors = {
   successBackground: '#EFF9F0',
 };
 
+const apiBaseUrl = (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:5014').replace(/\/$/, '');
+
 type FieldProps = {
   label: string;
   placeholder: string;
@@ -37,6 +39,8 @@ type FieldProps = {
   secureTextEntry?: boolean;
   multiline?: boolean;
   editable?: boolean;
+  error?: string;
+  maxLength?: number;
 };
 
 function Field({
@@ -48,6 +52,8 @@ function Field({
   secureTextEntry = false,
   multiline = false,
   editable = true,
+  error,
+  maxLength,
 }: FieldProps) {
   return (
     <View style={styles.fieldGroup}>
@@ -57,15 +63,22 @@ function Field({
         autoCapitalize={keyboardType === 'email-address' ? 'none' : 'sentences'}
         editable={editable}
         keyboardType={keyboardType}
+        maxLength={maxLength}
         multiline={multiline}
         onChangeText={onChangeText}
         placeholder={placeholder}
         placeholderTextColor="#9297A3"
         secureTextEntry={secureTextEntry}
-        style={[styles.input, multiline && styles.textArea, !editable && styles.inputDisabled]}
+        style={[
+          styles.input,
+          multiline && styles.textArea,
+          !editable && styles.inputDisabled,
+          error && styles.inputError,
+        ]}
         textAlignVertical={multiline ? 'top' : 'center'}
         value={value}
       />
+      {error && <Text style={styles.fieldError}>{error}</Text>}
     </View>
   );
 }
@@ -99,11 +112,146 @@ type HostRegistrationDraft = {
   address: AddressDraft;
 };
 
+type RegistrationErrors = Partial<{
+  userName: string;
+  email: string;
+  password: string;
+  hostType: string;
+  cnpj: string;
+  phone: string;
+  hostName: string;
+  description: string;
+  logoUrl: string;
+  instagranUrl: string;
+  city: string;
+  street: string;
+  number: string;
+  complement: string;
+  neighborhood: string;
+  cep: string;
+}>;
+
+type PreparedRegistration = {
+  user: UserRegistrationDraft;
+  host: Omit<HostRegistrationDraft, 'typeofhost'> & { typeofhost: HostType };
+};
+
+type AuthResponse = {
+  accessToken: string;
+};
+
+type CompanyRegistrationResponse = {
+  legalName: string;
+  tradeName: string;
+};
+
+type HostCreateResponse = {
+  result: {
+    id: number;
+    addressId: number;
+    name: string;
+  };
+  auth: AuthResponse;
+};
+
+type ApiErrorBody = {
+  title?: string;
+  detail?: string;
+  errors?: Record<string, string[]>;
+};
+
+type SubmissionState = {
+  status: 'idle' | 'submitting' | 'success' | 'error';
+  message: string;
+  hostId?: number;
+  addressId?: number;
+};
+
+class ApiRequestError extends Error {
+  status: number;
+  body: ApiErrorBody | null;
+
+  constructor(status: number, body: ApiErrorBody | null) {
+    const validationMessages = body?.errors ? Object.values(body.errors).flat() : [];
+    super(body?.detail || validationMessages.join(' ') || body?.title || 'A requisição falhou.');
+    this.status = status;
+    this.body = body;
+  }
+}
+
 const hostTypes: { label: string; value: HostType }[] = [
   { label: 'Produtor de eventos', value: 0 },
   { label: 'Gastronomia', value: 1 },
   { label: 'Empresa', value: 2 },
 ];
+
+const onlyDigits = (value: string) => value.replace(/\D/g, '');
+
+function maskCnpj(value: string) {
+  return onlyDigits(value)
+    .slice(0, 14)
+    .replace(/^(\d{2})(\d)/, '$1.$2')
+    .replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3')
+    .replace(/\.(\d{3})(\d)/, '.$1/$2')
+    .replace(/(\d{4})(\d)/, '$1-$2');
+}
+
+function maskCep(value: string) {
+  return onlyDigits(value).slice(0, 8).replace(/^(\d{5})(\d)/, '$1-$2');
+}
+
+function maskPhone(value: string) {
+  const digits = onlyDigits(value).slice(0, 11);
+  if (digits.length <= 10) {
+    return digits
+      .replace(/^(\d{2})(\d)/, '($1) $2')
+      .replace(/(\d{4})(\d)/, '$1-$2');
+  }
+  return digits
+    .replace(/^(\d{2})(\d)/, '($1) $2')
+    .replace(/(\d{5})(\d)/, '$1-$2');
+}
+
+function isValidCnpj(value: string) {
+  const digits = onlyDigits(value);
+  if (digits.length !== 14 || /^(\d)\1{13}$/.test(digits)) {
+    return false;
+  }
+
+  const calculateDigit = (length: number) => {
+    let sum = 0;
+    let weight = 2;
+    for (let index = length - 1; index >= 0; index -= 1) {
+      sum += Number(digits[index]) * weight;
+      weight = weight === 9 ? 2 : weight + 1;
+    }
+    const remainder = sum % 11;
+    return remainder < 2 ? 0 : 11 - remainder;
+  };
+
+  return Number(digits[12]) === calculateDigit(12) && Number(digits[13]) === calculateDigit(13);
+}
+
+const isValidEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+const isValidUrl = (value: string) => /^https?:\/\/\S+$/i.test(value.trim());
+
+async function apiRequest<T>(path: string, options: RequestInit = {}) {
+  const response = await fetch(`${apiBaseUrl}${path}`, {
+    ...options,
+    headers: {
+      Accept: 'application/json',
+      ...(options.body ? { 'Content-Type': 'application/json' } : {}),
+      ...options.headers,
+    },
+  });
+  const body = (await response.json().catch(() => null)) as T | ApiErrorBody | null;
+
+  if (!response.ok) {
+    throw new ApiRequestError(response.status, body as ApiErrorBody | null);
+  }
+
+  return body as T;
+}
 
 type SectionTitleProps = {
   number: string;
@@ -129,7 +277,13 @@ export default function HostRegistrationScreen() {
   const { width: viewportWidth } = useWindowDimensions();
   const [fontsLoaded] = useFonts({ Fredoka_700Bold });
   const [hostTypeOpen, setHostTypeOpen] = useState(false);
-  const [legalName] = useState('');
+  const [legalName, setLegalName] = useState('');
+  const [errors, setErrors] = useState<RegistrationErrors>({});
+  const [userRegistered, setUserRegistered] = useState(false);
+  const [submission, setSubmission] = useState<SubmissionState>({
+    status: 'idle',
+    message: '',
+  });
   const [userDraft, setUserDraft] = useState<UserRegistrationDraft>({
     name: '',
     email: '',
@@ -156,7 +310,14 @@ export default function HostRegistrationScreen() {
 
   const selectedHostType = hostTypes.find((item) => item.value === hostDraft.typeofhost);
 
+  const resetValidation = () => {
+    setErrors({});
+    setSubmission({ status: 'idle', message: '' });
+  };
+
   const updateUser = (field: keyof Omit<UserRegistrationDraft, 'typeofUser'>, value: string) => {
+    resetValidation();
+    setUserRegistered(false);
     setUserDraft((current) => ({ ...current, [field]: value }));
   };
 
@@ -164,14 +325,176 @@ export default function HostRegistrationScreen() {
     field: Exclude<keyof HostRegistrationDraft, 'typeofhost' | 'address'>,
     value: string,
   ) => {
+    resetValidation();
     setHostDraft((current) => ({ ...current, [field]: value }));
   };
 
   const updateAddress = (field: keyof AddressDraft, value: string) => {
+    resetValidation();
     setHostDraft((current) => ({
       ...current,
       address: { ...current.address, [field]: value },
     }));
+  };
+
+  const validateRegistration = (): PreparedRegistration | null => {
+    const nextErrors: RegistrationErrors = {};
+    const normalizedEmail = userDraft.email.trim();
+    const phoneDigits = onlyDigits(hostDraft.phone);
+
+    if (!userDraft.name.trim()) {
+      nextErrors.userName = 'Informe o nome completo.';
+    }
+    if (!isValidEmail(normalizedEmail)) {
+      nextErrors.email = 'Informe um e-mail válido.';
+    }
+    if (
+      userDraft.password.length < 8 ||
+      !/[a-z]/.test(userDraft.password) ||
+      !/[A-Z]/.test(userDraft.password) ||
+      !/\d/.test(userDraft.password) ||
+      !/[^A-Za-z0-9]/.test(userDraft.password)
+    ) {
+      nextErrors.password = 'Use 8 caracteres, com maiúscula, minúscula, número e símbolo.';
+    }
+    if (!hostDraft.name.trim()) {
+      nextErrors.hostName = 'Informe o nome fantasia.';
+    }
+    if (!isValidCnpj(hostDraft.cnpj)) {
+      nextErrors.cnpj = 'Informe um CNPJ válido.';
+    }
+    if (hostDraft.typeofhost === null) {
+      nextErrors.hostType = 'Selecione um tipo de host.';
+    }
+    if (phoneDigits.length > 0 && phoneDigits.length !== 10 && phoneDigits.length !== 11) {
+      nextErrors.phone = 'Informe um telefone com DDD.';
+    }
+    if (!hostDraft.description.trim()) {
+      nextErrors.description = 'Informe uma descrição da empresa.';
+    }
+    if (hostDraft.logoUrl && !isValidUrl(hostDraft.logoUrl)) {
+      nextErrors.logoUrl = 'Use uma URL iniciada por http:// ou https://.';
+    }
+    if (hostDraft.instagranUrl && !isValidUrl(hostDraft.instagranUrl)) {
+      nextErrors.instagranUrl = 'Use uma URL iniciada por http:// ou https://.';
+    }
+    if (hostDraft.address.city.length > 150) {
+      nextErrors.city = 'A cidade deve ter no máximo 150 caracteres.';
+    }
+    if (!hostDraft.address.street.trim()) {
+      nextErrors.street = 'Informe o logradouro.';
+    }
+    if (!hostDraft.address.number.trim()) {
+      nextErrors.number = 'Informe o número.';
+    }
+    if (onlyDigits(hostDraft.address.cep).length !== 8) {
+      nextErrors.cep = 'Informe um CEP com oito dígitos.';
+    }
+
+    if (Object.keys(nextErrors).length > 0 || hostDraft.typeofhost === null) {
+      setErrors(nextErrors);
+      return null;
+    }
+
+    const prepared: PreparedRegistration = {
+      user: {
+        name: userDraft.name.trim(),
+        email: normalizedEmail,
+        password: userDraft.password,
+        typeofUser: 0,
+      },
+      host: {
+        typeofhost: hostDraft.typeofhost,
+        cnpj: onlyDigits(hostDraft.cnpj),
+        logoUrl: hostDraft.logoUrl.trim(),
+        instagranUrl: hostDraft.instagranUrl.trim(),
+        phone: hostDraft.phone.trim(),
+        name: hostDraft.name.trim(),
+        description: hostDraft.description.trim(),
+        address: {
+          city: hostDraft.address.city.trim(),
+          street: hostDraft.address.street.trim(),
+          number: hostDraft.address.number.trim(),
+          complement: hostDraft.address.complement.trim(),
+          neighborhood: hostDraft.address.neighborhood.trim(),
+          cep: hostDraft.address.cep,
+        },
+      },
+    };
+
+    setErrors({});
+    return prepared;
+  };
+
+  const submitRegistration = async () => {
+    const prepared = validateRegistration();
+    if (!prepared) {
+      setSubmission({ status: 'error', message: 'Revise os campos destacados.' });
+      return;
+    }
+
+    setSubmission({ status: 'submitting', message: 'Enviando cadastro...' });
+    let accountCreatedDuringAttempt = false;
+
+    try {
+      if (!userRegistered) {
+        try {
+          await apiRequest<{ message: string }>('/api/User/auth/Register', {
+            method: 'POST',
+            body: JSON.stringify(prepared.user),
+          });
+          setUserRegistered(true);
+          accountCreatedDuringAttempt = true;
+        } catch (error) {
+          const duplicateAccount =
+            error instanceof ApiRequestError &&
+            Object.keys(error.body?.errors ?? {}).some((key) => key.startsWith('Duplicate'));
+          if (!duplicateAccount) {
+            throw error;
+          }
+          setUserRegistered(true);
+        }
+      }
+
+      const auth = await apiRequest<AuthResponse>('/api/User/auth/Login', {
+        method: 'POST',
+        body: JSON.stringify({
+          email: prepared.user.email,
+          password: prepared.user.password,
+        }),
+      });
+
+      const authorization = { Authorization: `Bearer ${auth.accessToken}` };
+      const company = await apiRequest<CompanyRegistrationResponse>(
+        `/api/Host/GetByCNPJ?cnpj=${encodeURIComponent(prepared.host.cnpj)}`,
+        { headers: authorization },
+      );
+      setLegalName(company.legalName);
+
+      const created = await apiRequest<HostCreateResponse>('/api/Host/Create', {
+        method: 'POST',
+        headers: authorization,
+        body: JSON.stringify(prepared.host),
+      });
+
+      setSubmission({
+        status: 'success',
+        message: `${created.result.name} foi cadastrado com sucesso.`,
+        hostId: created.result.id,
+        addressId: created.result.addressId,
+      });
+    } catch (error) {
+      const baseMessage =
+        error instanceof TypeError
+          ? `Não foi possível acessar ${apiBaseUrl}. Verifique se a API está ativa e se o CORS permite esta origem.`
+          : error instanceof Error
+            ? error.message
+            : 'Não foi possível concluir o cadastro.';
+      const partialMessage = accountCreatedDuringAttempt
+        ? `A conta foi criada, mas o host não foi gravado. ${baseMessage}`
+        : baseMessage;
+      setSubmission({ status: 'error', message: partialMessage });
+    }
   };
 
   return (
@@ -229,20 +552,26 @@ export default function HostRegistrationScreen() {
               />
 
               <Field
+                error={errors.userName}
                 label="Nome completo *"
+                maxLength={256}
                 onChangeText={(value) => updateUser('name', value)}
                 placeholder="Nome e sobrenome"
                 value={userDraft.name}
               />
               <Field
+                error={errors.email}
                 keyboardType="email-address"
                 label="E-mail *"
+                maxLength={256}
                 onChangeText={(value) => updateUser('email', value)}
                 placeholder="voce@email.com"
                 value={userDraft.email}
               />
               <Field
+                error={errors.password}
                 label="Senha *"
+                maxLength={128}
                 onChangeText={(value) => updateUser('password', value)}
                 placeholder="Mínimo 8 caracteres"
                 secureTextEntry
@@ -267,20 +596,25 @@ export default function HostRegistrationScreen() {
               <Field
                 editable={false}
                 label="Razão social"
+                maxLength={256}
                 onChangeText={() => undefined}
                 placeholder="Preenchida após validar o CNPJ"
                 value={legalName}
               />
               <Field
+                error={errors.hostName}
                 label="Nome fantasia *"
+                maxLength={150}
                 onChangeText={(value) => updateHost('name', value)}
                 placeholder="Nome da empresa"
                 value={hostDraft.name}
               />
               <Field
+                error={errors.cnpj}
                 keyboardType="numeric"
                 label="CNPJ *"
-                onChangeText={(value) => updateHost('cnpj', value)}
+                maxLength={18}
+                onChangeText={(value) => updateHost('cnpj', maskCnpj(value))}
                 placeholder="00.000.000/0000-00"
                 value={hostDraft.cnpj}
               />
@@ -303,6 +637,7 @@ export default function HostRegistrationScreen() {
                       <Pressable
                         key={item.value}
                         onPress={() => {
+                          resetValidation();
                           setHostDraft((current) => ({ ...current, typeofhost: item.value }));
                           setHostTypeOpen(false);
                         }}
@@ -317,32 +652,41 @@ export default function HostRegistrationScreen() {
                     ))}
                   </View>
                 )}
+                {errors.hostType && <Text style={styles.fieldError}>{errors.hostType}</Text>}
               </View>
 
               <Field
+                error={errors.phone}
                 keyboardType="phone-pad"
                 label="Telefone"
-                onChangeText={(value) => updateHost('phone', value)}
+                maxLength={15}
+                onChangeText={(value) => updateHost('phone', maskPhone(value))}
                 placeholder="(81) 99999-9999"
                 value={hostDraft.phone}
               />
               <Field
+                error={errors.description}
                 label="Descrição da empresa *"
+                maxLength={2000}
                 multiline
                 onChangeText={(value) => updateHost('description', value)}
                 placeholder="Conte brevemente sobre a empresa"
                 value={hostDraft.description}
               />
               <Field
+                error={errors.logoUrl}
                 keyboardType="url"
                 label="URL da logo"
+                maxLength={2048}
                 onChangeText={(value) => updateHost('logoUrl', value)}
                 placeholder="https://..."
                 value={hostDraft.logoUrl}
               />
               <Field
+                error={errors.instagranUrl}
                 keyboardType="url"
                 label="Instagram"
+                maxLength={2048}
                 onChangeText={(value) => updateHost('instagranUrl', value)}
                 placeholder="https://instagram.com/..."
                 value={hostDraft.instagranUrl}
@@ -357,72 +701,101 @@ export default function HostRegistrationScreen() {
               />
 
               <Field
+                error={errors.cep}
                 label="CEP *"
                 keyboardType="numeric"
-                onChangeText={(value) => updateAddress('cep', value)}
+                maxLength={9}
+                onChangeText={(value) => updateAddress('cep', maskCep(value))}
                 placeholder="00000-000"
                 value={hostDraft.address.cep}
               />
               <Field
+                error={errors.city}
                 label="Cidade"
+                maxLength={150}
                 onChangeText={(value) => updateAddress('city', value)}
                 placeholder="Recife"
                 value={hostDraft.address.city}
               />
               <Field
+                error={errors.street}
                 label="Logradouro *"
+                maxLength={300}
                 onChangeText={(value) => updateAddress('street', value)}
                 placeholder="Rua ou avenida"
                 value={hostDraft.address.street}
               />
               <Field
+                error={errors.number}
                 label="Número *"
+                maxLength={20}
                 onChangeText={(value) => updateAddress('number', value)}
                 placeholder="77"
                 value={hostDraft.address.number}
               />
               <Field
+                error={errors.complement}
                 label="Complemento"
+                maxLength={200}
                 onChangeText={(value) => updateAddress('complement', value)}
                 placeholder="Sala, bloco ou ponto de referência"
                 value={hostDraft.address.complement}
               />
               <Field
+                error={errors.neighborhood}
                 label="Bairro"
+                maxLength={150}
                 onChangeText={(value) => updateAddress('neighborhood', value)}
                 placeholder="Bairro do Recife"
                 value={hostDraft.address.neighborhood}
               />
 
-              <Pressable
-                accessibilityRole="button"
-                style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}
-              >
-                <Text style={styles.secondaryButtonText}>＋ Adicionar outro CNPJ / Estabelecimento</Text>
-              </Pressable>
             </View>
 
             <Pressable
               accessibilityRole="button"
-              style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}
+              disabled={submission.status === 'submitting'}
+              onPress={submitRegistration}
+              style={({ pressed }) => [
+                styles.primaryButton,
+                pressed && styles.pressed,
+                submission.status === 'submitting' && styles.buttonDisabled,
+              ]}
             >
-              <Text style={styles.primaryButtonText}>Validar CNPJ</Text>
+              <Text style={styles.primaryButtonText}>
+                {submission.status === 'submitting' ? 'Enviando...' : 'Cadastrar host'}
+              </Text>
             </Pressable>
 
-            <View style={styles.securityNotice}>
-              <Text style={styles.securityIcon}>✓</Text>
-              <View style={styles.securityCopy}>
-                <Text style={styles.securityTitle}>Aprovação segura</Text>
-                <Text style={styles.securityDescription}>
-                  Após o cadastro, simularemos a análise da empresa e liberaremos seu painel.
+            {submission.status === 'success' ? (
+              <View accessibilityRole="alert" style={styles.securityNotice}>
+                <Text style={styles.securityIcon}>✓</Text>
+                <View style={styles.securityCopy}>
+                  <Text style={styles.securityTitle}>Host cadastrado</Text>
+                  <Text style={styles.securityDescription}>
+                    {submission.message} ID do host: {submission.hostId}. ID do endereço:{' '}
+                    {submission.addressId}.
+                  </Text>
+                </View>
+              </View>
+            ) : submission.status === 'error' ? (
+              <View accessibilityRole="alert" style={styles.errorNotice}>
+                <Text style={styles.errorNoticeTitle}>Cadastro não concluído</Text>
+                <Text style={styles.errorNoticeText}>{submission.message}</Text>
+              </View>
+            ) : (
+              <View style={styles.pendingNotice}>
+                <Text style={styles.pendingNoticeTitle}>
+                  {submission.status === 'submitting' ? 'Cadastro em andamento' : 'Cadastro seguro'}
+                </Text>
+                <Text style={styles.pendingNoticeText}>
+                  {submission.status === 'submitting'
+                    ? submission.message
+                    : 'Validaremos a conta, o CNPJ e o endereço antes de concluir o cadastro.'}
                 </Text>
               </View>
-            </View>
+            )}
 
-            <View style={styles.loginRow}>
-              <Text style={styles.loginText}>Já tem conta? </Text>
-              <Text style={styles.loginLink}>Entrar</Text>
-            </View>
           </ScrollView>
         </KeyboardAvoidingView>
       </View>
@@ -594,6 +967,14 @@ const styles = StyleSheet.create({
     color: colors.muted,
     backgroundColor: '#F3F0EA',
   },
+  inputError: {
+    borderColor: '#C62828',
+  },
+  fieldError: {
+    color: '#B42318',
+    fontSize: 11,
+    lineHeight: 15,
+  },
   textArea: {
     minHeight: 104,
     paddingTop: 14,
@@ -654,22 +1035,6 @@ const styles = StyleSheet.create({
     color: colors.ink,
     fontSize: 13,
   },
-  secondaryButton: {
-    minHeight: 48,
-    paddingHorizontal: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#FFF4EC',
-    borderColor: '#FFD7C2',
-    borderRadius: 13,
-    borderWidth: 1,
-  },
-  secondaryButtonText: {
-    color: colors.orange,
-    fontSize: 12,
-    fontWeight: '700',
-    textAlign: 'center',
-  },
   primaryButton: {
     minHeight: 52,
     alignItems: 'center',
@@ -685,6 +1050,9 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 15,
     fontWeight: '800',
+  },
+  buttonDisabled: {
+    opacity: 0.62,
   },
   securityNotice: {
     padding: 15,
@@ -713,19 +1081,39 @@ const styles = StyleSheet.create({
     fontSize: 11,
     lineHeight: 16,
   },
-  loginRow: {
-    paddingTop: 6,
-    flexDirection: 'row',
-    justifyContent: 'center',
+  pendingNotice: {
+    padding: 15,
+    backgroundColor: '#FFF4EC',
+    borderRadius: 14,
   },
-  loginText: {
-    color: colors.muted,
-    fontSize: 12,
-  },
-  loginLink: {
+  pendingNoticeTitle: {
     color: colors.orange,
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: '800',
+  },
+  pendingNoticeText: {
+    marginTop: 4,
+    color: colors.muted,
+    fontSize: 11,
+    lineHeight: 16,
+  },
+  errorNotice: {
+    padding: 15,
+    backgroundColor: '#FFF1F0',
+    borderColor: '#FECACA',
+    borderRadius: 14,
+    borderWidth: 1,
+  },
+  errorNoticeTitle: {
+    color: '#B42318',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  errorNoticeText: {
+    marginTop: 4,
+    color: '#7A271A',
+    fontSize: 11,
+    lineHeight: 16,
   },
   pressed: {
     opacity: 0.72,

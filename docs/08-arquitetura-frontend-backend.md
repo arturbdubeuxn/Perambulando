@@ -128,7 +128,7 @@ O diretório `frontend/` contém o aplicativo web responsivo baseado em React Na
 - Fredoka para a assinatura textual da marca Perambulando.
 - Dependências travadas em `package-lock.json`.
 
-Estão implementadas as interfaces de criação de evento e cadastro de host. Os formulários mantêm somente estado visual/local: não há autenticação, cliente HTTP, armazenamento de JWT, leitura de DTOs, persistência ou comunicação com a API.
+Estão implementadas as interfaces de criação de evento e cadastro de host. A criação de evento ainda mantém somente estado visual/local. O cadastro de host valida e mascara os dados, registra o usuário host, autentica-o, consulta o CNPJ e envia o `HostDTO` à API; o token obtido nesse fluxo é usado somente na requisição corrente e não é persistido como sessão.
 
 ### Conteúdo dos arquivos e diretórios
 
@@ -169,19 +169,20 @@ O simulador iOS requer macOS. No Windows, o desenvolvimento móvel pode usar And
 
 ### Funcionamento atual
 
-Hoje, frontend e backend podem ser iniciados separadamente, mas não trocam dados:
+Frontend e backend são iniciados separadamente. A rota de cadastro de host troca dados com a API quando os dois processos e o banco estão disponíveis:
 
 ```text
-frontend/ -> exibe as rotas / e /cadastro_host com dados somente locais
+frontend/ -> / permanece local
+          -> /cadastro_host chama Register, Login, GetByCNPJ e Host/Create
 
-backend/  -> expõe a API e acessa o PostGIS
+backend/  -> valida os contratos, aplica as regras e acessa o PostGIS
 ```
 
 Iniciar o frontend não inicia a API ou o banco. Iniciar o backend não inicia o Expo. O Docker Compose atual inicia somente o banco `database`.
 
-### Fluxo previsto para futuras funcionalidades
+### Fluxo de integração
 
-Quando a integração for solicitada, o fluxo esperado será:
+O fluxo utilizado pelo cadastro de host e previsto para as demais funcionalidades é:
 
 ```text
 Aplicativo React Native
@@ -197,11 +198,11 @@ PostgreSQL 17 + PostGIS
 API ASP.NET Core -> provedores externos autorizados
 ```
 
-O frontend deverá conhecer somente a URL pública da API e os contratos HTTP necessários. Ele não acessará diretamente o PostgreSQL, não executará migrations e não conterá credenciais do banco ou chaves privadas do servidor.
+O frontend conhece somente a URL pública da API e os contratos HTTP necessários. Ele não acessa diretamente o PostgreSQL, não executa migrations e não contém credenciais do banco ou chaves privadas do servidor.
 
 Respostas de sucesso e erro devem continuar seguindo os controllers e DTOs documentados. Endpoints protegidos receberão o JWT no cabeçalho `Authorization: Bearer <token>`. Erros estruturados do backend devem ser tratados a partir de `ProblemDetails` ou `ValidationProblemDetails`, conforme cada endpoint.
 
-### URLs locais futuras
+### URLs locais
 
 `localhost` possui significados diferentes conforme o aplicativo:
 
@@ -211,7 +212,7 @@ Respostas de sucesso e erro devem continuar seguindo os controllers e DTOs docum
 | Android Emulator | `http://10.0.2.2:5014` |
 | Aparelho físico na mesma rede | `http://IP_DO_COMPUTADOR:5014`, desde que a API e o firewall permitam |
 
-Nenhuma dessas URLs foi configurada no frontend ainda. Quando houver integração, a URL deverá ser definida por ambiente, sem inserir segredos em variáveis públicas do Expo.
+O cadastro de host lê `EXPO_PUBLIC_API_URL` e usa `http://localhost:5014` como fallback no navegador local. A variável deve ser definida por ambiente; por ser pública no bundle do Expo, não pode conter segredos.
 
 ## Ordem recomendada para desenvolvimento
 
@@ -236,6 +237,12 @@ Validações realizadas: estrutura real dos diretórios conferida; solução e p
 
 Validações adicionais em 26/10/2026: `tsc --noEmit` e `expo lint` aprovados; bundle web do Expo Router compilado; `/` e `/cadastro_host` responderam HTTP 200 no servidor local. Em 27/10/2026, a rota `/cadastro_host` foi conferida integralmente em captura responsiva: cabeçalho, marca em Fredoka, pin, paleta, cartões, campos, seleção, botões e aviso final foram renderizados corretamente.
 
-Pendências intencionais: integrar os formulários à API, definir a URL por ambiente, implementar autenticação, armazenamento seguro do JWT, máscaras e validações completas, envio de dados e testes funcionais. Os botões de cadastro de host não fazem requisições nesta etapa.
+Pendências intencionais: integrar a criação de evento à API, implementar uma tela e uma sessão persistente de autenticação, configurar a URL definitiva por ambiente e realizar testes funcionais completos do cadastro de host com API e banco. O cadastro de host já executa as requisições necessárias, mas o JWT ainda não é armazenado para reutilização em outras telas.
 
-Backend, banco, containers, contratos HTTP e PDFs foram preservados.
+## CORS do frontend web local — 27/10/2026
+
+O backend aplica globalmente aos controllers a política nomeada `FrontendCors`. Ela permite requisições originadas pelo Expo Web em `http://localhost:8081` e `http://localhost:8082`, com os métodos e cabeçalhos necessários, incluindo `Content-Type` e `Authorization`. A política é executada antes da autenticação e da autorização.
+
+A permissão está restrita a essas duas origens; não foi usado `AllowAnyOrigin`. CORS apenas libera a comunicação no navegador e não substitui JWT, autorização ou validações da API. Quando o frontend for publicado, sua origem real deverá ser incluída explicitamente na política.
+
+Implementação: somente `Presentation/Program.cs` foi alterado. Rotas, verbos, DTOs, regras de negócio, models, migrations, banco, containers e PDFs foram preservados. Validação: compilação do backend; o teste funcional pelo navegador depende de API, banco e frontend iniciados simultaneamente.

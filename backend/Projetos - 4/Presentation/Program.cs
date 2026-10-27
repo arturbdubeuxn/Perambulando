@@ -28,6 +28,8 @@ using Projetos___4.Domain.Validations.Validations;
 
 
 var builder = WebApplication.CreateBuilder(args);
+const string FrontendCorsPolicy = "FrontendCors";
+
 if (builder.Environment.IsDevelopment())
 {
     builder.Configuration.AddJsonFile("appsettings.json", optional: true, reloadOnChange: false);
@@ -37,6 +39,18 @@ if (builder.Environment.IsDevelopment())
 
 
 builder.Services.AddControllers();
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy(FrontendCorsPolicy, policy =>
+    {
+        policy
+            .WithOrigins(
+                "http://localhost:8081",
+                "http://localhost:8082")
+            .AllowAnyHeader()
+            .AllowAnyMethod();
+    });
+});
 
 builder.Services.AddDbContext<Context>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"),
@@ -178,6 +192,7 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
 }
 app.UseHttpsRedirection(); 
+app.UseCors(FrontendCorsPolicy);
 app.UseAuthentication(); 
 app.UseAuthorization();  
 app.MapControllers();
