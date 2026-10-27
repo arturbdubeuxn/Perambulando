@@ -1,6 +1,6 @@
 # Arquitetura e separação entre frontend e backend
 
-Atualização: 26/10/2026.
+Atualização: 27/10/2026.
 
 ## Objetivo da separação
 
@@ -27,8 +27,12 @@ Perambulando/
 |       `-- Projetos - 4.http
 |-- frontend/
 |   |-- assets/
+|   |-- src/
+|   |   `-- app/
+|   |       |-- _layout.tsx
+|   |       |-- index.tsx
+|   |       `-- cadastro_host.tsx
 |   |-- App.tsx
-|   |-- index.ts
 |   |-- app.json
 |   |-- package.json
 |   |-- package-lock.json
@@ -114,24 +118,28 @@ O arquivo `Projetos - 4.http` pode ser executado pelo Visual Studio ou por uma e
 
 ### Estado atual e tecnologia
 
-O diretório `frontend/` contém somente o projeto base do framework:
+O diretório `frontend/` contém o aplicativo web responsivo baseado em React Native:
 
 - Expo SDK 58.
 - React Native 0.88.
 - React 19.3.
 - TypeScript 6.
+- Expo Router 58 para rotas web e navegação universal.
+- Fredoka para a assinatura textual da marca Perambulando.
 - Dependências travadas em `package-lock.json`.
 
-Não estão implementados telas do produto, navegação, autenticação, cliente HTTP, armazenamento de JWT, leitura de DTOs ou comunicação com a API. Essas funcionalidades somente serão criadas mediante solicitação.
+Estão implementadas as interfaces de criação de evento e cadastro de host. Os formulários mantêm somente estado visual/local: não há autenticação, cliente HTTP, armazenamento de JWT, leitura de DTOs, persistência ou comunicação com a API.
 
 ### Conteúdo dos arquivos e diretórios
 
 | Local | Responsabilidade |
 |---|---|
-| `App.tsx` | Componente raiz padrão do template; ainda não contém tela do Perambulando |
-| `index.ts` | Ponto de entrada que registra o componente raiz no Expo |
-| `app.json` | Metadados e configurações do aplicativo para Android, iOS e assets |
-| `assets/` | Ícones, favicon e imagens padrão de inicialização |
+| `App.tsx` | Interface responsiva de criação de evento, reutilizada pela rota `/` |
+| `src/app/_layout.tsx` | Layout raiz do Expo Router, sem cabeçalho nativo |
+| `src/app/index.tsx` | Rota `/`, que apresenta a tela de criação de evento |
+| `src/app/cadastro_host.tsx` | Rota `/cadastro_host`, com o formulário visual e scrollável de cadastro de host |
+| `app.json` | Metadados, esquema `perambulando`, plugin do Expo Router e assets do aplicativo |
+| `assets/` | Marca Perambulando, ícone, favicon e imagens de inicialização |
 | `package.json` | Dependências e scripts npm |
 | `package-lock.json` | Versões resolvidas das dependências para instalações reproduzíveis |
 | `tsconfig.json` | Configuração do compilador TypeScript |
@@ -164,7 +172,7 @@ O simulador iOS requer macOS. No Windows, o desenvolvimento móvel pode usar And
 Hoje, frontend e backend podem ser iniciados separadamente, mas não trocam dados:
 
 ```text
-frontend/ -> exibe apenas o template inicial do Expo
+frontend/ -> exibe as rotas / e /cadastro_host com dados somente locais
 
 backend/  -> expõe a API e acessa o PostGIS
 ```
@@ -226,6 +234,8 @@ Nenhuma dessas URLs foi configurada no frontend ainda. Quando houver integraçã
 
 Validações realizadas: estrutura real dos diretórios conferida; solução e projeto .NET localizados; scripts e versões do `package.json` conferidos; configuração Expo conferida; comandos e portas comparados com a configuração atual do repositório.
 
-Pendências intencionais: definir a arquitetura interna das futuras funcionalidades do frontend, configurar a URL da API, implementar navegação, autenticação, armazenamento seguro do JWT, cliente HTTP, telas e testes funcionais. Nenhuma dessas pendências foi implementada nesta etapa.
+Validações adicionais em 26/10/2026: `tsc --noEmit` e `expo lint` aprovados; bundle web do Expo Router compilado; `/` e `/cadastro_host` responderam HTTP 200 no servidor local. Em 27/10/2026, a rota `/cadastro_host` foi conferida integralmente em captura responsiva: cabeçalho, marca em Fredoka, pin, paleta, cartões, campos, seleção, botões e aviso final foram renderizados corretamente.
 
-Esta alteração adiciona somente documentação. Código, banco, containers, contratos e PDFs foram preservados.
+Pendências intencionais: integrar os formulários à API, definir a URL por ambiente, implementar autenticação, armazenamento seguro do JWT, máscaras e validações completas, envio de dados e testes funcionais. Os botões de cadastro de host não fazem requisições nesta etapa.
+
+Backend, banco, containers, contratos HTTP e PDFs foram preservados.
