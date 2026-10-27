@@ -1,6 +1,6 @@
 # Arquitetura e separação entre frontend e backend
 
-Atualização: 26/10/2026.
+Atualização: 27/10/2026.
 
 ## Objetivo da separação
 
@@ -234,7 +234,7 @@ Nenhuma dessas URLs foi configurada no frontend ainda. Quando houver integraçã
 
 Validações realizadas: estrutura real dos diretórios conferida; solução e projeto .NET localizados; scripts e versões do `package.json` conferidos; configuração Expo conferida; comandos e portas comparados com a configuração atual do repositório.
 
-Validações adicionais em 26/10/2026: `tsc --noEmit` e `expo lint` aprovados; bundle web do Expo Router compilado; `/` e `/cadastro_host` responderam HTTP 200 no servidor local. A captura automatizada do navegador não gerou arquivo nesta execução, portanto a verificação visual final dessa rota permanece pendente no navegador do usuário.
+Validações adicionais em 26/10/2026: `tsc --noEmit` e `expo lint` aprovados; bundle web do Expo Router compilado; `/` e `/cadastro_host` responderam HTTP 200 no servidor local. Em 27/10/2026, a rota `/cadastro_host` foi conferida integralmente em captura responsiva: cabeçalho, marca em Fredoka, pin, paleta, cartões, campos, seleção, botões e aviso final foram renderizados corretamente.
 
 Pendências intencionais: integrar os formulários à API, definir a URL por ambiente, implementar autenticação, armazenamento seguro do JWT, máscaras e validações completas, envio de dados e testes funcionais. Os botões de cadastro de host não fazem requisições nesta etapa.
 
