@@ -196,11 +196,6 @@ namespace Projetos___4.Domain.Service
                 throw new ArgumentException("Informe tipos de host válidos: 0, 1 ou 2.");
             }
 
-            if (!string.IsNullOrWhiteSpace(filter.City))
-            {
-                throw new ArgumentException("O filtro por cidade ainda não está disponível, pois a cidade não é armazenada no endereço.");
-            }
-
             return await _hostRepository.FilterAsync(filter);
         }
 

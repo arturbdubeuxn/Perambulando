@@ -322,3 +322,13 @@ Consulta paginada de Programmings usa AsNoTracking, Include(Address), filtro de 
 Adicionada a migration 20261026200000_AddAddressCity e seu snapshot/target model, com City obrigatório no armazenamento, character varying(150), default vazio para preservar registros anteriores. O campo é opcional na entrada HTTP. O cadastro de endereço normaliza City e a deduplicação passa a comparar também a cidade.
 
 A migration não foi aplicada ao banco. A implantação exige aplicá-la antes de executar as consultas que leem Address.City. Não houve backfill nem inferência de cidade; endereços antigos continuam com string vazia até preenchimento. Não houve conexão ao PostgreSQL real. A geração do SQL da migration e a correspondência do snapshot com o modelo foram aprovadas nos testes isolados.
+
+## Cidade habilitada no filtro e no protótipo — 27/10/2026
+
+Esta atualização substitui a indisponibilidade de City registrada anteriormente. Coluna Addresses.City e migrations AddAddressCity/AddCity confirmadas em leitura no banco principal; a migration AddCity do usuário tem Up/Down vazios porque a coluna já estava contemplada anteriormente. Nenhuma migration criada, alterada ou aplicada nesta tarefa.
+
+HostRepository.FilterAsync passa a comparar a cidade completa do endereço, ignorando caixa e espaços nas extremidades do filtro. City nula/vazia não restringe; bairro permanece fora dos filtros de host. Removida a rejeição de cidade do HostService. A cidade continua opcional no AddressCreateDTO (máximo 150 caracteres); models, mappings e persistência já estavam preparados.
+
+Protótipo inclui Cidade nos quatro formulários de cadastro/edição de host/programação e envia address.city quando o endereço é novo. ViaCEP preenche cidade junto de rua/bairro, sem sobrescrever alteração manual durante a consulta. Seleção de endereço existente, carregar edição, consulta de CNPJ e Usar endereço do host preservam/exibem cidade; seleção existente continua enviando somente addressId. Exemplos HTTP atualizados. Endereços antigos com cidade vazia não aparecem ao aplicar um filtro por cidade; não houve backfill automático.
+
+Validação: build aprovado; 59 testes do protótipo com API simulada aprovados; 68 verificações com login/HTTP/EF/PostgreSQL reais em banco descartável aprovadas, incluindo Recife/Olinda, cidade em branco, nome completo, caixa/espaços e combinação com nome/tipo/paginação. Banco temporário removido e banco principal preservado. Ambiente reiniciado, interface/catálogo e consulta pública da API respondendo 200. Sem PDFs novos.

@@ -137,6 +137,7 @@ Authorization: Bearer {{login.response.body.$.accessToken}}
   "logoUrl": "https://example.com/logo.png",
   "instagranUrl": "https://www.instagram.com/host_teste",
   "address": {
+    "city": "Recife",
     "street": "Avenida Cais do Apolo",
     "number": "77",
     "complement": "Entrada principal",
@@ -366,6 +367,7 @@ Authorization: Bearer {{createHost.response.body.$.auth.accessToken}}
   "endDate": "2027-12-10T22:00:00Z",
   "isFree": true,
   "address": {
+    "city": "Recife",
     "street": "Avenida Cais do Apolo",
     "number": "77",
     "complement": "Entrada principal",
@@ -491,10 +493,16 @@ Accept: application/json
 Authorization: Bearer {{login.response.body.$.accessToken}}
 
 
-### PROGRAMMING - Filtro público (aplicar AddAddressCity antes de executar)
+### PROGRAMMING - Filtro público por cidade e preço
 GET {{Projetos___4_HostAddress}}/api/Programming/Filter?take=10&skip=0&city=Recife&isFree=false&minPrice=10&maxPrice=50
 Accept: application/json
 
 ### PROGRAMMING - Pelo menos uma categoria selecionada
 GET {{Projetos___4_HostAddress}}/api/Programming/Filter?categoriesId=1&categoriesId=2&text=festival&take=10&skip=0
 Accept: application/json
+
+### HOST - Filtrar por cidade (nome completo; ignora maiúsculas/minúsculas)
+# @name filterHostsByCity
+GET {{Projetos___4_HostAddress}}/api/Host/HostFilter?city=Recife&take=10&skip=0
+Accept: application/json
+Authorization: Bearer {{login.response.body.$.accessToken}}
