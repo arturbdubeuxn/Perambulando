@@ -31,15 +31,23 @@ const colors = {
 type FieldProps = {
   label: string;
   placeholder: string;
-  keyboardType?: 'default' | 'email-address' | 'phone-pad' | 'numeric';
+  value: string;
+  onChangeText: (value: string) => void;
+  keyboardType?: 'default' | 'email-address' | 'phone-pad' | 'numeric' | 'url';
   secureTextEntry?: boolean;
+  multiline?: boolean;
+  editable?: boolean;
 };
 
 function Field({
   label,
   placeholder,
+  value,
+  onChangeText,
   keyboardType = 'default',
   secureTextEntry = false,
+  multiline = false,
+  editable = true,
 }: FieldProps) {
   return (
     <View style={styles.fieldGroup}>
@@ -47,15 +55,55 @@ function Field({
       <TextInput
         accessibilityLabel={label}
         autoCapitalize={keyboardType === 'email-address' ? 'none' : 'sentences'}
+        editable={editable}
         keyboardType={keyboardType}
+        multiline={multiline}
+        onChangeText={onChangeText}
         placeholder={placeholder}
         placeholderTextColor="#9297A3"
         secureTextEntry={secureTextEntry}
-        style={styles.input}
+        style={[styles.input, multiline && styles.textArea, !editable && styles.inputDisabled]}
+        textAlignVertical={multiline ? 'top' : 'center'}
+        value={value}
       />
     </View>
   );
 }
+
+type UserRegistrationDraft = {
+  name: string;
+  email: string;
+  password: string;
+  typeofUser: 0;
+};
+
+type AddressDraft = {
+  city: string;
+  street: string;
+  number: string;
+  complement: string;
+  neighborhood: string;
+  cep: string;
+};
+
+type HostType = 0 | 1 | 2;
+
+type HostRegistrationDraft = {
+  typeofhost: HostType | null;
+  cnpj: string;
+  logoUrl: string;
+  instagranUrl: string;
+  phone: string;
+  name: string;
+  description: string;
+  address: AddressDraft;
+};
+
+const hostTypes: { label: string; value: HostType }[] = [
+  { label: 'Produtor de eventos', value: 0 },
+  { label: 'Gastronomia', value: 1 },
+  { label: 'Empresa', value: 2 },
+];
 
 type SectionTitleProps = {
   number: string;
@@ -80,10 +128,51 @@ function SectionTitle({ number, title, description }: SectionTitleProps) {
 export default function HostRegistrationScreen() {
   const { width: viewportWidth } = useWindowDimensions();
   const [fontsLoaded] = useFonts({ Fredoka_700Bold });
-  const [categoryOpen, setCategoryOpen] = useState(false);
-  const [category, setCategory] = useState('Selecione');
+  const [hostTypeOpen, setHostTypeOpen] = useState(false);
+  const [legalName] = useState('');
+  const [userDraft, setUserDraft] = useState<UserRegistrationDraft>({
+    name: '',
+    email: '',
+    password: '',
+    typeofUser: 0,
+  });
+  const [hostDraft, setHostDraft] = useState<HostRegistrationDraft>({
+    typeofhost: null,
+    cnpj: '',
+    logoUrl: '',
+    instagranUrl: '',
+    phone: '',
+    name: '',
+    description: '',
+    address: {
+      city: '',
+      street: '',
+      number: '',
+      complement: '',
+      neighborhood: '',
+      cep: '',
+    },
+  });
 
-  const categories = ['Bar e restaurante', 'Casa de shows', 'Espaço cultural', 'Outro'];
+  const selectedHostType = hostTypes.find((item) => item.value === hostDraft.typeofhost);
+
+  const updateUser = (field: keyof Omit<UserRegistrationDraft, 'typeofUser'>, value: string) => {
+    setUserDraft((current) => ({ ...current, [field]: value }));
+  };
+
+  const updateHost = (
+    field: Exclude<keyof HostRegistrationDraft, 'typeofhost' | 'address'>,
+    value: string,
+  ) => {
+    setHostDraft((current) => ({ ...current, [field]: value }));
+  };
+
+  const updateAddress = (field: keyof AddressDraft, value: string) => {
+    setHostDraft((current) => ({
+      ...current,
+      address: { ...current.address, [field]: value },
+    }));
+  };
 
   return (
     <View style={styles.viewport}>
@@ -139,11 +228,33 @@ export default function HostRegistrationScreen() {
                 title="Dados pessoais"
               />
 
-              <Field label="Nome completo" placeholder="Nome e sobrenome" />
-              <Field label="E-mail" keyboardType="email-address" placeholder="voce@email.com" />
-              <Field label="Senha" placeholder="Mínimo 8 caracteres" secureTextEntry />
-              <Field label="CPF" keyboardType="numeric" placeholder="000.000.000-00" />
-              <Field label="Telefone" keyboardType="phone-pad" placeholder="(81) 99999-9999" />
+              <Field
+                label="Nome completo *"
+                onChangeText={(value) => updateUser('name', value)}
+                placeholder="Nome e sobrenome"
+                value={userDraft.name}
+              />
+              <Field
+                keyboardType="email-address"
+                label="E-mail *"
+                onChangeText={(value) => updateUser('email', value)}
+                placeholder="voce@email.com"
+                value={userDraft.email}
+              />
+              <Field
+                label="Senha *"
+                onChangeText={(value) => updateUser('password', value)}
+                placeholder="Mínimo 8 caracteres"
+                secureTextEntry
+                value={userDraft.password}
+              />
+
+              <View style={styles.hostAccountNotice}>
+                <Text style={styles.hostAccountNoticeTitle}>Conta destinada a host</Text>
+                <Text style={styles.hostAccountNoticeText}>
+                  O perfil será vinculado automaticamente à função HOST ao concluir o cadastro da empresa.
+                </Text>
+              </View>
             </View>
 
             <View style={styles.card}>
@@ -153,45 +264,135 @@ export default function HostRegistrationScreen() {
                 title="Dados empresariais"
               />
 
-              <Field label="Razão social" placeholder="Razão social" />
-              <Field label="Nome fantasia" placeholder="Nome da empresa" />
-              <Field label="CNPJ" keyboardType="numeric" placeholder="00.000.000/0000-00" />
+              <Field
+                editable={false}
+                label="Razão social"
+                onChangeText={() => undefined}
+                placeholder="Preenchida após validar o CNPJ"
+                value={legalName}
+              />
+              <Field
+                label="Nome fantasia *"
+                onChangeText={(value) => updateHost('name', value)}
+                placeholder="Nome da empresa"
+                value={hostDraft.name}
+              />
+              <Field
+                keyboardType="numeric"
+                label="CNPJ *"
+                onChangeText={(value) => updateHost('cnpj', value)}
+                placeholder="00.000.000/0000-00"
+                value={hostDraft.cnpj}
+              />
 
               <View style={styles.fieldGroup}>
-                <Text style={styles.fieldLabel}>Categoria do negócio</Text>
+                <Text style={styles.fieldLabel}>Tipo de host *</Text>
                 <Pressable
-                  accessibilityLabel="Selecionar categoria do negócio"
+                  accessibilityLabel="Selecionar tipo de host"
                   accessibilityRole="button"
-                  onPress={() => setCategoryOpen((current) => !current)}
+                  onPress={() => setHostTypeOpen((current) => !current)}
                   style={({ pressed }) => [styles.select, pressed && styles.pressed]}
                 >
-                  <Text style={styles.selectText}>{category}</Text>
-                  <Text style={styles.chevron}>{categoryOpen ? '⌃' : '⌄'}</Text>
+                  <Text style={styles.selectText}>{selectedHostType?.label ?? 'Selecione'}</Text>
+                  <Text style={styles.chevron}>{hostTypeOpen ? '⌃' : '⌄'}</Text>
                 </Pressable>
 
-                {categoryOpen && (
+                {hostTypeOpen && (
                   <View style={styles.selectMenu}>
-                    {categories.map((item) => (
+                    {hostTypes.map((item) => (
                       <Pressable
-                        key={item}
+                        key={item.value}
                         onPress={() => {
-                          setCategory(item);
-                          setCategoryOpen(false);
+                          setHostDraft((current) => ({ ...current, typeofhost: item.value }));
+                          setHostTypeOpen(false);
                         }}
                         style={({ pressed }) => [
                           styles.selectOption,
-                          item === category && styles.selectOptionActive,
+                          item.value === hostDraft.typeofhost && styles.selectOptionActive,
                           pressed && styles.pressed,
                         ]}
                       >
-                        <Text style={styles.selectOptionText}>{item}</Text>
+                        <Text style={styles.selectOptionText}>{item.label}</Text>
                       </Pressable>
                     ))}
                   </View>
                 )}
               </View>
 
-              <Field label="Endereço do estabelecimento" placeholder="Rua, número, bairro e cidade" />
+              <Field
+                keyboardType="phone-pad"
+                label="Telefone"
+                onChangeText={(value) => updateHost('phone', value)}
+                placeholder="(81) 99999-9999"
+                value={hostDraft.phone}
+              />
+              <Field
+                label="Descrição da empresa *"
+                multiline
+                onChangeText={(value) => updateHost('description', value)}
+                placeholder="Conte brevemente sobre a empresa"
+                value={hostDraft.description}
+              />
+              <Field
+                keyboardType="url"
+                label="URL da logo"
+                onChangeText={(value) => updateHost('logoUrl', value)}
+                placeholder="https://..."
+                value={hostDraft.logoUrl}
+              />
+              <Field
+                keyboardType="url"
+                label="Instagram"
+                onChangeText={(value) => updateHost('instagranUrl', value)}
+                placeholder="https://instagram.com/..."
+                value={hostDraft.instagranUrl}
+              />
+            </View>
+
+            <View style={styles.card}>
+              <SectionTitle
+                description="Informe o endereço usado no cadastro do estabelecimento"
+                number="03"
+                title="Endereço"
+              />
+
+              <Field
+                label="CEP *"
+                keyboardType="numeric"
+                onChangeText={(value) => updateAddress('cep', value)}
+                placeholder="00000-000"
+                value={hostDraft.address.cep}
+              />
+              <Field
+                label="Cidade"
+                onChangeText={(value) => updateAddress('city', value)}
+                placeholder="Recife"
+                value={hostDraft.address.city}
+              />
+              <Field
+                label="Logradouro *"
+                onChangeText={(value) => updateAddress('street', value)}
+                placeholder="Rua ou avenida"
+                value={hostDraft.address.street}
+              />
+              <Field
+                label="Número *"
+                onChangeText={(value) => updateAddress('number', value)}
+                placeholder="77"
+                value={hostDraft.address.number}
+              />
+              <Field
+                label="Complemento"
+                onChangeText={(value) => updateAddress('complement', value)}
+                placeholder="Sala, bloco ou ponto de referência"
+                value={hostDraft.address.complement}
+              />
+              <Field
+                label="Bairro"
+                onChangeText={(value) => updateAddress('neighborhood', value)}
+                placeholder="Bairro do Recife"
+                value={hostDraft.address.neighborhood}
+              />
 
               <Pressable
                 accessibilityRole="button"
@@ -388,6 +589,30 @@ const styles = StyleSheet.create({
     borderColor: colors.line,
     borderRadius: 13,
     borderWidth: 1,
+  },
+  inputDisabled: {
+    color: colors.muted,
+    backgroundColor: '#F3F0EA',
+  },
+  textArea: {
+    minHeight: 104,
+    paddingTop: 14,
+  },
+  hostAccountNotice: {
+    padding: 13,
+    backgroundColor: '#FFF4EC',
+    borderRadius: 13,
+  },
+  hostAccountNoticeTitle: {
+    color: colors.orange,
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  hostAccountNoticeText: {
+    marginTop: 4,
+    color: colors.muted,
+    fontSize: 11,
+    lineHeight: 16,
   },
   select: {
     minHeight: 52,
