@@ -7,5 +7,5 @@ public interface IUserMapping
 {
     User ToModel(UserDTO dto);
     User ToEditModel(UserDTO dto);
-    UserProfileDTO ToDTO(User user);
+    UserProfileDTO ToDTO(User user, bool isPro);
 }

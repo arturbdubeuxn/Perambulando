@@ -15,6 +15,7 @@ public class SubscriptionController : ControllerBase
     { _subscriptionAppService = subscriptionAppService; _userManager = userManager; }
 
     [HttpPost("Activate")]
+    [Authorize(Roles = "ADMIN,HOST")]
     public async Task<IActionResult> Activate()
     {
         try
@@ -33,6 +34,7 @@ public class SubscriptionController : ControllerBase
         { return Problem(statusCode: 403, title: "Ativação indisponível", detail: ex.Message); }
     }
     [HttpGet("MySubscription")]
+    [Authorize(Roles = "ADMIN,HOST")]
     public async Task<IActionResult> MySubscription()
     {
         try
@@ -49,6 +51,7 @@ public class SubscriptionController : ControllerBase
         { return Problem(statusCode: 401, title: "Usuário não autenticado", detail: ex.Message); }
     }
     [HttpPatch("Cancel")]
+    [Authorize(Roles = "ADMIN,HOST")]
     public async Task<IActionResult> Cancel()
     {
         try

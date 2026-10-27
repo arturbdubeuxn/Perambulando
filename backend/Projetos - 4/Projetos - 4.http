@@ -508,6 +508,20 @@ Accept: application/json
 Authorization: Bearer {{login.response.body.$.accessToken}}
 
 
+### PROGRAMMING - Carrossel Pro público (sem JWT)
+# Assinatura vigente; programação, host e proprietário ativos; evento ainda não encerrado.
+# @name proProgrammingCarousel
+GET {{Projetos___4_HostAddress}}/api/Programming/GetAllProgrammingsWithProHost?take=10&skip=0
+Accept: application/json
+
+### PROGRAMMING - Carrossel Pro: próxima página
+GET {{Projetos___4_HostAddress}}/api/Programming/GetAllProgrammingsWithProHost?take=10&skip=10
+Accept: application/json
+
+### PROGRAMMING - Carrossel Pro: paginação inválida (400)
+GET {{Projetos___4_HostAddress}}/api/Programming/GetAllProgrammingsWithProHost?take=101&skip=0
+Accept: application/json
+
 # US17: executar somente após revisão e aplicação da migration.
 # Configure Pro__SimulationEnabled=true para ativação simulada sem cobrança.
 # Execute login antes; repetir Activate não estende o período.
@@ -519,14 +533,22 @@ Authorization: Bearer {{login.response.body.$.accessToken}}
 POST {{Projetos___4_HostAddress}}/api/Subscription/Activate
 Authorization: Bearer {{login.response.body.$.accessToken}}
 
+### Perfil após ativação: isPro calculado pela assinatura, usando o mesmo JWT
+GET {{Projetos___4_HostAddress}}/api/User/Profile
+Authorization: Bearer {{login.response.body.$.accessToken}}
+
 ### Repetir ativação: mesmas datas
 POST {{Projetos___4_HostAddress}}/api/Subscription/Activate
 Authorization: Bearer {{login.response.body.$.accessToken}}
 
-### Cancelar Pro (200, benefícios false); repetição mantém o resultado
+### Cancelar Pro (200, status 2 Cancelled); repetição mantém o resultado
 PATCH {{Projetos___4_HostAddress}}/api/Subscription/Cancel
 Authorization: Bearer {{login.response.body.$.accessToken}}
 
 ### Conferir cancelamento com o mesmo JWT
 GET {{Projetos___4_HostAddress}}/api/Subscription/MySubscription
+Authorization: Bearer {{login.response.body.$.accessToken}}
+
+### Perfil após cancelamento: isPro false, sem fazer login novamente
+GET {{Projetos___4_HostAddress}}/api/User/Profile
 Authorization: Bearer {{login.response.body.$.accessToken}}

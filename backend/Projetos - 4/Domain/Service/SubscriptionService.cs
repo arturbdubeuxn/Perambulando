@@ -11,6 +11,35 @@ public class SubscriptionService : ISubscriptionService
 
     { _subscriptionRepository = subscriptionRepository; _userService = userService;}
 
+    public SubscriptionStatus GetStatus(Subscription? subscription)
+    {
+        if (subscription == null)
+        {
+            return SubscriptionStatus.Inactive;
+        }
+
+        var now = DateTime.UtcNow;
+        if (subscription.Status == SubscriptionStatus.Active)
+        {
+            if (now >= subscription.ExpiresAt)
+            {
+                return SubscriptionStatus.Expired;
+            }
+            if (now < subscription.StartsAt)
+            {
+                return SubscriptionStatus.Inactive;
+            }
+        }
+
+        return subscription.Status;
+    }
+
+    public async Task<bool> IsProAsync(string userId)
+    {
+        var subscription = await GetAsync(userId);
+        return GetStatus(subscription) == SubscriptionStatus.Active;
+    }
+
     public async Task<Subscription?> GetAsync(string userId)
     {
         var user = await _userService.GetProfileAsync(userId);
@@ -18,11 +47,15 @@ public class SubscriptionService : ISubscriptionService
         {
             throw new UnauthorizedAccessException("Usuário não encontrado.");
         }
-        if (!user.IsActive)
+        var subscription = await _subscriptionRepository.GetByUserIdAsync(userId);
+        var status = GetStatus(subscription);
+        if (subscription != null && subscription.Status == SubscriptionStatus.Active && status == SubscriptionStatus.Expired)
         {
-            throw new UnauthorizedAccessException("Usuário indisponível.");
+            subscription.Status = SubscriptionStatus.Expired;
+            return await _subscriptionRepository.UpdateAsync(subscription);
         }
-        return await _subscriptionRepository.GetByUserIdAsync(userId);
+
+        return subscription;
     }
 
     public async Task<Subscription?> ActivateAsync(Subscription subscription)
@@ -33,14 +66,10 @@ public class SubscriptionService : ISubscriptionService
         {
             throw new UnauthorizedAccessException("Usuário não encontrado.");
         }
-        if (!user.IsActive)
-        {
-            throw new UnauthorizedAccessException("Usuário indisponível.");
-        }
 
         var current = await _subscriptionRepository.GetByUserIdAsync(subscription.UserId);
         var now = DateTime.UtcNow;
-        if (current != null && current.IsEffective(now))
+        if (current != null && current.Status == SubscriptionStatus.Active)
         {
             return current;
         }
@@ -57,7 +86,6 @@ public class SubscriptionService : ISubscriptionService
         subscription.CreatedAt = current?.CreatedAt ?? now;
         subscription.UpdatedAt = now;
 
-        user.isPro = true;
         if (current != null)
         {
             return await _subscriptionRepository.UpdateAsync(subscription);
@@ -73,10 +101,6 @@ public class SubscriptionService : ISubscriptionService
         {
             throw new UnauthorizedAccessException("Usuário não encontrado.");
         }
-        if (!user.IsActive)
-        {
-            throw new UnauthorizedAccessException("Usuário indisponível.");
-        }
 
         var subscription = await _subscriptionRepository.GetByUserIdAsync(userId);
         if (subscription == null || subscription.Status == SubscriptionStatus.Cancelled)
@@ -87,7 +111,6 @@ public class SubscriptionService : ISubscriptionService
         subscription.Status = SubscriptionStatus.Cancelled;
         subscription.CancelledAt = DateTime.UtcNow;
         subscription.UpdatedAt = subscription.CancelledAt.Value;
-        user.isPro = false;
 
         return await _subscriptionRepository.UpdateAsync(subscription);
     }

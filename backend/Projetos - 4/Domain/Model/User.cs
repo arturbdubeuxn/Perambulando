@@ -10,8 +10,6 @@ namespace Projetos___4.Domain.Model
 
         public bool IsActive { get; set; } = true;
 
-        public bool isPro { get; set; } = false;
-
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
 

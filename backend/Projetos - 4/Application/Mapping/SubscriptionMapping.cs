@@ -13,19 +13,14 @@ public class SubscriptionMapping : ISubscriptionMapping
         };
     }
 
-    public SubscriptionResponseDTO ToDTO(Subscription? subscription)
+    public SubscriptionResponseDTO ToDTO(Subscription? subscription, SubscriptionStatus status)
     {
-        var now = DateTime.UtcNow;
-        var effective = subscription?.IsEffective(now) == true;
         return new SubscriptionResponseDTO
         {
             Id = subscription?.Id,
-            Status = subscription == null ? SubscriptionStatus.Inactive :
-                subscription.Status == SubscriptionStatus.Active && now >= subscription.ExpiresAt ? SubscriptionStatus.Expired : subscription.Status,
+            Status = status,
             StartsAt = subscription?.StartsAt,
-            ExpiresAt = subscription?.ExpiresAt,
-            CanFeatureProgrammings = effective,
-            CanViewStatistics = effective
+            ExpiresAt = subscription?.ExpiresAt
         };
     }
 }

@@ -4,5 +4,5 @@ namespace Projetos___4.Application.Mapping.Interfaces;
 public interface ISubscriptionMapping
 {
     Subscription ToModel(string userId);
-    SubscriptionResponseDTO ToDTO(Subscription? subscription);
+    SubscriptionResponseDTO ToDTO(Subscription? subscription, SubscriptionStatus status);
 }

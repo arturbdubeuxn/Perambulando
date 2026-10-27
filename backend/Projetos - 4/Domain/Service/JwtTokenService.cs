@@ -17,7 +17,6 @@ public class JwtTokenService(IConfiguration configuration, UserManager<User> use
             new(JwtRegisteredClaimNames.Sub, user.Id),
             new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
             new("name", user.UserName ?? string.Empty),
-            new("isPro", user.isPro ? "true" : "false", ClaimValueTypes.Boolean),
             new("typeofuser", ((int)user.Typeofuser).ToString(System.Globalization.CultureInfo.InvariantCulture), ClaimValueTypes.Integer32)
         };
         foreach (var role in await userManager.GetRolesAsync(user))

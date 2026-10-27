@@ -1,6 +1,6 @@
 # US17 - Plano Pro, divulgação e estatísticas
 
-Perambulando | Plano de implementação | 27/10/2026 | Versão 1.0
+Perambulando | Plano de implementação | 27/10/2026 | Versão 1.2 (fonte Markdown; PDF anterior preservado)
 
 **Natureza do documento:** proposta técnica para implementação futura. Os nomes, entidades, contratos e regras abaixo não representam funcionalidades já entregues. Esta tarefa gera documentação; não implementa a US17 nem executa migrations.
 
@@ -29,7 +29,7 @@ Cartão, PIX, checkout, webhook financeiro, fatura, reembolso, assinatura recorr
 
 ## 2. Ponto de partida do sistema
 
-O código atual já possui User.isPro, uma claim isPro no JWT e o campo IsPro no perfil. Há relação de usuário para vários hosts e de host para várias programações. Favorite guarda o vínculo usuário/programação, IsActive e datas de criação/atualização.
+Na primeira revisão existiam User.isPro e uma claim isPro no JWT. Por decisão posterior do usuário, ambos foram removidos do código; IsPro permanece no DTO de perfil, calculado pela assinatura vigente. A remoção física da coluna aguarda migration revisada. Há relação de usuário para vários hosts e de host para várias programações. Favorite guarda o vínculo usuário/programação, IsActive e datas de criação/atualização.
 
 O projeto utiliza Controllers, Application/AppServices, Application/DTO, Application/Mapping e interfaces, Domain/Service e interfaces, Data/Repository e Data/Configurations. Integrações externas ficam em Data/Services. A implementação proposta se encaixa nessas pastas.
 
@@ -44,7 +44,7 @@ Esses elementos existentes não oferecem, por si só, validade de assinatura, hi
 3. Usuário seleciona Ativar Pro - simulação. A tela informa que não existe cobrança.
 4. Frontend faz POST /api/Subscription/Activate, sem enviar UserId, preço ou validade.
 5. Backend identifica o usuário pelo JWT, valida a conta e ativa o período no banco.
-6. API retorna a assinatura, sua validade e as permissões efetivas.
+6. API retorna a assinatura, sua validade e seu status efetivo.
 7. Frontend atualiza a sessão visual. Não é necessário repetir o login.
 8. Programações elegíveis desse usuário passam a participar da consulta de destaque.
 
@@ -70,17 +70,17 @@ Proposta de entidade Subscription, com uma linha corrente por usuário no MVP. E
 
 Criar índice único em UserId para impedir duas assinaturas correntes. Ativação concorrente deve reutilizar a mesma linha ou retornar a situação consolidada, sem duplicidade. Não adicionar identificadores de cobrança ainda sem utilização.
 
-Validade efetiva: usuário ativo, Status Active, StartsAt menor ou igual ao instante UTC atual e instante atual menor que ExpiresAt. Expired é uma situação calculada na resposta quando o prazo terminou; não exige que uma tarefa tenha atualizado a linha antes de negar acesso.
+Validade efetiva: usuário ativo, Status Active, StartsAt menor ou igual ao instante UTC atual e instante atual menor que ExpiresAt. Expired é calculado na resposta e persistido sob demanda por GetAsync quando uma assinatura Active já atingiu o prazo. Não existe tarefa agendada: a linha é atualizada na próxima consulta de assinatura/perfil, sem que a validade efetiva dependa dessa gravação.
 
 Ativar por um mês significa utilizar o equivalente a AddMonths(1), com comportamento de fim de mês da plataforma. Não tratar um mês como trinta dias silenciosamente. Guardar os instantes em UTC e apresentar datas no fuso do usuário.
 
-### Compatibilidade com isPro e JWT
+### Pro calculado pela assinatura e JWT
 
-Subscription será a fonte da validade. User.isPro e a claim existente não podem autorizar o benefício isoladamente: um JWT pode continuar válido depois do cancelamento ou vencimento.
+Subscription é a fonte da validade. User.isPro foi removido do model e a claim isPro foi retirada dos novos tokens; um JWT pode continuar válido depois do cancelamento ou vencimento, mas não concede Pro por si só.
 
-Centralizar a consulta de benefício efetivo no SubscriptionService e reutilizá-la nos fluxos. Atualizar User.isPro durante ativação/cancelamento dentro da mesma transação, mas calcular o IsPro do perfil e dos próximos tokens pela validade efetiva. O booleano persistido poderá ficar desatualizado após expiração; por isso ele será apenas compatibilidade e nunca a regra de acesso. Uma futura remoção deve ser uma refatoração explícita.
+SubscriptionService.IsProAsync consulta a assinatura e usa IsEffective com o horário UTC atual. UserAppService preenche IsPro do perfil por essa consulta, passando o resultado ao UserMapping. Não existe gravação de uma flag Pro no usuário. A dependência fica no AppService; UserService não depende de SubscriptionService, evitando ciclo de DI.
 
-Tokens já emitidos não mudam. O frontend atualiza o estado por MySubscription; o backend confere a validade no banco ao autorizar estatísticas ou selecionar destaques. Esta mudança precisa ser refletida em UserMapping, perfil e JwtTokenService durante a implementação.
+Tokens já emitidos não mudam e suas claims Pro antigas devem ser ignoradas. Frontend consulta o perfil ou MySubscription; os futuros endpoints de carrossel/estatísticas devem verificar vigência no banco. Auditoria do banco principal em 27/10/2026 encontrou três usuários e nenhum isPro=true; não há benefício legado para transferir no estado auditado. A coluna antiga permanece no banco até a migration autorizada.
 
 ## 5. Regras da ativação e cancelamento
 
@@ -112,7 +112,7 @@ As três operações utilizam o usuário do JWT; o cliente não escolhe o titula
 | GET /api/Subscription/MySubscription | JWT; usuário ativo | 200 com situação e benefícios |
 | PATCH /api/Subscription/Cancel | JWT; titular | 200 com situação resultante |
 
-Sem assinatura, MySubscription retorna 200 com status Inactive e benefícios false; esse estado é esperado, não uma falha 404. Cancelar sem assinatura pode retornar esse mesmo estado inativo, mantendo a operação idempotente. Não expor um endpoint genérico para escolher o UserId de outra pessoa.
+Sem assinatura, MySubscription retorna 200 com status Inactive; esse estado é esperado, não uma falha 404. Cancelar sem assinatura pode retornar esse mesmo estado inativo, mantendo a operação idempotente. Não expor um endpoint genérico para escolher o UserId de outra pessoa.
 
 Exemplo de SubscriptionResponseDTO:
 
@@ -121,10 +121,7 @@ Exemplo de SubscriptionResponseDTO:
   "id": 8,
   "status": "Active",
   "startsAt": "2026-10-27T15:00:00Z",
-  "expiresAt": "2026-11-27T15:00:00Z",
-  "isSimulation": true,
-  "canFeatureProgrammings": true,
-  "canViewStatistics": true
+  "expiresAt": "2026-11-27T15:00:00Z"
 }
 ```
 
@@ -282,7 +279,7 @@ Atualizar o .http com exemplos completos: login; consulta sem assinatura; ativa�
 | 2 | Models/configurações de Subscription e ProgrammingInteraction | Relações, índices e plano de dados revisados |
 | 3 | Migration preparada para revisão | Nenhuma aplicação automática antes da aprovação |
 | 4 | Ativar, consultar e cancelar simulação | Idempotência, vigência e concorrência testadas |
-| 5 | Benefício efetivo no perfil/JWT e autorização | Token antigo não mantém acesso vencido |
+| 5 | Pro calculado no perfil e removido do JWT | Token antigo não mantém acesso vencido |
 | 6 | Consulta e distribuição do carrossel | Regras de elegibilidade/paginação verificadas |
 | 7 | Coleta e deduplicação de eventos | Reenvios e validações conferidos |
 | 8 | Painel e agregações | Totais corretos, sem multiplicação por join |
@@ -347,3 +344,17 @@ Referência técnica: Microsoft Learn, Complex Query Operators, seção GroupBy 
 Biblioteca opcional para cálculos avançados, fora da necessidade atual: Math.NET Numerics, Descriptive Statistics: https://numerics.mathdotnet.com/DescriptiveStatistics . Não instalar dependência adicional somente para contagens e razões do MVP.
 
 Documentação futura afetada: Controllers, Regras de Negócio, Tokens, DTOs, BD e Entidades/Models; Docker apenas se houver nova configuração operacional relevante. As fontes devem diferenciar funcionalidades implementadas de propostas. Atualizar os PDFs somente quando solicitado.
+
+## Resposta de assinatura simplificada - 27/10/2026
+
+Por decisão do usuário, removidos IsSimulation, CanFeatureProgrammings e CanViewStatistics do SubscriptionResponseDTO e do mapping. Resposta contém somente id, status, startsAt e expiresAt. Status continua numérico: 0 Inactive, 1 Active, 2 Cancelled, 3 Expired. Uma linha Active vencida retorna Expired; uma linha Active com início futuro retorna Inactive. O frontend usa o status efetivo e o backend mantém Subscription.IsEffective/SubscriptionService.IsProAsync para autorização; criação de programação continua independente de Pro.
+
+Não houve mudança de entidade, banco, migration ou controller. Protótipo já exibe a resposta genérica sem depender das flags; novo caso simulado confirma o contrato. Build aprovado; 10 verificações locais do mapping/serialização e 62 testes do protótipo aprovados. API do Visual Studio não reiniciada; recompilar/reiniciar para receber o JSON novo. Fontes Markdown atualizadas; PDFs preservados.
+
+## Expiração persistida ao consultar a assinatura - 27/10/2026
+
+SubscriptionService.GetAsync agora verifica Active com ExpiresAt <= UTC atual e solicita ExpireAsync ao repositório. A transição grava Status Expired (3) e UpdatedAt. Consultas de MySubscription e de perfil/IsProAsync passam pelo fluxo; a atualização acontece sob demanda, sem tarefa agendada. Antes da próxima consulta, a linha pode continuar Active, mas IsEffective e o mapping já negam/apresentam corretamente um prazo vencido. Assinaturas Cancelled não são alteradas.
+
+O repositório usa UPDATE condicional por ID, status Active e prazo vencido, evitando sobrescrever um prazo renovado antes da escrita. Retorna a situação atual em leitura sem rastreamento; não altera as datas originais de validade. Consulta repetida não modifica UpdatedAt novamente. Não foram reintroduzidos o controle de SimulationEnabled ou o bloqueio por usuário desfeitos anteriormente.
+
+Build aprovado, 15 verificações reais em PostgreSQL descartável e 62 testes simulados do protótipo aprovados. Verificadas persistência de Expired, expiração pelo perfil, idempotência, preservação de vigentes/canceladas e proteção de prazo vigente no UPDATE condicional. Banco temporário removido; banco principal não alterado nesta tarefa. Sem mudança de DTO/rotas, nova migration, reinicialização da API ou PDF.

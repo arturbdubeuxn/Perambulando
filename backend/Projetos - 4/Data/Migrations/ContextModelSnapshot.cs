@@ -427,6 +427,44 @@ namespace Projetos___4._4Data.Migrations
                     b.ToTable("ProgrammingXCategories", (string)null);
                 });
 
+            modelBuilder.Entity("Projetos___4.Domain.Model.Subscription", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime?>("CancelledAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("StartsAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId")
+                        .IsUnique();
+
+                    b.ToTable("Subscriptions", (string)null);
+                });
+
             modelBuilder.Entity("Projetos___4.Domain.Model.User", b =>
                 {
                     b.Property<string>("Id")
@@ -477,9 +515,6 @@ namespace Projetos___4._4Data.Migrations
                     b.Property<string>("UserName")
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)");
-
-                    b.Property<bool>("isPro")
-                        .HasColumnType("boolean");
 
                     b.HasKey("Id");
 
@@ -649,6 +684,17 @@ namespace Projetos___4._4Data.Migrations
                     b.Navigation("Category");
 
                     b.Navigation("Programming");
+                });
+
+            modelBuilder.Entity("Projetos___4.Domain.Model.Subscription", b =>
+                {
+                    b.HasOne("Projetos___4.Domain.Model.User", "User")
+                        .WithOne()
+                        .HasForeignKey("Projetos___4.Domain.Model.Subscription", "UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("Projetos___4.Domain.Model.UserXCategory", b =>

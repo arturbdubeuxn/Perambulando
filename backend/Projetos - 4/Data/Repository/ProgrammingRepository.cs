@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
+using Projetos___4.Application.DTO;
 using Projetos___4.Domain.Exceptions;
 using Projetos___4.Domain.Interfaces.Repository;
 using Projetos___4.Domain.Model;
@@ -18,7 +19,7 @@ namespace Projetos___4.Data.Repository
         public async Task<List<Programming>> GetAllProgrammingsAsync(int take, int skip)
         {
             var query =
-                from programming in Db.Programmings.Include(p => p.Address).AsNoTracking()
+                from programming in Db.Programmings.Include(p => p.Address).Include(p => p.ProgrammingXCategories).ThenInclude(link => link.Category).AsNoTracking()
                 where programming.IsActive && programming.Host.IsActive
                 orderby programming.StartDate, programming.Id
                 select programming;
@@ -30,6 +31,7 @@ namespace Projetos___4.Data.Repository
         {
             return await Db.Programmings
                 .Include(p => p.Address)
+                .Include(p => p.ProgrammingXCategories).ThenInclude(link => link.Category)
                 .AsNoTracking()
                 .Where(p => p.HostId == hostId && p.IsActive && p.Host.IsActive)
                 .OrderBy(p => p.StartDate)
@@ -41,6 +43,7 @@ namespace Projetos___4.Data.Repository
             return Db.Programmings
                 .Include(p => p.Host)
                 .Include(p => p.Address)
+                .Include(p => p.ProgrammingXCategories).ThenInclude(link => link.Category)
                 .FirstOrDefaultAsync(p => p.Id == programmingId &&
                     (!hostId.HasValue || p.HostId == hostId.Value) &&
                     p.IsActive && p.Host.IsActive);
@@ -82,6 +85,8 @@ namespace Projetos___4.Data.Repository
                 }
 
                 await Db.SaveChangesAsync();
+                await Db.Entry(programming).Collection(p => p.ProgrammingXCategories)
+                    .Query().Include(link => link.Category).LoadAsync();
                 await transaction.CommitAsync();
                 return programming;
             }
@@ -104,14 +109,15 @@ namespace Projetos___4.Data.Repository
                 Db.ProgrammingXCategories.Add(link);
             }
             await Db.SaveChangesAsync();
+            await Db.Entry(programming).Collection(p => p.ProgrammingXCategories)
+                .Query().Include(link => link.Category).LoadAsync();
             return programming;
         }
 
         public async Task<List<Programming>> GetAllProgrammingsByUserCategories(List<int> categoryIds)
         {
-
             var query =
-                from programming in Db.Programmings.Include(p => p.Address).AsNoTracking()
+                from programming in Db.Programmings.Include(p => p.Address).Include(p => p.ProgrammingXCategories).ThenInclude(link => link.Category).AsNoTracking()
                 join link in Db.ProgrammingXCategories
                     on programming.Id equals link.ProgrammingId
                 join category in Db.Categories
@@ -126,10 +132,6 @@ namespace Projetos___4.Data.Repository
                 .Distinct()
                 .OrderBy(p => p.StartDate)
                 .ToListAsync();
-
-
-
-           
         }
 
         public async Task<List<Programming>> FilterAsync(ProgrammingFilter programmingFilter)
@@ -142,7 +144,7 @@ namespace Projetos___4.Data.Repository
             var categoryIds = programmingFilter.CategoriesId ?? new List<int>();
 
             var query =
-                from programming in Db.Programmings.Include(p => p.Address).AsNoTracking()
+                from programming in Db.Programmings.Include(p => p.Address).Include(p => p.ProgrammingXCategories).ThenInclude(link => link.Category).AsNoTracking()
                 join link in Db.ProgrammingXCategories
                     on programming.Id equals link.ProgrammingId into programmingLinks
                 from link in programmingLinks.DefaultIfEmpty()
@@ -180,5 +182,24 @@ namespace Projetos___4.Data.Repository
                 .Take(programmingFilter.Take)
                 .ToListAsync();
         }
+
+
+        public async Task<List<Programming>> GetAllProgrammingsWithProHost(int take, int skip)
+        {
+            var now = DateTime.UtcNow;
+
+            return await Db.Programmings.AsNoTracking()
+                .Include(p => p.Address)
+                .Include(p => p.ProgrammingXCategories).ThenInclude(link => link.Category)
+                .Where(p => p.IsActive && p.Host.IsActive && p.Host.User.IsActive &&
+                    p.EndDate > now && Db.Subscriptions.Any(s => s.UserId == p.Host.UserId &&
+                        s.Status == SubscriptionStatus.Active && s.StartsAt <= now && now < s.ExpiresAt))
+                .OrderBy(p => p.StartDate)
+                .ThenBy(p => p.Id)
+                .Skip(skip)
+                .Take(take)
+                .ToListAsync();
+        }
+
     }
 }

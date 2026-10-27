@@ -25,7 +25,7 @@ public class UserMapping : IUserMapping
         return user;
     }
 
-    public UserProfileDTO ToDTO(User user)
+    public UserProfileDTO ToDTO(User user, bool isPro)
     {
         ArgumentNullException.ThrowIfNull(user);
         return new UserProfileDTO
@@ -34,7 +34,7 @@ public class UserMapping : IUserMapping
             Name = user.UserName ?? string.Empty,
             Email = user.Email ?? string.Empty,
             TypeofUser = user.Typeofuser,
-            IsPro = user.isPro,
+            IsPro = isPro,
             CreatedAt = user.CreatedAt
         };
     }

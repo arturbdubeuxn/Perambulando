@@ -112,5 +112,13 @@ namespace Projetos___4.Application.AppServices
             var programmings = await _programmingService.FilterAsync(filter);
             return programmings.Select(_programmingMapping.ToDTO).ToList();
         }
+
+
+        public async Task<List<ProgrammingResponseDTO>> GetAllProgrammingsWithProHost(int take, int skip)
+        {
+            var programmings = await _programmingService.GetAllProgrammingsWithProHost(take, skip);
+            return programmings.Select(_programmingMapping.ToDTO).ToList();
+        }
+
     }
 }

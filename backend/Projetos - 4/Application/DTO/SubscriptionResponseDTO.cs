@@ -6,7 +6,4 @@ public class SubscriptionResponseDTO
     public SubscriptionStatus Status { get; set; }
     public DateTime? StartsAt { get; set; }
     public DateTime? ExpiresAt { get; set; }
-    public bool IsSimulation { get; set; } = true;
-    public bool CanFeatureProgrammings { get; set; }
-    public bool CanViewStatistics { get; set; }
 }

@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Http.HttpResults;
+using Projetos___4.Application.DTO;
 using Projetos___4.Domain.Interfaces;
 using Projetos___4.Domain.Interfaces.Repository;
 using Projetos___4.Domain.Interfaces.Service;
@@ -180,6 +181,21 @@ ICategoryService categoryService, IProgrammingXCategoryService programmingXCateg
         public async Task<List<Programming>> FilterAsync(ProgrammingFilter programmingFilter)
         {
             return await _programmingRepository.FilterAsync(programmingFilter);
+        }
+
+        public Task<List<Programming>> GetAllProgrammingsWithProHost(int take, int skip)
+        {
+            if (take <= 0 || take > 100)
+            {
+                throw new ArgumentException("Take deve estar entre 1 e 100.", nameof(take));
+            }
+
+            if (skip < 0)
+            {
+                throw new ArgumentException("Skip deve ser maior ou igual a zero.", nameof(skip));
+            }
+
+            return _programmingRepository.GetAllProgrammingsWithProHost(take, skip);
         }
     }
 }

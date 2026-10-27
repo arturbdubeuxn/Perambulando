@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Mvc;
 using Projetos___4.Application.DTO;
 
 namespace Projetos___4.Application.Interfaces
@@ -12,6 +13,7 @@ namespace Projetos___4.Application.Interfaces
         Task<ProgrammingResponseDTO> CreateProgrammingAsync(ProgrammingDTO programmingCreateDTO, int hostId, string userId);
         Task<ProgrammingResponseDTO?> EditProgrammingAsync(ProgrammingDTO dto, int id, int hostId, string userId);
         Task<List<ProgrammingResponseDTO>> FilterAsync(ProgrammingFilterDTO dto);
+        Task<List<ProgrammingResponseDTO>> GetAllProgrammingsWithProHost(int take, int skip);
 
 
     }

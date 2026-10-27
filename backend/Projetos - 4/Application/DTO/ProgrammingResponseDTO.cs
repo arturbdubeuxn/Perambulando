@@ -19,4 +19,5 @@ public class ProgrammingResponseDTO
     public decimal MinPrice { get; set; }
     public decimal MaxPrice { get; set; }
     public AddressDetailsDTO Address { get; set; } = new();
+    public List<CategoryResponseDTO> Categories { get; set; } = new();
 }

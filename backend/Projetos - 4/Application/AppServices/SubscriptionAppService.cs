@@ -11,16 +11,18 @@ public class SubscriptionAppService : ISubscriptionAppService
     { _service = service; _mapping = mapping; }
     public async Task<SubscriptionResponseDTO> GetAsync(string userId)
     {
-        return _mapping.ToDTO(await _service.GetAsync(userId));
+        var subscription = await _service.GetAsync(userId);
+        return _mapping.ToDTO(subscription, _service.GetStatus(subscription));
     }
     public async Task<SubscriptionResponseDTO> ActivateAsync(string userId)
     {
         var subscription = _mapping.ToModel(userId);
         var result = await _service.ActivateAsync(subscription);
-        return _mapping.ToDTO(result);
+        return _mapping.ToDTO(result, _service.GetStatus(result));
     }
     public async Task<SubscriptionResponseDTO> CancelAsync(string userId)
     {
-       return  _mapping.ToDTO(await _service.CancelAsync(userId));
+        var subscription = await _service.CancelAsync(userId);
+        return _mapping.ToDTO(subscription, _service.GetStatus(subscription));
     }
 }

@@ -14,9 +14,11 @@ namespace Projetos___4.Application.AppServices
         private readonly IUserService _userService;
         private readonly IValidation<UserDTO> _userValidation;
         private readonly IUserMapping _userMapping;
+        private readonly ISubscriptionService _subscriptionService;
 
-        public UserAppService(IUserService userService, IValidation<UserDTO> userValidation, IUserMapping userMapping)
+        public UserAppService(IUserService userService, IValidation<UserDTO> userValidation, IUserMapping userMapping, ISubscriptionService subscriptionService)
         {
+            _subscriptionService = subscriptionService;
             _userMapping = userMapping;
             _userService = userService;
             _userValidation = userValidation;
@@ -30,7 +32,8 @@ namespace Projetos___4.Application.AppServices
                 return null;
             }
 
-            return _userMapping.ToDTO(user);
+            var isPro = await _subscriptionService.IsProAsync(user.Id);
+            return _userMapping.ToDTO(user, isPro);
         }
 
         public Task<IdentityResult?> EditUserAsync(UserDTO dto, string userId)

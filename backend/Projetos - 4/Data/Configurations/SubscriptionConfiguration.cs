@@ -10,6 +10,6 @@ public class SubscriptionConfiguration : IEntityTypeConfiguration<Subscription>
         builder.ToTable("Subscriptions");
         builder.HasKey(x => x.Id);
         builder.HasIndex(x => x.UserId).IsUnique();
-        builder.HasOne<User>().WithOne().HasForeignKey<Subscription>(x => x.UserId).OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne(x => x.User).WithOne().HasForeignKey<Subscription>(x => x.UserId).OnDelete(DeleteBehavior.Restrict);
     }
 }

@@ -221,5 +221,21 @@ namespace Projetos___4.Presentation.Controllers
             var programmings = await _programmingAppService.GetAllProgrammingsByUserCategoriesAsync(userId);
             return Ok(programmings);
         }
+      
+        [HttpGet("GetAllProgrammingsWithProHost")]
+        public async Task<IActionResult> GetAllProgrammingsWithProHost([FromQuery] int take = 10, [FromQuery] int skip = 0)
+        {
+            try
+            {
+                var programmings = await _programmingAppService.GetAllProgrammingsWithProHost(take, skip);
+                return Ok(programmings);
+            }
+            catch (ArgumentException ex)
+            {
+                return Problem(statusCode: StatusCodes.Status400BadRequest,
+                    title: "Dados inválidos", detail: ex.Message);
+            }
+        }
+
     }
 }

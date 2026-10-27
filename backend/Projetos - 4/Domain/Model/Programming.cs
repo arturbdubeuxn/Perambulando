@@ -20,5 +20,6 @@
         public DateTime UpdateDate { get; set; } = DateTime.UtcNow;
         public decimal MinPrice { get; set; }
         public decimal MaxPrice { get; set; }
+        public ICollection<ProgrammingXCategory> ProgrammingXCategories { get; set; } = new List<ProgrammingXCategory>();
     }
 }
