@@ -67,6 +67,10 @@ builder.Services.AddHttpClient<IGeocodingService, GeoapifyGeocodingService>(clie
   .RemoveAllLoggers();
 
 // INJEÇÃO DE DEPENDÊNCIAS
+builder.Services.AddScoped<ISubscriptionRepository, SubscriptionRepository>();
+builder.Services.AddScoped<ISubscriptionService, SubscriptionService>();
+builder.Services.AddScoped<ISubscriptionMapping, SubscriptionMapping>();
+builder.Services.AddScoped<ISubscriptionAppService, SubscriptionAppService>();
 builder.Services.AddHttpClient<IPostalCodeService, ViaCepService>(client =>
 {
     client.Timeout = TimeSpan.FromSeconds(8);

@@ -1,4 +1,4 @@
-﻿using Projetos___4.Domain.Model;
+using Projetos___4.Domain.Model;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
@@ -14,6 +14,8 @@ namespace Projetos___4.Data.Context
         }
 
         public DbSet<Favorite> Favorites => Set<Favorite>();
+
+        public DbSet<Subscription> Subscriptions => Set<Subscription>();
 
         public DbSet<Address> Addresses => Set<Address>();
 
