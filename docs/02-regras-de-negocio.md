@@ -677,3 +677,12 @@ A listagem paginada agora está exposta publicamente por ProgrammingController.G
 ## Restauração após reorganização do backend — 26/10/2026
 
 Após o merge/reorganização, os oito mappings e suas oito interfaces ficaram fora do projeto ativo. Foram restaurados em backend/Projetos - 4/Application/Mapping e Mapping/Interfaces, idênticos à implementação anterior. AppServices e registros scoped existentes foram preservados. Validadores antigos dos DTOs já removidos e cópia duplicada de UserValidation não fazem mais parte da compilação; validadores unificados permanecem. Ajustada uma referência float.IsFinite em ProgrammingValidations reaparecida no merge para a verificação decimal de duas casas, compatível com os preços atuais.
+
+
+## Query de filtros de programação — 26/10/2026
+
+ProgrammingRepository.FilterAsync combina os critérios com AND, restringindo a programações ativas, com host ativo, cujo EndDate seja posterior ao instante UTC capturado no início da consulta. Programações em andamento podem aparecer. Datas do filtro têm interseção inclusiva: EndDate >= StartDate do filtro e StartDate <= EndDate do filtro. Preços também usam interseção inclusiva: MaxPrice >= MinPrice do filtro e MinPrice <= MaxPrice do filtro.
+
+Texto procura nome ou descrição; cidade usa igualdade. Ambos ignoram caixa e removem espaços externos da entrada; não há normalização de acentos. Categorias selecionadas significam pelo menos uma categoria ativa correspondente. Lista vazia/nula não restringe categorias; left joins preservam inclusive programações sem vínculo. Host e IsFree só restringem quando informados. Distinct ocorre antes de OrderBy(StartDate), ThenBy(Id), Skip e Take, executados no banco.
+
+As regras de validação dos intervalos combinados e IDs das categorias no service ainda precisam ser implementadas pelo fluxo em construção; a query não substitui essas validações. Não foram acrescentados distância, raio ou ordenação por preço, pois esses campos não constam no modelo/DTO atuais do usuário.

@@ -25,6 +25,23 @@ namespace Projetos___4.Presentation.Controllers
 
 
         [AllowAnonymous]
+        [HttpGet("Filter")]
+        public async Task<IActionResult> Filter([FromQuery] ProgrammingFilterDTO dto)
+        {
+            try
+            {
+                return Ok(await _programmingAppService.FilterAsync(dto));
+            }
+            catch (ArgumentException ex)
+            {
+                return Problem(
+                    statusCode: StatusCodes.Status400BadRequest,
+                    title: "Filtros inválidos",
+                    detail: ex.Message);
+            }
+        }
+
+        [AllowAnonymous]
         [HttpGet("GetAllProgrammings")]
         public async Task<IActionResult> GetAllProgrammings([FromQuery] int take = 10, [FromQuery] int skip = 0)
         {

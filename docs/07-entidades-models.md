@@ -259,3 +259,15 @@ Adicionado FavoriteMapping.ToModel(userId, programmingId) na Application. O mode
 ## Restauração após reorganização do backend — 26/10/2026
 
 Restauração dos mappings na Application do backend novo não alterou models, relacionamentos ou configurações EF. Preços continuam decimal e endereços continuam convertidos por AddressMapping. Persistência e regras continuam nas camadas existentes. A única compatibilização fora dos mappings foi o validador antigo de programação que ainda usava float.IsFinite com propriedades decimal.
+
+## Modelo auxiliar ProgrammingFilter — 26/10/2026
+
+Criado em backend/Projetos - 4/Domain/Model/ProgrammingFilter.cs para transportar critérios de consulta. Acompanha os campos do ProgrammingFilterDTO atual: Take (10), Skip (0), CategoriesId, City, Text, StartDate, EndDate, IsFree, MinPrice, MaxPrice e HostId. Os critérios opcionais são anuláveis. Não contém métodos ou validações de entrada.
+
+Marcado com [NotMapped], sem DbSet, navegações ou configuração de entidade. Não gera tabela nem exige migration. A criação deste modelo não implementa o filtro nem altera contratos HTTP.
+
+Validação: conferência estática do modelo e do Context; build executado, impedido pelo erro CS1061 já presente na action Filter, pois IProgrammingAppService ainda não declara FilterAsync. Não houve execução da API, acesso ao banco ou geração de PDFs.
+
+## Address.City para filtro — 26/10/2026
+
+Address agora contém City (string, padrão vazio, máximo 150 no EF). AddressService normaliza cidade em endereços novos e AddressRepository inclui City na comparação de endereços equivalentes. A migration está preparada e não aplicada. ProgrammingFilter continua [NotMapped], sem tabela ou DbSet, com os mesmos 11 campos atuais.

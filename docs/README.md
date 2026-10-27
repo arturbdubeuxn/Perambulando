@@ -627,3 +627,18 @@ Corrigido null na conexão do protótipo: o perfil HTTPS devolvia 307 vazio da p
 Após a remoção indevida da cópia de backend, os 16 arquivos restantes de Projetos - 4/Application/Mapping foram movidos com git mv para backend/Projetos - 4/Application/Mapping. Nenhum mapping permanece rastreado no diretório antigo. Caminhos absolutos e git -C na raiz foram usados para evitar que a execução dentro de backend altere o destino. A movimentação está preparada no índice, sem commit ou push automáticos; lógica, interfaces, rotas e banco preservados.
 
 Validação: build do projeto em diretório temporário de saída aprovado com zero erros e dez avisos existentes, sem interferir na API em depuração. Git reconheceu os 16 arquivos como renomeações sem alteração de conteúdo. Sem mudança no protótipo, testes novos, migrations ou PDFs nesta movimentação.
+
+## Modelo não persistido de filtros — 26/10/2026
+
+Adicionado ProgrammingFilter ao domínio, com os mesmos campos do DTO de filtro atual e [NotMapped], sem alterações ao contexto ou migrations. Consulte 07-entidades-models.md. A implementação de FilterAsync no AppService continua pendente; o build acusa CS1061 na chamada já existente do controller. Nenhuma API ou banco foi iniciado e nenhum PDF foi regenerado. Esta etapa não altera o contrato HTTP ou o protótipo.
+## Mapeamento de filtros — 26/10/2026
+
+Adicionados ProgrammingFilterMapping e IProgrammingFilterMapping, com ToModel/ToDTO explícitos entre o DTO e o modelo não persistido, e registro scoped na DI. Detalhes em 04-dtos.md. Build tentado: permanece o CS1061 da chamada existente a FilterAsync no controller. O fluxo de busca ainda não está implementado; nenhuma rota ou protótipo foi alterado nesta etapa e nenhum PDF foi regenerado.
+
+## Query de filtros e cidade — 26/10/2026
+
+Implementado ProgrammingRepository.FilterAsync na sintaxe LINQ de consulta solicitada, com left joins de categorias, filtros opcionais, Distinct e paginação estável por data/ID. Incluído Address.City nos DTOs, mapping, normalização, deduplicação, configuração EF e migration AddAddressCity preparada; ela não foi aplicada ao banco e os registros antigos ainda precisam ter cidade preenchida. Corrigido somente o await ausente na delegação de FilterAsync já criada pelo usuário no service.
+
+Validação: 25 verificações isoladas aprovadas em docs/validacoes/ProgrammingFilterQuery.Tests.csproj. O projeto compila os fontes reais de consulta/modelos/configurações/migrations, executa filtros no SQLite em memória (Location ignorada e conversão de decimal para double apenas no contexto de teste), confere tradução PostgreSQL com interceptação antes de conectar, SQL da migration e snapshot. Não houve teste HTTP nem acesso ao banco do usuário.
+
+O build completo foi tentado, mas encontra CS7036 em HostAppService: a chamada GetAllProgrammingsbyHostId(hostId) não corresponde à interface atual que exige userId. Essa alteração em andamento foi preservada. As validações de regras combinadas do filtro no service seguem pendentes. Protótipo indisponível nos caminhos conhecidos; PDFs preservados. As seções desta atualização substituem os registros anteriores que indicavam que FilterAsync ainda não havia sido declarado.

@@ -11,6 +11,7 @@ public class AddressMapping : IAddressMapping
         ArgumentNullException.ThrowIfNull(dto);
         return new Address
         {
+            City = dto.City?.Trim() ?? string.Empty,
             Street = dto.Street,
             Number = dto.Number,
             Complement = dto.Complement ?? string.Empty,
@@ -25,6 +26,7 @@ public class AddressMapping : IAddressMapping
         return new AddressDetailsDTO
         {
             Id = address.Id,
+            City = address.City,
             Street = address.Street,
             Number = address.Number,
             Complement = address.Complement,

@@ -96,6 +96,7 @@ builder.Services.AddScoped<IProgrammingXCategoryService, ProgrammingXCategorySer
 builder.Services.AddScoped<IProgrammingXCategoryAppService, ProgrammingXCategoryAppService>();
 builder.Services.AddScoped<IProgrammingAppService, ProgrammingAppService>();
 builder.Services.AddScoped<IProgrammingMapping, ProgrammingMapping>();
+builder.Services.AddScoped<IProgrammingFilterMapping, ProgrammingFilterMapping>();
 builder.Services.AddScoped<IAddressMapping, AddressMapping>();
 builder.Services.AddScoped<ICategoryMapping, CategoryMapping>();
 builder.Services.AddScoped<IUserMapping, UserMapping>();

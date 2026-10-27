@@ -65,6 +65,11 @@ public class AddressService : IAddressService
                 throw new ArgumentException("Informe o logradouro e o número do endereço.", nameof(newAddress));
             }
 
+            newAddress.City = newAddress.City?.Trim() ?? string.Empty;
+            if (newAddress.City.Length > 150)
+            {
+                throw new ArgumentException("Informe uma cidade com até 150 caracteres.", nameof(newAddress));
+            }
             newAddress.Street = newAddress.Street.Trim();
             newAddress.Number = newAddress.Number.Trim();
             newAddress.Complement = newAddress.Complement?.Trim() ?? string.Empty;

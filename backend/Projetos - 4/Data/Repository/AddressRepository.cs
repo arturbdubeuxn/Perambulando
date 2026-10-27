@@ -39,12 +39,14 @@ public class AddressRepository : IAddressRepository
 
     public Task<Address?> GetExistingAddressAsync(Address address)
     {
+        var city = address.City.ToUpperInvariant();
         var street = address.Street.ToUpperInvariant();
         var number = address.Number.ToUpperInvariant();
         var complement = address.Complement.ToUpperInvariant();
         var neighborhood = address.Neighborhood.ToUpperInvariant();
 
-        return Db.Addresses.Where(existing => existing.Street.Trim().ToUpper() == street &&
+        return Db.Addresses.Where(existing => existing.City.Trim().ToUpper() == city &&
+                existing.Street.Trim().ToUpper() == street &&
                 existing.Number.Trim().ToUpper() == number &&
                 existing.Complement.Trim().ToUpper() == complement &&
                 existing.Neighborhood.Trim().ToUpper() == neighborhood &&

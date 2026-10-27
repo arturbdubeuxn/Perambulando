@@ -76,19 +76,8 @@ ICategoryService categoryService, IProgrammingXCategoryService programmingXCateg
             return programming;
         }
 
-        public Task<IEnumerable<Programming>> GetAllProgrammingsbyHostId(int hostId)
+        public async Task<IEnumerable<Programming>> GetAllProgrammingsbyHostId(int hostId)
         {
-            return _programmingRepository.GetAllProgrammingsbyHostId(hostId);
-        }
-
-        public async Task<IEnumerable<Programming>> GetAllProgrammingsbyHostId(int hostId, string userId)
-        {
-            if (string.IsNullOrWhiteSpace(userId) ||
-                !await _hostRepository.UserOwnsActiveHostAsync(new Programming { HostId = hostId }, userId))
-            {
-                return Enumerable.Empty<Programming>();
-            }
-
             var programmings = await _programmingRepository.GetAllProgrammingsbyHostId(hostId);
             return programmings;
         }
@@ -186,6 +175,11 @@ ICategoryService categoryService, IProgrammingXCategoryService programmingXCateg
 
 
             return programmings;
+        }
+
+        public async Task<List<Programming>> FilterAsync(ProgrammingFilter programmingFilter)
+        {
+            return await _programmingRepository.FilterAsync(programmingFilter);
         }
     }
 }

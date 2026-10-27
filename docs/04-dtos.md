@@ -727,3 +727,15 @@ GetAllProgrammings recebe take e skip como int pela query, com padrões 10/0. N�
 ## Restauração após reorganização do backend — 26/10/2026
 
 Restaurados AddressMapping, CategoryMapping, UserMapping, HostMapping, ProgrammingMapping, FavoriteMapping, UserXCategoryMapping e ProgrammingXCategoryMapping e suas interfaces no backend reorganizado. Mantidos ToModel/ToDTO, ToEditModel de usuário, modelos de vínculos e DTOs de detalhes/resposta. Os arquivos foram comparados por hash com as implementações locais anteriores: 16 correspondências. Não foram recriados DTOs antigos de create/edit excluídos pelo usuário.
+
+## Mapping de ProgrammingFilter — 26/10/2026
+
+Criados IProgrammingFilterMapping e ProgrammingFilterMapping nas pastas existentes de Mapping/Interfaces e Mapping. ToModel recebe ProgrammingFilterDTO e retorna ProgrammingFilter; ToDTO faz o caminho inverso. Os dois métodos conferem argumento nulo, mapeiam explicitamente os 11 campos atuais e preservam filtros opcionais nulos. CategoriesId é copiada para uma lista independente quando presente. Registro scoped adicionado junto aos demais mappings no Program.cs.
+
+Não altera rotas, persistência ou migrações. O consumo pelo fluxo de FilterAsync ainda está pendente. Conferência estática realizada e build executado: continua impedido somente pelo CS1061 existente no controller, pois IProgrammingAppService ainda não declara FilterAsync. Não houve testes de execução, acesso ao banco ou exportação de PDFs.
+
+## City no endereço e consulta de filtros — 26/10/2026
+
+AddressCreateDTO passa a aceitar City opcional com MaxLength(150). AddressDetailsDTO expõe City. AddressMapping transporta City nas duas direções, normalizando nulo para string vazia e removendo espaços externos na entrada. Demais contratos de host/programação permanecem iguais. ProgrammingFilterDTO mantém seus 11 campos atuais, sem alterações nesta etapa.
+
+City ainda vazio não atende filtro de cidade não vazia. Os endereços antigos precisam ser preenchidos posteriormente; não houve tentativa de inferir cidades pelo logradouro ou fazer preenchimento em massa.

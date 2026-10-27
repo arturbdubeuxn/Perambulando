@@ -17,15 +17,18 @@ namespace Projetos___4.Application.AppServices
         private readonly IValidation<ProgrammingDTO> _programmingValidation;
         private readonly IProgrammingMapping _programmingMapping;
         private readonly IProgrammingXCategoryAppService _programmingXCategoryAppService;
+        private readonly IProgrammingFilterMapping _programmingFilterMapping;
 
-        public ProgrammingAppService(IProgrammingService programmingService, IAddressService addressService, IValidation<ProgrammingDTO> programmingValidation, IProgrammingMapping programmingMapping, IProgrammingXCategoryAppService programmingXCategoryAppService)
+        public ProgrammingAppService(IProgrammingService programmingService, IAddressService addressService, IValidation<ProgrammingDTO> programmingValidation, IProgrammingMapping programmingMapping, IProgrammingXCategoryAppService programmingXCategoryAppService, IProgrammingFilterMapping programmingFilterMapping)
         {
             _programmingService = programmingService;
             _addressService = addressService;
             _programmingValidation = programmingValidation;
             _programmingMapping = programmingMapping;
             _programmingXCategoryAppService = programmingXCategoryAppService;
+            _programmingFilterMapping = programmingFilterMapping;
         }
+
 
         public async Task<List<ProgrammingResponseDTO>> GetAllProgrammingsAsync(int take, int skip)
         {
@@ -56,9 +59,9 @@ namespace Projetos___4.Application.AppServices
             return _programmingMapping.ToDTO(result);
         }
 
-        public async Task<IEnumerable<ProgrammingResponseDTO>> GetAllProgrammingsbyHostId(int hostId, string userId)
+        public async Task<IEnumerable<ProgrammingResponseDTO>> GetAllProgrammingsbyHostId(int hostId)
         {
-            var programmings = await _programmingService.GetAllProgrammingsbyHostId(hostId, userId);
+            var programmings = await _programmingService.GetAllProgrammingsbyHostId(hostId);
 
             return programmings.Select(_programmingMapping.ToDTO).ToList();
         }
@@ -100,6 +103,13 @@ namespace Projetos___4.Application.AppServices
         {
             var programmings = await _programmingService.GetAllProgrammingsByUserCategories(userId);
 
+            return programmings.Select(_programmingMapping.ToDTO).ToList();
+        }
+
+        public async Task<List<ProgrammingResponseDTO>> FilterAsync(ProgrammingFilterDTO dto)
+        {
+            var filter = _programmingFilterMapping.ToModel(dto);
+            var programmings = await _programmingService.FilterAsync(filter);
             return programmings.Select(_programmingMapping.ToDTO).ToList();
         }
     }

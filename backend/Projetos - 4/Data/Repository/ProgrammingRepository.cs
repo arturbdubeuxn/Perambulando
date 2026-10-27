@@ -14,6 +14,7 @@ namespace Projetos___4.Data.Repository
         {
             Db = db;
         }
+
         public async Task<List<Programming>> GetAllProgrammingsAsync(int take, int skip)
         {
             var query =
@@ -129,6 +130,55 @@ namespace Projetos___4.Data.Repository
 
 
            
+        }
+
+        public async Task<List<Programming>> FilterAsync(ProgrammingFilter programmingFilter)
+        {
+            ArgumentNullException.ThrowIfNull(programmingFilter);
+
+            var now = DateTime.UtcNow;
+            var text = programmingFilter.Text?.Trim().ToUpperInvariant();
+            var city = programmingFilter.City?.Trim().ToUpperInvariant();
+            var categoryIds = programmingFilter.CategoriesId ?? new List<int>();
+
+            var query =
+                from programming in Db.Programmings.Include(p => p.Address).AsNoTracking()
+                join link in Db.ProgrammingXCategories
+                    on programming.Id equals link.ProgrammingId into programmingLinks
+                from link in programmingLinks.DefaultIfEmpty()
+                join category in Db.Categories
+                    on link.CategoryId equals category.Id into programmingCategories
+                from category in programmingCategories.DefaultIfEmpty()
+                where programming.IsActive
+                    && programming.Host.IsActive
+                    && programming.EndDate > now
+                    && (categoryIds.Count == 0 ||
+                        (category != null && category.IsActive && categoryIds.Contains(category.Id)))
+                    && (string.IsNullOrEmpty(text) ||
+                        programming.Name.ToUpper().Contains(text) ||
+                        programming.Description.ToUpper().Contains(text))
+                    && (string.IsNullOrEmpty(city) || programming.Address.City.ToUpper() == city)
+                    && (!programmingFilter.StartDate.HasValue ||
+                        programming.EndDate >= programmingFilter.StartDate.Value)
+                    && (!programmingFilter.EndDate.HasValue ||
+                        programming.StartDate <= programmingFilter.EndDate.Value)
+                    && (!programmingFilter.IsFree.HasValue ||
+                        programming.IsFree == programmingFilter.IsFree.Value)
+                    && (!programmingFilter.MinPrice.HasValue ||
+                        programming.MaxPrice >= programmingFilter.MinPrice.Value)
+                    && (!programmingFilter.MaxPrice.HasValue ||
+                        programming.MinPrice <= programmingFilter.MaxPrice.Value)
+                    && (!programmingFilter.HostId.HasValue ||
+                        programming.HostId == programmingFilter.HostId.Value)
+                select programming;
+
+            return await query
+                .Distinct()
+                .OrderBy(p => p.StartDate)
+                .ThenBy(p => p.Id)
+                .Skip(programmingFilter.Skip)
+                .Take(programmingFilter.Take)
+                .ToListAsync();
         }
     }
 }

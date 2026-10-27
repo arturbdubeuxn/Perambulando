@@ -470,3 +470,12 @@ Authorization: Bearer {{login.response.body.$.accessToken}}
 PATCH {{Projetos___4_HostAddress}}/api/Favorite/{{FavoriteProgrammingId}}/Delete
 Accept: application/json
 Authorization: Bearer {{login.response.body.$.accessToken}}
+
+
+### PROGRAMMING - Filtro público (aplicar AddAddressCity antes de executar)
+GET {{Projetos___4_HostAddress}}/api/Programming/Filter?take=10&skip=0&city=Recife&isFree=false&minPrice=10&maxPrice=50
+Accept: application/json
+
+### PROGRAMMING - Pelo menos uma categoria selecionada
+GET {{Projetos___4_HostAddress}}/api/Programming/Filter?categoriesId=1&categoriesId=2&text=festival&take=10&skip=0
+Accept: application/json

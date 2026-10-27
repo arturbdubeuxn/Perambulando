@@ -880,3 +880,10 @@ Novo endpoint público: GET /api/Programming/GetAllProgrammings?take=10&skip=0. 
 ## Conexão HTTPS do protótipo — 26/10/2026
 
 No perfil HTTPS do Visual Studio, as chamadas a http://localhost:5014 podem responder 307 para https://localhost:7042. Isso é redirecionamento de transporte, não uma resposta JSON null do endpoint. Contratos e controllers não mudaram nesta correção. O protótipo agora explica o redirecionamento e o botão Verificar conexão pode ajustar o endereço para HTTPS e repetir apenas a consulta GET.
+
+
+## Consulta Filter em implementação — 26/10/2026
+
+A action GET /api/Programming/Filter já criada recebe ProgrammingFilterDTO por query. O repositório agora implementa a consulta com texto, categorias, cidade, período, gratuidade, preços, host, take e skip. A resposta continua uma lista de ProgrammingResponseDTO. Exemplo: /api/Programming/Filter?take=10&skip=0&categoriesId=1&categoriesId=2&city=Recife&isFree=false&minPrice=10&maxPrice=50.
+
+Não foi validado o endpoint HTTP nesta etapa: o build completo acusa CS7036 em HostAppService.GetByIdAsync, que chama GetAllProgrammingsbyHostId(hostId) enquanto a interface atual exige também userId. A query foi validada isoladamente. O protótipo não foi encontrado nos caminhos de Artur/Rafael; não foi modificado. Nenhum PDF foi regenerado.

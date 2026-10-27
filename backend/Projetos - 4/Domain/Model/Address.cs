@@ -1,4 +1,4 @@
-﻿using NetTopologySuite.Geometries;
+using NetTopologySuite.Geometries;
 using System.Text.Json.Serialization;
 
 namespace Projetos___4.Domain.Model;
@@ -6,6 +6,7 @@ namespace Projetos___4.Domain.Model;
 public class Address
 {
     public int Id { get; set; }
+    public string City { get; set; } = string.Empty;
     public string Street { get; set; } = string.Empty;
     public string Number { get; set; } = string.Empty;
     public string Complement { get; set; } = string.Empty;

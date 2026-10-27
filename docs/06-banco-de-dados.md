@@ -315,3 +315,10 @@ FavoriteRepository.AddAsync recebe Favorite em vez de IDs separados. Usa as chav
 ## Listagem paginada de programações — 26/10/2026
 
 Consulta paginada de Programmings usa AsNoTracking, Include(Address), filtro de programação/host ativos, ORDER BY StartDate/Id e Skip(skip).Take(take) antes da materialização. A paginação é executada pelo EF no PostgreSQL, sem carregar toda a coleção. Não exige migration ou alteração de schema. Offset maior que o total retorna lista vazia.
+
+
+## Migration AddAddressCity preparada — 26/10/2026
+
+Adicionada a migration 20261026200000_AddAddressCity e seu snapshot/target model, com City obrigatório no armazenamento, character varying(150), default vazio para preservar registros anteriores. O campo é opcional na entrada HTTP. O cadastro de endereço normaliza City e a deduplicação passa a comparar também a cidade.
+
+A migration não foi aplicada ao banco. A implantação exige aplicá-la antes de executar as consultas que leem Address.City. Não houve backfill nem inferência de cidade; endereços antigos continuam com string vazia até preenchimento. Não houve conexão ao PostgreSQL real. A geração do SQL da migration e a correspondência do snapshot com o modelo foram aprovadas nos testes isolados.

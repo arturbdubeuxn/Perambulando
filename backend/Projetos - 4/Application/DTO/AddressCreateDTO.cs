@@ -1,9 +1,11 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 
 namespace Projetos___4.Application.DTO;
 
 public class AddressCreateDTO
 {
+    [MaxLength(150)]
+    public string? City { get; set; }
     [Required, MaxLength(300)]
     public string Street { get; set; } = string.Empty;
     [Required, MaxLength(20)]

@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Projetos___4.Domain.Model;
 
@@ -9,6 +9,7 @@ public class AddressConfiguration : IEntityTypeConfiguration<Address>
     public void Configure(EntityTypeBuilder<Address> builder)
     {
         builder.ToTable("Addresses");
+        builder.Property(address => address.City).HasMaxLength(150).IsRequired();
         builder.Property(address => address.Street).HasMaxLength(300).IsRequired();
         builder.Property(address => address.Number).HasMaxLength(20).IsRequired();
         builder.Property(address => address.Complement).HasMaxLength(200).IsRequired();
