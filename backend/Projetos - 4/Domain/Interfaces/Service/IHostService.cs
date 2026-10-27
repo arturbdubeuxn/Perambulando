@@ -20,6 +20,8 @@ namespace Projetos___4.Domain.Interfaces.Service
 
         Task<IEnumerable<Hosts>> GetAllHostsbyUserId(string userId);
 
+        Task<List<Hosts>> FilterAsync(HostFilter filter);
+
 
     }
 }

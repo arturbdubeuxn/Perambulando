@@ -101,6 +101,7 @@ builder.Services.AddScoped<IAddressMapping, AddressMapping>();
 builder.Services.AddScoped<ICategoryMapping, CategoryMapping>();
 builder.Services.AddScoped<IUserMapping, UserMapping>();
 builder.Services.AddScoped<IHostMapping, HostMapping>();
+builder.Services.AddScoped<IHostFilterMapping, HostFilterMapping>();
 builder.Services.AddScoped<IFavoriteMapping, FavoriteMapping>();
 builder.Services.AddScoped<IUserXCategoryMapping, UserXCategoryMapping>();
 builder.Services.AddScoped<IProgrammingXCategoryMapping, ProgrammingXCategoryMapping>();

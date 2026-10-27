@@ -465,6 +465,25 @@ GET {{Projetos___4_HostAddress}}/api/Favorite/GetAllByUserId
 Accept: application/json
 Authorization: Bearer {{login.response.body.$.accessToken}}
 
+### HOST - Filtrar hosts ativos (JWT; filtros opcionais pela query, sem corpo)
+# Tipos: 0 = Produtor, 1 = Gastronomia, 2 = Comércio.
+# Repita types para selecionar vários. Sem hasProgrammings, retorna com e sem programação.
+# @name filterHosts
+GET {{Projetos___4_HostAddress}}/api/Host/HostFilter?types=0&types=1&take=10&skip=0
+Accept: application/json
+Authorization: Bearer {{login.response.body.$.accessToken}}
+
+### HOST - Somente hosts com programação ativa futura ou em andamento
+# @name filterHostsWithProgrammings
+GET {{Projetos___4_HostAddress}}/api/Host/HostFilter?hasProgrammings=true&take=10&skip=0
+Accept: application/json
+Authorization: Bearer {{login.response.body.$.accessToken}}
+
+### HOST - Paginação inválida (400)
+GET {{Projetos___4_HostAddress}}/api/Host/HostFilter?take=0
+Accept: application/json
+Authorization: Bearer {{login.response.body.$.accessToken}}
+
 ### FAVORITE - Desfavoritar (200 com isActive false; 404 se não houver vínculo seu)
 # @name deleteFavorite
 PATCH {{Projetos___4_HostAddress}}/api/Favorite/{{FavoriteProgrammingId}}/Delete

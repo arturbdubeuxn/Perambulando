@@ -271,3 +271,11 @@ Validação: conferência estática do modelo e do Context; build executado, imp
 ## Address.City para filtro — 26/10/2026
 
 Address agora contém City (string, padrão vazio, máximo 150 no EF). AddressService normaliza cidade em endereços novos e AddressRepository inclui City na comparação de endereços equivalentes. A migration está preparada e não aplicada. ProgrammingFilter continua [NotMapped], sem tabela ou DbSet, com os mesmos 11 campos atuais.
+
+## Objeto de filtros de host — 27/10/2026
+
+HostFilter adicionado a Domain/Model como objeto de consulta, com Name, Types, City, HasProgrammings, Take (padrão 10) e Skip (padrão 0). Não é entidade persistida nem foi adicionado ao Context; não exige tabela ou migration. Recebe HostFilterDTO por HostFilterMapping.ToModel. Consulta de hosts ainda pendente nas demais camadas. Build bloqueado por chamada preexistente a IHostAppService.FilterAsync não implementado; nenhum teste HTTP ou banco realizado.
+
+## Remoção de bairro dos filtros de host — 27/10/2026
+
+Neighborhood removido de HostFilterDTO, HostFilter, HostFilterMapping e da consulta HostRepository.FilterAsync. Bairro continua opcional no endereço e nos formulários de cadastro/edição, para exibição; não participa da seleção de hosts. Proximidade permanece uma implementação futura. Nenhuma alteração no schema ou migration. O catálogo do protótipo lê o DTO atualizado; ajustada descoberta da pasta da API para aceitar a estrutura atual e a estrutura backend/Projetos - 4. PDFs preservados.

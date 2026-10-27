@@ -14,16 +14,16 @@ namespace Projetos___4.Application.AppServices
         private readonly IHostService _hostService;
         private readonly IProgrammingService _programmingService;
         private readonly IAddressAppService _addressAppService;
-
         private readonly IHostMapping _hostMapping;
-
-        public HostAppService(IHostService hostService, IProgrammingService programmingService, IAddressAppService addressAppService, IValidation<HostDTO> hostValidation, IHostMapping hostMapping)
+        private readonly IHostFilterMapping _hostFilterMapping;
+        public HostAppService(IHostService hostService, IProgrammingService programmingService, IAddressAppService addressAppService, IValidation<HostDTO> hostValidation, IHostMapping hostMapping, IHostFilterMapping hostFilterMapping)
         {
             _hostMapping = hostMapping;
             _hostValidation = hostValidation;
             _hostService = hostService;
             _programmingService = programmingService;
             _addressAppService = addressAppService;
+            _hostFilterMapping = hostFilterMapping;
         }
 
         public async Task<CompanyRegistrationDTO> GetByCnpjAsync(string cnpj, CancellationToken cancellationToken = default)
@@ -85,6 +85,13 @@ namespace Projetos___4.Application.AppServices
         public async Task<IEnumerable<HostResponseDTO>> GetAllHostsbyUserId(string userid)
         {
             var hosts = await _hostService.GetAllHostsbyUserId(userid);
+            return hosts.Select(_hostMapping.ToDTO).ToList();
+        }
+
+        public async Task<List<HostResponseDTO>> FilterAsync(HostFilterDTO dto)
+        {
+            var model = _hostFilterMapping.ToModel(dto);
+            var hosts = await _hostService.FilterAsync(model);
             return hosts.Select(_hostMapping.ToDTO).ToList();
         }
     }

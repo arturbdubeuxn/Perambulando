@@ -97,5 +97,30 @@ namespace Projetos___4.Data.Repository
         {
             return await Db.Hosts.Include(host => host.Address).Where(h => h.UserId == userId && h.IsActive == true).ToListAsync();
         }
+
+        public async Task<List<Hosts>> FilterAsync(HostFilter filter)
+        {
+            var name = filter.Name?.Trim().ToLower();
+            var types = filter.Types ?? new List<Hosts.TypeofHost>();
+            var hasProgrammings = filter.HasProgrammings.GetValueOrDefault();
+            var now = DateTime.UtcNow;
+
+            var query =
+                from host in Db.Hosts.Include(h => h.Address).AsNoTracking()
+                where host.IsActive
+                    && (string.IsNullOrEmpty(name) || host.Name.ToLower().Contains(name))
+                    && (types.Count == 0 || types.Contains(host.Typeofhost))
+                    && (!filter.HasProgrammings.HasValue ||
+                        Db.Programmings.Any(programming => programming.HostId == host.Id
+                            && programming.IsActive && programming.EndDate > now) == hasProgrammings)
+                select host;
+
+            return await query
+                .OrderBy(host => host.Name)
+                .ThenBy(host => host.Id)
+                .Skip(filter.Skip)
+                .Take(filter.Take)
+                .ToListAsync();
+        }
     }
 }

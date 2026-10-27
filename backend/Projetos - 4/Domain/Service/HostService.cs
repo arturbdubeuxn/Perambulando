@@ -182,5 +182,27 @@ namespace Projetos___4.Domain.Service
             return await _hostRepository.GetAllHostsbyUserId(userId);
         }
 
+        public async Task<List<Hosts>> FilterAsync(HostFilter filter)
+        {
+            ArgumentNullException.ThrowIfNull(filter);
+
+            if (filter.Take <= 0 || filter.Skip < 0)
+            {
+                throw new ArgumentException("Take deve ser maior que zero e Skip deve ser maior ou igual a zero.");
+            }
+
+            if (filter.Types != null && filter.Types.Any(type => !Enum.IsDefined(type)))
+            {
+                throw new ArgumentException("Informe tipos de host válidos: 0, 1 ou 2.");
+            }
+
+            if (!string.IsNullOrWhiteSpace(filter.City))
+            {
+                throw new ArgumentException("O filtro por cidade ainda não está disponível, pois a cidade não é armazenada no endereço.");
+            }
+
+            return await _hostRepository.FilterAsync(filter);
+        }
+
     }
 }

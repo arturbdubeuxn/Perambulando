@@ -887,3 +887,13 @@ No perfil HTTPS do Visual Studio, as chamadas a http://localhost:5014 podem resp
 A action GET /api/Programming/Filter já criada recebe ProgrammingFilterDTO por query. O repositório agora implementa a consulta com texto, categorias, cidade, período, gratuidade, preços, host, take e skip. A resposta continua uma lista de ProgrammingResponseDTO. Exemplo: /api/Programming/Filter?take=10&skip=0&categoriesId=1&categoriesId=2&city=Recife&isFree=false&minPrice=10&maxPrice=50.
 
 Não foi validado o endpoint HTTP nesta etapa: o build completo acusa CS7036 em HostAppService.GetByIdAsync, que chama GetAllProgrammingsbyHostId(hostId) enquanto a interface atual exige também userId. A query foi validada isoladamente. O protótipo não foi encontrado nos caminhos de Artur/Rafael; não foi modificado. Nenhum PDF foi regenerado.
+
+## Remoção de bairro dos filtros de host — 27/10/2026
+
+Neighborhood removido de HostFilterDTO, HostFilter, HostFilterMapping e da consulta HostRepository.FilterAsync. Bairro continua opcional no endereço e nos formulários de cadastro/edição, para exibição; não participa da seleção de hosts. Proximidade permanece uma implementação futura. Nenhuma alteração no schema ou migration. O catálogo do protótipo lê o DTO atualizado; ajustada descoberta da pasta da API para aceitar a estrutura atual e a estrutura backend/Projetos - 4. PDFs preservados.
+
+## Filtro de hosts: fluxo verificado — 27/10/2026
+
+Esta verificação substitui as pendências anteriores de binding e validação do filtro. GET /api/Host/HostFilter permanece autenticado (qualquer usuário logado), recebe HostFilterDTO por FromQuery e retorna List<HostResponseDTO> com 200, inclusive []. ArgumentException do service vira ProblemDetails 400. Sem autenticação/token inválido: 401. Name, Types, HasProgrammings, Take e Skip são aplicados; City preenchido retorna 400 por indisponibilidade, pois Address não possui cidade. Bairro permanece opcional e visual no endereço, fora do filtro. Paginação inválida e valores fora do enum são rejeitados no service.
+
+Protótipo reconhece o DTO de query e envia tipos em parâmetros repetidos, booleano opcional com Todos e GET sem corpo. Exemplos adicionados ao arquivo Projetos - 4.http. Resultado: build aprovado; 62 verificações HTTP/EF/PostgreSQL reais em banco descartável e 58 testes simulados do protótipo aprovados. Banco temporário removido, banco principal preservado. Sem migration, commit ou PDFs. Detalhes: [relatório de verificação](validacoes/host-filter-fluxo-2026-10-27.md).
