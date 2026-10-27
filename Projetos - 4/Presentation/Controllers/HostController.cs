@@ -210,5 +210,20 @@ namespace Projetos___4.Presentation.Controllers
 
             return Ok(hostlist);
         }
+        [Authorize]
+        [HttpGet("HostFilter")]
+        public async Task<IActionResult> FilterAsync([FromQuery] HostFilterDTO dto)
+        {
+            try
+            {
+                var hostlist = await _hostAppService.FilterAsync(dto);
+                return Ok(hostlist);
+            }
+            catch (ArgumentException ex)
+            {
+                return Problem(statusCode: StatusCodes.Status400BadRequest,
+                    title: "Filtros inválidos", detail: ex.Message);
+            }
+        }
     }
 }

@@ -876,3 +876,13 @@ Detalhes e teste reproduzível: [revisão de datas/preços](validacoes/programmi
 ## Endpoint público de paginação — 26/10/2026
 
 Novo endpoint público: GET /api/Programming/GetAllProgrammings?take=10&skip=0. Parâmetros opcionais na query: take int (padrão 10, maior que zero) e skip int (padrão 0, não negativo). Sem JWT e sem corpo. Retorna 200 com array de ProgrammingResponseDTO, inclusive [] quando vazio; argumentos inválidos retornam ProblemDetails 400. Valores não inteiros são recusados pelo binding do ApiController com 400. Exemplo da segunda página: take=10&skip=10.
+
+## Remoção de bairro dos filtros de host — 27/10/2026
+
+Neighborhood removido de HostFilterDTO, HostFilter, HostFilterMapping e da consulta HostRepository.FilterAsync. Bairro continua opcional no endereço e nos formulários de cadastro/edição, para exibição; não participa da seleção de hosts. Proximidade permanece uma implementação futura. Nenhuma alteração no schema ou migration. O catálogo do protótipo lê o DTO atualizado; ajustada descoberta da pasta da API para aceitar a estrutura atual e a estrutura backend/Projetos - 4. PDFs preservados.
+
+## Filtro de hosts: fluxo verificado — 27/10/2026
+
+Esta verificação substitui as pendências anteriores de binding e validação do filtro. GET /api/Host/HostFilter permanece autenticado (qualquer usuário logado), recebe HostFilterDTO por FromQuery e retorna List<HostResponseDTO> com 200, inclusive []. ArgumentException do service vira ProblemDetails 400. Sem autenticação/token inválido: 401. Name, Types, HasProgrammings, Take e Skip são aplicados; City preenchido retorna 400 por indisponibilidade, pois Address não possui cidade. Bairro permanece opcional e visual no endereço, fora do filtro. Paginação inválida e valores fora do enum são rejeitados no service.
+
+Protótipo reconhece o DTO de query e envia tipos em parâmetros repetidos, booleano opcional com Todos e GET sem corpo. Exemplos adicionados ao arquivo Projetos - 4.http. Resultado: build aprovado; 62 verificações HTTP/EF/PostgreSQL reais em banco descartável e 58 testes simulados do protótipo aprovados. Banco temporário removido, banco principal preservado. Sem migration, commit ou PDFs. Detalhes: [relatório de verificação](validacoes/host-filter-fluxo-2026-10-27.md).

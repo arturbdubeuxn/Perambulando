@@ -1,4 +1,5 @@
 using Projetos___4.Application.DTO;
+using Projetos___4.Domain.Model;
 
 namespace Projetos___4.Application.Interfaces
 {
@@ -16,6 +17,8 @@ namespace Projetos___4.Application.Interfaces
         Task<HostResponseDTO?> DeleteHostAsync(int hostId, string userId);
 
         Task<IEnumerable<HostResponseDTO>> GetAllHostsbyUserId(string userid);
+
+        Task<List<HostResponseDTO>> FilterAsync(HostFilterDTO dto);
 
     }
 }

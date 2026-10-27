@@ -723,3 +723,29 @@ O ToModel de FavoriteMapping passou a ser usado pelo cadastro no AppService. Use
 ## Endpoint público de paginação — 26/10/2026
 
 GetAllProgrammings recebe take e skip como int pela query, com padrões 10/0. Não há DTO de entrada nem corpo. Resposta é List<ProgrammingResponseDTO> com os campos existentes, incluindo endereço; não inclui contagem total nem metadados de paginação.
+
+## Mapping dos filtros de host — 27/10/2026
+
+Criados HostFilterMapping e IHostFilterMapping, com ToModel(HostFilterDTO) e registro Scoped. O mapping copia Name, Types, City, HasProgrammings, Take e Skip para HostFilter no domínio, preservando filtros opcionais e copiando a lista de tipos. Segue o padrão dos mappings existentes; não aplica regras de consulta ou validação de filtros.
+
+A implementação de FilterAsync nas demais camadas permanece pendente: a action já iniciada chama IHostAppService.FilterAsync, ainda inexistente. Build tentado: um erro CS1061 nessa chamada preexistente e dez avisos; nenhum erro apontado nos arquivos do mapping. Sem mudança funcional de endpoint nesta etapa, sem alteração do protótipo, banco, migration ou PDFs.
+
+## Consulta de hosts por filtros — 27/10/2026
+
+HostRepository.FilterAsync implementado em sintaxe LINQ de consulta (from/where/select), com Address incluído e AsNoTracking. Retorna somente hosts ativos. Name aceita correspondência parcial sem distinção de maiúsculas/minúsculas (sem normalização de acentos); Types nulo/vazio não restringe e múltiplos tipos são alternativas. Os demais filtros são combinados. HasProgrammings considera programações ativas com EndDate posterior ao instante UTC da consulta: true exige existência, false exige ausência e null não restringe. Ordena por Name/Id antes de Skip/Take, retornando lista vazia sem correspondências.
+
+Take <= 0 e Skip < 0 lançam ArgumentException. City preenchido lança ArgumentException explicativa: Address não possui cidade persistida. Não houve alteração de model/schema ou migration. A action HostFilter iniciada pelo usuário permanece como está: falta revisar binding por query e tratamento de ArgumentException para HTTP 400 antes de considerar o fluxo HTTP concluído. O catálogo automático do protótipo deve acompanhar o contrato salvo; nenhum formulário ou contrato foi modificado nesta tarefa de repositório.
+
+Validação: build aprovado com zero erros e dez avisos existentes; sem teste HTTP ou consulta ao banco real. PDFs preservados.
+
+## Remoção de bairro dos filtros de host — 27/10/2026
+
+Neighborhood removido de HostFilterDTO, HostFilter, HostFilterMapping e da consulta HostRepository.FilterAsync. Bairro continua opcional no endereço e nos formulários de cadastro/edição, para exibição; não participa da seleção de hosts. Proximidade permanece uma implementação futura. Nenhuma alteração no schema ou migration. O catálogo do protótipo lê o DTO atualizado; ajustada descoberta da pasta da API para aceitar a estrutura atual e a estrutura backend/Projetos - 4. PDFs preservados.
+
+Validação da remoção do bairro: build com zero erros/dez avisos existentes; node --check aprovado em catalog.mjs, public/app.js e server.mjs; 56 testes do protótipo com API simulada aprovados (execução liberada para portas locais). Catálogo real carregado com sucesso. A action HostFilter ainda não explicita FromQuery e o catálogo não reconhece seus campos; essa pendência anterior não foi alterada nesta tarefa. Sem requisições ao banco real.
+
+## Filtro de hosts: fluxo verificado — 27/10/2026
+
+Esta verificação substitui as pendências anteriores de binding e validação do filtro. GET /api/Host/HostFilter permanece autenticado (qualquer usuário logado), recebe HostFilterDTO por FromQuery e retorna List<HostResponseDTO> com 200, inclusive []. ArgumentException do service vira ProblemDetails 400. Sem autenticação/token inválido: 401. Name, Types, HasProgrammings, Take e Skip são aplicados; City preenchido retorna 400 por indisponibilidade, pois Address não possui cidade. Bairro permanece opcional e visual no endereço, fora do filtro. Paginação inválida e valores fora do enum são rejeitados no service.
+
+Protótipo reconhece o DTO de query e envia tipos em parâmetros repetidos, booleano opcional com Todos e GET sem corpo. Exemplos adicionados ao arquivo Projetos - 4.http. Resultado: build aprovado; 62 verificações HTTP/EF/PostgreSQL reais em banco descartável e 58 testes simulados do protótipo aprovados. Banco temporário removido, banco principal preservado. Sem migration, commit ou PDFs. Detalhes: [relatório de verificação](validacoes/host-filter-fluxo-2026-10-27.md).

@@ -17,5 +17,7 @@ namespace Projetos___4.Domain.Interfaces.Repository
         Task<bool> UserOwnsActiveHostAsync(Programming programming, string userId);
 
         Task<IEnumerable<Hosts>> GetAllHostsbyUserId(string userId);
+
+        Task<List<Hosts>> FilterAsync(HostFilter filter);
     }
 }

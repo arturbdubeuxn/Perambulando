@@ -255,3 +255,11 @@ Detalhes e teste reproduzível: [revisão de datas/preços](validacoes/programmi
 ## Mapping de favorito para model — 26/10/2026
 
 Adicionado FavoriteMapping.ToModel(userId, programmingId) na Application. O model Favorite mantém seus valores padrão para IsActive, CreatedAt e UpdatedAt; o mapper preenche apenas as duas chaves de vínculo. Nenhuma alteração em model, schema, DI, validação ou endpoint.
+
+## Objeto de filtros de host — 27/10/2026
+
+HostFilter adicionado a Domain/Model como objeto de consulta, com Name, Types, City, HasProgrammings, Take (padrão 10) e Skip (padrão 0). Não é entidade persistida nem foi adicionado ao Context; não exige tabela ou migration. Recebe HostFilterDTO por HostFilterMapping.ToModel. Consulta de hosts ainda pendente nas demais camadas. Build bloqueado por chamada preexistente a IHostAppService.FilterAsync não implementado; nenhum teste HTTP ou banco realizado.
+
+## Remoção de bairro dos filtros de host — 27/10/2026
+
+Neighborhood removido de HostFilterDTO, HostFilter, HostFilterMapping e da consulta HostRepository.FilterAsync. Bairro continua opcional no endereço e nos formulários de cadastro/edição, para exibição; não participa da seleção de hosts. Proximidade permanece uma implementação futura. Nenhuma alteração no schema ou migration. O catálogo do protótipo lê o DTO atualizado; ajustada descoberta da pasta da API para aceitar a estrutura atual e a estrutura backend/Projetos - 4. PDFs preservados.

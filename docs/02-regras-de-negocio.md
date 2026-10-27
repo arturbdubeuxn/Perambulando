@@ -673,3 +673,21 @@ GetAllProgrammingsAsync(int take, int skip) adicionado em Repository, Service e 
 ## Endpoint público de paginação — 26/10/2026
 
 A listagem paginada agora está exposta publicamente por ProgrammingController.GetAllProgrammings. Consulta programações e hosts ativos, com endereço, ordenadas por StartDate/Id; take/skip continuam validados pelo service. A controller apenas chama o AppService e converte ArgumentException em 400. Também foi alinhada a chamada antiga de UserXCategoryService.EditAsync aos três argumentos já definidos na interface/repositório, removendo o erro CS1501 de compilação.
+
+## Consulta de hosts por filtros — 27/10/2026
+
+HostRepository.FilterAsync implementado em sintaxe LINQ de consulta (from/where/select), com Address incluído e AsNoTracking. Retorna somente hosts ativos. Name aceita correspondência parcial sem distinção de maiúsculas/minúsculas (sem normalização de acentos); Types nulo/vazio não restringe e múltiplos tipos são alternativas. Os demais filtros são combinados. HasProgrammings considera programações ativas com EndDate posterior ao instante UTC da consulta: true exige existência, false exige ausência e null não restringe. Ordena por Name/Id antes de Skip/Take, retornando lista vazia sem correspondências.
+
+Take <= 0 e Skip < 0 lançam ArgumentException. City preenchido lança ArgumentException explicativa: Address não possui cidade persistida. Não houve alteração de model/schema ou migration. A action HostFilter iniciada pelo usuário permanece como está: falta revisar binding por query e tratamento de ArgumentException para HTTP 400 antes de considerar o fluxo HTTP concluído. O catálogo automático do protótipo deve acompanhar o contrato salvo; nenhum formulário ou contrato foi modificado nesta tarefa de repositório.
+
+Validação: build aprovado com zero erros e dez avisos existentes; sem teste HTTP ou consulta ao banco real. PDFs preservados.
+
+## Remoção de bairro dos filtros de host — 27/10/2026
+
+Neighborhood removido de HostFilterDTO, HostFilter, HostFilterMapping e da consulta HostRepository.FilterAsync. Bairro continua opcional no endereço e nos formulários de cadastro/edição, para exibição; não participa da seleção de hosts. Proximidade permanece uma implementação futura. Nenhuma alteração no schema ou migration. O catálogo do protótipo lê o DTO atualizado; ajustada descoberta da pasta da API para aceitar a estrutura atual e a estrutura backend/Projetos - 4. PDFs preservados.
+
+## Filtro de hosts: fluxo verificado — 27/10/2026
+
+Esta verificação substitui as pendências anteriores de binding e validação do filtro. GET /api/Host/HostFilter permanece autenticado (qualquer usuário logado), recebe HostFilterDTO por FromQuery e retorna List<HostResponseDTO> com 200, inclusive []. ArgumentException do service vira ProblemDetails 400. Sem autenticação/token inválido: 401. Name, Types, HasProgrammings, Take e Skip são aplicados; City preenchido retorna 400 por indisponibilidade, pois Address não possui cidade. Bairro permanece opcional e visual no endereço, fora do filtro. Paginação inválida e valores fora do enum são rejeitados no service.
+
+Protótipo reconhece o DTO de query e envia tipos em parâmetros repetidos, booleano opcional com Todos e GET sem corpo. Exemplos adicionados ao arquivo Projetos - 4.http. Resultado: build aprovado; 62 verificações HTTP/EF/PostgreSQL reais em banco descartável e 58 testes simulados do protótipo aprovados. Banco temporário removido, banco principal preservado. Sem migration, commit ou PDFs. Detalhes: [relatório de verificação](validacoes/host-filter-fluxo-2026-10-27.md).
