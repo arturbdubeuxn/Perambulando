@@ -248,7 +248,7 @@ A rota `/` foi alinhada a `ProgrammingDTO` e ao endpoint autenticado `POST /api/
 
 Categorias são carregadas de `GET /api/Category/GetallCategories`, e hosts ativos do usuário são carregados de `GET /api/Host/GetAllHostsbyUserId` com o JWT recebido no fluxo de cadastro de host. O botão de rascunho permanece desabilitado porque não existe contrato de rascunho. A imagem é informada por URL porque `ProgrammingDTO` possui `ImageUrl` e a API não oferece upload de arquivo.
 
-Validações realizadas: `tsc --noEmit` e ESLint direto nos quatro arquivos envolvidos aprovados; `/` e o bundle web do Expo Router responderam HTTP 200, com a nova tela incluída. O wrapper `expo lint` foi iniciado duas vezes, mas permaneceu sem saída por mais de 90 segundos e foi interrompido; a execução direta do mesmo ESLint concluiu sem diagnóstico. A API local respondeu 200 em categorias, porém retornou `[]`, portanto a publicação funcional ficou corretamente bloqueada até existirem categorias ativas. Não houve POST de programação, alteração no banco, mudança de backend ou regeneração de PDF.
+Validações realizadas: `tsc --noEmit` e ESLint direto nos quatro arquivos envolvidos aprovados; `/` e o bundle web do Expo Router responderam HTTP 200, com a nova tela incluída. O wrapper `expo lint` foi iniciado duas vezes, mas permaneceu sem saída por mais de 90 segundos e foi interrompido; a execução direta do mesmo ESLint concluiu sem diagnóstico. A primeira consulta de categorias retornou `[]`; em seguida, o catálogo local foi preenchido com 12 categorias ativas e o mesmo endpoint passou a responder 200 com todas elas. Não houve POST de programação, mudança de backend ou regeneração de PDF.
 
 ## CORS do frontend web local — 27/10/2026
 
