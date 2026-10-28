@@ -552,3 +552,21 @@ Authorization: Bearer {{login.response.body.$.accessToken}}
 ### Perfil após cancelamento: isPro false, sem fazer login novamente
 GET {{Projetos___4_HostAddress}}/api/User/Profile
 Authorization: Bearer {{login.response.body.$.accessToken}}
+
+### PROGRAMMING - Listagem exclusiva para turista
+# Faça login com TypeofUser=1. O JWT deve conter typeofuser=1.
+# Retorna 200 e lista paginada; sem token: 401; Local: 403.
+# @name turistProgrammings
+GET {{Projetos___4_HostAddress}}/api/Programming/GetAllTuristProgrammings?take=10&skip=0
+Accept: application/json
+Authorization: Bearer {{login.response.body.$.accessToken}}
+
+### PROGRAMMING - Turista: próxima página
+GET {{Projetos___4_HostAddress}}/api/Programming/GetAllTuristProgrammings?take=10&skip=10
+Accept: application/json
+Authorization: Bearer {{login.response.body.$.accessToken}}
+
+### PROGRAMMING - Turista: paginação inválida (400 com conta turista)
+GET {{Projetos___4_HostAddress}}/api/Programming/GetAllTuristProgrammings?take=101&skip=0
+Accept: application/json
+Authorization: Bearer {{login.response.body.$.accessToken}}

@@ -120,5 +120,12 @@ namespace Projetos___4.Application.AppServices
             return programmings.Select(_programmingMapping.ToDTO).ToList();
         }
 
+        public async Task<List<ProgrammingResponseDTO>> GetAllTuristProgrammings(int take, int skip, string userid)
+        {
+            var programmings = await _programmingService.GetAllTuristProgrammings(take, skip, userid);
+            return programmings.Select(_programmingMapping.ToDTO).ToList();
+        }
+
+
     }
 }

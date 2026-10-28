@@ -14,6 +14,7 @@ namespace Projetos___4.Application.Interfaces
         Task<ProgrammingResponseDTO?> EditProgrammingAsync(ProgrammingDTO dto, int id, int hostId, string userId);
         Task<List<ProgrammingResponseDTO>> FilterAsync(ProgrammingFilterDTO dto);
         Task<List<ProgrammingResponseDTO>> GetAllProgrammingsWithProHost(int take, int skip);
+        Task<List<ProgrammingResponseDTO>> GetAllTuristProgrammings(int take, int skip, string userid);
 
 
     }

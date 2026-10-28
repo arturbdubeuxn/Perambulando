@@ -237,5 +237,36 @@ namespace Projetos___4.Presentation.Controllers
             }
         }
 
+        [HttpGet("GetAllTuristProgrammings")]
+        [Authorize]
+        public async Task<IActionResult> GetAllTuristProgrammings([FromQuery] int take = 10, [FromQuery] int skip = 0)
+        {
+            if (!User.HasClaim("typeofuser", ((int)Domain.Model.User.TypeofUser.Turist).ToString(System.Globalization.CultureInfo.InvariantCulture)))
+            {
+                return Forbid();
+            }
+
+            var userId = _userManager.GetUserId(User);
+            if (string.IsNullOrWhiteSpace(userId))
+            {
+                return Problem(statusCode: StatusCodes.Status401Unauthorized, title: "Usuário não autenticado");
+            }
+            try
+            {
+                var programmings = await _programmingAppService.GetAllTuristProgrammings(take, skip, userId);
+                return Ok(programmings);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Problem(statusCode: StatusCodes.Status403Forbidden,
+                    title: "Acesso negado", detail: ex.Message);
+            }
+            catch (ArgumentException ex)
+            {
+                return Problem(statusCode: StatusCodes.Status400BadRequest,
+                    title: "Paginação inválida", detail: ex.Message);
+            }
+        }
+
     }
 }

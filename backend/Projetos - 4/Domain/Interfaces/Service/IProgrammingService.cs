@@ -16,6 +16,7 @@ namespace Projetos___4.Domain.Interfaces.Service
         Task<Programming?> EditProgrammingAsync(Programming programming, List<ProgrammingXCategory> links, string userId);
         Task<List<Programming>> FilterAsync(ProgrammingFilter programmingFilter);
         Task<List<Programming>> GetAllProgrammingsWithProHost(int take, int skip);
-       
+        Task<List<Programming>> GetAllTuristProgrammings(int take, int skip,string userid);
+
     }
 }
