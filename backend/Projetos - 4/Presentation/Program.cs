@@ -30,14 +30,6 @@ using Projetos___4.Domain.Validations.Validations;
 var builder = WebApplication.CreateBuilder(args);
 const string FrontendCorsPolicy = "FrontendCors";
 
-if (builder.Environment.IsDevelopment())
-{
-    builder.Configuration.AddJsonFile("appsettings.json", optional: true, reloadOnChange: false);
-    builder.Configuration.AddEnvironmentVariables();
-    builder.Configuration.AddCommandLine(args);
-}
-
-
 builder.Services.AddControllers();
 builder.Services.AddCors(options =>
 {

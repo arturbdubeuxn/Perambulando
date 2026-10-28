@@ -70,6 +70,8 @@ Validação da alteração de bairro opcional: build GeoLocation concluído com 
 
 ## Geocodificação via Geoapify — 19/10/2026
 
+Atualização local em 28/10/2026: a chave de desenvolvimento foi configurada no .NET User Secrets associado a `backend/Projetos - 4/Projetos - 4.csproj`. O valor permanece fora do repositório e não é documentado. Foi removida do `Program.cs` a recarga redundante de `appsettings.json`, variáveis de ambiente e argumentos: `WebApplication.CreateBuilder` já adiciona essas fontes e o bloco posterior fazia o valor vazio de `Geoapify:ApiKey` do JSON sobrescrever o User Secrets. Com `ASPNETCORE_ENVIRONMENT=Development`, basta reiniciar a API normalmente; não é necessário redefinir `Geoapify__ApiKey` em cada terminal. Essa configuração vale somente para o usuário Windows e a máquina atuais. Não houve mudança de rota, DTO, autorização, resposta ou persistência; o protótipo externo não precisou de ajuste. PDFs não foram regenerados.
+
 Cadastro de host e programação consulta o Geoapify antes de persistir, após verificar usuário/propriedade. A edição consulta somente se Location for nula ou se Address, AddressNumber, Neighborhood ou CEP mudar. Alterar apenas complemento não consulta. Falha não salva o cadastro/edição nem substitui as coordenadas anteriores; os demais dados rastreados só são alterados após sucesso da geocodificação.
 
 - Entrada HTTP permanece igual: logradouro, número opcional, bairro opcional e CEP; o complemento não participa da busca. Não há novo endpoint de geocodificação nem entrada de coordenadas pelo cliente.
