@@ -29,6 +29,24 @@ const colors = {
 };
 
 const apiBaseUrl = (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:5014').replace(/\/$/, '');
+const accessTokenStorageKey = 'perambulando.accessToken';
+const hostIdStorageKey = 'perambulando.hostId';
+
+type WritableStorageLike = {
+  setItem: (key: string, value: string) => void;
+};
+
+function storeWebSession(accessToken: string, hostId?: number) {
+  if (Platform.OS !== 'web') {
+    return;
+  }
+
+  const storage = (globalThis as { sessionStorage?: WritableStorageLike }).sessionStorage;
+  storage?.setItem(accessTokenStorageKey, accessToken);
+  if (hostId) {
+    storage?.setItem(hostIdStorageKey, String(hostId));
+  }
+}
 
 type FieldProps = {
   label: string;
@@ -463,6 +481,7 @@ export default function HostRegistrationScreen() {
           password: prepared.user.password,
         }),
       });
+      storeWebSession(auth.accessToken);
 
       const authorization = { Authorization: `Bearer ${auth.accessToken}` };
       const company = await apiRequest<CompanyRegistrationResponse>(
@@ -476,6 +495,7 @@ export default function HostRegistrationScreen() {
         headers: authorization,
         body: JSON.stringify(prepared.host),
       });
+      storeWebSession(created.auth.accessToken, created.result.id);
 
       setSubmission({
         status: 'success',

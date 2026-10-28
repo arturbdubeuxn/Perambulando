@@ -1,6 +1,6 @@
 # Arquitetura e separação entre frontend e backend
 
-Atualização: 27/10/2026.
+Atualização: 28/10/2026.
 
 ## Objetivo da separação
 
@@ -128,13 +128,14 @@ O diretório `frontend/` contém o aplicativo web responsivo baseado em React Na
 - Fredoka para a assinatura textual da marca Perambulando.
 - Dependências travadas em `package-lock.json`.
 
-Estão implementadas as interfaces de criação de evento e cadastro de host. A criação de evento ainda mantém somente estado visual/local. O cadastro de host valida e mascara os dados, registra o usuário host, autentica-o, consulta o CNPJ e envia o `HostDTO` à API; o token obtido nesse fluxo é usado somente na requisição corrente e não é persistido como sessão.
+Estão implementadas as interfaces integradas de criação de evento e cadastro de host. O cadastro de host valida e mascara os dados, registra o usuário host, autentica-o, consulta o CNPJ e envia o `HostDTO` à API. No navegador, o JWT e o host recém-criado ficam em `sessionStorage`, somente durante a sessão da aba, para a rota `/` carregar os hosts do usuário e publicar uma programação.
 
 ### Conteúdo dos arquivos e diretórios
 
 | Local | Responsabilidade |
 |---|---|
-| `App.tsx` | Interface responsiva de criação de evento, reutilizada pela rota `/` |
+| `App.tsx` | Exportação compatível da tela de criação de evento |
+| `src/CreateEventScreen.tsx` | Formulário responsivo e integração de criação de programação |
 | `src/app/_layout.tsx` | Layout raiz do Expo Router, sem cabeçalho nativo |
 | `src/app/index.tsx` | Rota `/`, que apresenta a tela de criação de evento |
 | `src/app/cadastro_host.tsx` | Rota `/cadastro_host`, com o formulário visual e scrollável de cadastro de host |
@@ -169,11 +170,13 @@ O simulador iOS requer macOS. No Windows, o desenvolvimento móvel pode usar And
 
 ### Funcionamento atual
 
-Frontend e backend são iniciados separadamente. A rota de cadastro de host troca dados com a API quando os dois processos e o banco estão disponíveis:
+Frontend e backend são iniciados separadamente. As rotas de cadastro de host e criação de evento trocam dados com a API quando os dois processos e o banco estão disponíveis:
 
 ```text
-frontend/ -> / permanece local
-          -> /cadastro_host chama Register, Login, GetByCNPJ e Host/Create
+frontend/ -> /cadastro_host chama Register, Login, GetByCNPJ e Host/Create
+          -> guarda JWT/hostId na sessão web
+          -> / carrega Category/GetallCategories e Host/GetAllHostsbyUserId
+          -> / publica em Programming/{hostId}/Create
 
 backend/  -> valida os contratos, aplica as regras e acessa o PostGIS
 ```
@@ -237,7 +240,15 @@ Validações realizadas: estrutura real dos diretórios conferida; solução e p
 
 Validações adicionais em 26/10/2026: `tsc --noEmit` e `expo lint` aprovados; bundle web do Expo Router compilado; `/` e `/cadastro_host` responderam HTTP 200 no servidor local. Em 27/10/2026, a rota `/cadastro_host` foi conferida integralmente em captura responsiva: cabeçalho, marca em Fredoka, pin, paleta, cartões, campos, seleção, botões e aviso final foram renderizados corretamente.
 
-Pendências intencionais: integrar a criação de evento à API, implementar uma tela e uma sessão persistente de autenticação, configurar a URL definitiva por ambiente e realizar testes funcionais completos do cadastro de host com API e banco. O cadastro de host já executa as requisições necessárias, mas o JWT ainda não é armazenado para reutilização em outras telas.
+Pendências intencionais: implementar uma tela completa de login e armazenamento multiplataforma seguro da sessão, configurar a URL definitiva por ambiente, disponibilizar upload de imagens e implementar rascunhos quando existirem contratos correspondentes no backend. A sessão atual usa `sessionStorage` apenas no Expo Web e termina ao fechar a aba. A criação de evento depende de categorias ativas no banco.
+
+## Integração da criação de evento — 28/10/2026
+
+A rota `/` foi alinhada a `ProgrammingDTO` e ao endpoint autenticado `POST /api/Programming/{hostId}/Create`. O formulário captura nome, descrição, URLs, início/término, gratuidade, preços mínimo/máximo, categorias por ID e endereço estruturado; datas locais são convertidas para UTC com sufixo `Z`, CEP e preços são normalizados, e as regras principais do backend são antecipadas no cliente.
+
+Categorias são carregadas de `GET /api/Category/GetallCategories`, e hosts ativos do usuário são carregados de `GET /api/Host/GetAllHostsbyUserId` com o JWT recebido no fluxo de cadastro de host. O botão de rascunho permanece desabilitado porque não existe contrato de rascunho. A imagem é informada por URL porque `ProgrammingDTO` possui `ImageUrl` e a API não oferece upload de arquivo.
+
+Validações realizadas: `tsc --noEmit` e ESLint direto nos quatro arquivos envolvidos aprovados; `/` e o bundle web do Expo Router responderam HTTP 200, com a nova tela incluída. O wrapper `expo lint` foi iniciado duas vezes, mas permaneceu sem saída por mais de 90 segundos e foi interrompido; a execução direta do mesmo ESLint concluiu sem diagnóstico. A API local respondeu 200 em categorias, porém retornou `[]`, portanto a publicação funcional ficou corretamente bloqueada até existirem categorias ativas. Não houve POST de programação, alteração no banco, mudança de backend ou regeneração de PDF.
 
 ## CORS do frontend web local — 27/10/2026
 

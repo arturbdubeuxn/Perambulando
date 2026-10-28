@@ -692,3 +692,9 @@ O backend passou a aplicar a política nomeada `FrontendCors`, restrita ao Expo 
 ## Inicialização das roles estruturais — 27/10/2026
 
 Após as migrations, a API passa a garantir com `RoleManager` a existência idempotente de `HOST` e `ADMIN`. O ajuste corrige bancos novos ou esvaziados cuja tabela `AspNetRoles` não possui essas entradas. Criar a role não a atribui a usuários: `HOST` continua vinculada no cadastro transacional do host e `ADMIN` permanece dependente de atribuição explícita. Rotas, DTOs, claims, models, migrations, frontend e protótipo foram preservados. O build normal encontrou o executável bloqueado pela API já aberta; repetido com saída temporária, compilou com zero erros e zero avisos. A API não foi reiniciada e o banco não foi alterado durante esta validação. PDFs não foram regenerados.
+
+## Frontend de criação de programação integrado — 28/10/2026
+
+A rota `/` do Expo Web foi alinhada ao `ProgrammingDTO`: envia nome/descrição, início e término UTC, gratuidade, preços mínimo/máximo, URLs, categorias por ID e endereço estruturado para `POST /api/Programming/{hostId}/Create`. Hosts e categorias são carregados pelos endpoints existentes. O cadastro de host guarda temporariamente, em `sessionStorage`, o JWT atualizado e o host criado para continuidade na mesma aba; não foi criada tela de login nem persistência multiplataforma.
+
+Upload de arquivo e rascunho permanecem indisponíveis por não haver contratos no backend; imagem é informada por URL. `tsc --noEmit` e ESLint direto nos arquivos alterados foram aprovados; rota e bundle web responderam HTTP 200. O wrapper `expo lint` permaneceu sem saída por mais de 90 segundos e foi interrompido, mas a execução direta do ESLint concluiu sem diagnóstico. A API local retornou lista vazia de categorias ativas, bloqueando corretamente o POST funcional; nenhum dado foi gravado e o backend/protótipo não foram alterados. PDFs não foram regenerados.

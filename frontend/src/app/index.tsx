@@ -1,3 +1,3 @@
-import CreateEventScreen from '../../App';
+import CreateEventScreen from '../CreateEventScreen';
 
 export default CreateEventScreen;
