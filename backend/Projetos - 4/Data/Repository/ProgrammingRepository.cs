@@ -202,5 +202,16 @@ namespace Projetos___4.Data.Repository
                 .ToListAsync();
         }
 
+
+        public async Task<List<Programming>> GetAllTusristProgrammingsAsync(int take, int skip)
+        {
+            var query =
+                from programming in Db.Programmings.Include(p => p.Address).Include(p => p.ProgrammingXCategories).ThenInclude(link => link.Category).AsNoTracking()
+                where programming.IsActive && programming.Host.IsActive && Db.ProgrammingXCategories.Any( p => p.Category.Name == "Turitico")
+                orderby programming.StartDate, programming.Id
+                select programming;
+
+            return await query.Skip(skip).Take(take).ToListAsync();
+        }
     }
 }

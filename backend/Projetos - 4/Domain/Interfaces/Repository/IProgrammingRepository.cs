@@ -14,6 +14,7 @@ namespace Projetos___4.Domain.Interfaces.Repository
         Task<List<Programming>> GetAllProgrammingsByUserCategories(List<int> categoryIds);
         Task<List<Programming>> FilterAsync(ProgrammingFilter programmingFilter);
         Task<List<Programming>> GetAllProgrammingsWithProHost(int take, int skip);
+        Task<List<Programming>> GetAllTusristProgrammingsAsync(int take, int skip);
 
 
     }

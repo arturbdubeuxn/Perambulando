@@ -216,7 +216,7 @@ ICategoryService categoryService, IProgrammingXCategoryService programmingXCateg
                 throw new UnauthorizedAccessException("Esta listagem está disponível somente para usuários turistas ativos.");
             }
 
-            return await _programmingRepository.GetAllProgrammingsAsync(take, skip);
+            return await _programmingRepository.GetAllTusristProgrammingsAsync(take, skip);
         }
     }
 }
