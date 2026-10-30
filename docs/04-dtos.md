@@ -844,3 +844,15 @@ ProgrammingMapping utiliza ICategoryMapping, elimina duplicidades por ID e orden
 O protótipo já suporta categories com objetos: exibe seus nomes sem outra consulta e extrai os IDs ao carregar a edição. Caso simulado atualizado para confirmar esse contrato sem cache prévio de categorias.
 
 Validação: build com zero erros (10 avisos preexistentes); 28 verificações com EF/PostgreSQL e API HTTP em porta temporária, incluindo paginação, preferências, filtro, carrossel, criação, substituição de categorias na edição e detalhes com/sem vínculos. Banco descartável removido ao final; banco principal preservado. Modelo sem alterações pendentes para migration. Também aprovados node --check em public/app.js e catalog.mjs e os 64 testes simulados do protótipo. Sem migration, reinicialização da API do Visual Studio ou exportação de PDF.
+
+
+## Estatísticas implementadas em 29/10/2026
+
+ProgrammingInteractionDTO: EventId e Type nullable com Required para rejeitar omissão (0 é tipo válido). HostStatisticsPeriodDTO: datas UTC como strings; HostStatisticsRankingFilterDTO: datas, sortBy, take e skip. Saídas independentes: HostStatisticsSummaryDTO, lista de HostStatisticsDailyDTO e HostStatisticsRankingDTO (items de ProgrammingStatisticsDTO), sem herança; favoritos atuais fora do filtro temporal.
+
+[Contratos, regras, validação e pendências](validacoes/estatisticas-implementacao-2026-10-29.md). Esta seção registra o estado atual e prevalece sobre propostas anteriores de estatísticas. PDFs não regenerados.
+
+
+## Separação das consultas de estatísticas — 29/10/2026
+
+Resumo, gráfico e ranking possuem endpoints, DTOs e mappings independentes, sem herança. HostStatisticsAccessService reutiliza a validação de usuário, dono e Pro; filtros e agregações permanecem no banco. A rota única anterior foi removida. Consulte os [contratos atuais, exemplos JSON e pendência de concorrência da coleta](validacoes/estatisticas-implementacao-2026-10-29.md). Nenhuma alteração de schema nesta refatoração; migration da coleta ainda não aplicada ao banco real. Protótipo externo ausente neste computador; PDFs preservados.

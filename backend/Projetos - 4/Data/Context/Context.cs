@@ -13,6 +13,8 @@ namespace Projetos___4.Data.Context
         {
         }
 
+        public DbSet<ProgrammingInteraction> ProgrammingInteractions => Set<ProgrammingInteraction>();
+
         public DbSet<Favorite> Favorites => Set<Favorite>();
 
         public DbSet<Subscription> Subscriptions => Set<Subscription>();

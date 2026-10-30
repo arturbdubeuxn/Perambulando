@@ -570,3 +570,66 @@ Authorization: Bearer {{login.response.body.$.accessToken}}
 GET {{Projetos___4_HostAddress}}/api/Programming/GetAllTuristProgrammings?take=101&skip=0
 Accept: application/json
 Authorization: Bearer {{login.response.body.$.accessToken}}
+
+
+# Estatísticas — executar após revisar/aplicar AddProgrammingInteractions.
+# Ajuste IDs. Para outra ação gere outro EventId; no reenvio preserve o mesmo.
+@StatisticsHostId = 1
+@InteractionProgrammingId = 1
+@InteractionEventId = 77ee8352-bc44-43c9-80b6-9b5dc20d5d42
+
+### NearbyClick anônimo: 204
+POST {{Projetos___4_HostAddress}}/api/Programming/{{InteractionProgrammingId}}/Interactions
+Content-Type: application/json
+
+{
+  "eventId": "{{InteractionEventId}}",
+  "type": 3
+}
+
+### Reenvio idêntico: 204 e não incrementa novamente
+POST {{Projetos___4_HostAddress}}/api/Programming/{{InteractionProgrammingId}}/Interactions
+Content-Type: application/json
+
+{
+  "eventId": "{{InteractionEventId}}",
+  "type": 3
+}
+
+### Mesmo EventId com outro tipo: 409
+POST {{Projetos___4_HostAddress}}/api/Programming/{{InteractionProgrammingId}}/Interactions
+Content-Type: application/json
+
+{
+  "eventId": "{{InteractionEventId}}",
+  "type": 0
+}
+
+### DetailView autenticado: o userId vem do token
+POST {{Projetos___4_HostAddress}}/api/Programming/{{InteractionProgrammingId}}/Interactions
+Authorization: Bearer {{login.response.body.$.accessToken}}
+Content-Type: application/json
+
+{
+  "eventId": "46de227a-b5dc-4a15-8d58-491826846e13",
+  "type": 0
+}
+
+### Ranking do próprio host, Pro obrigatório. Período sem datas: últimos 30 dias
+GET {{Projetos___4_HostAddress}}/api/Host/{{StatisticsHostId}}/Statistics/Ranking?sortBy=nearbyClicks&take=10&skip=0
+Authorization: Bearer {{login.response.body.$.accessToken}}
+
+### Ranking do período; próxima página
+GET {{Projetos___4_HostAddress}}/api/Host/{{StatisticsHostId}}/Statistics/Ranking?startDate=2026-10-01T00:00:00Z&endDate=2026-11-01T00:00:00Z&sortBy=detailViews&take=10&skip=10
+Authorization: Bearer {{login.response.body.$.accessToken}}
+
+# Repita a consulta após cancelar/vencer o Pro: 403 mesmo com o JWT anterior.
+# Types: 0 detalhes, 1 carrossel, 2 ingresso, 3 Perto de mim.
+
+### Resumo independente (JWT do proprietário com Pro)
+GET {{Projetos___4_HostAddress}}/api/Host/{{StatisticsHostId}}/Statistics/Summary?startDate=2026-10-01T00:00:00Z&endDate=2026-11-01T00:00:00Z
+Authorization: Bearer {{login.response.body.$.accessToken}}
+
+### Série diária independente (mesmo período do resumo)
+GET {{Projetos___4_HostAddress}}/api/Host/{{StatisticsHostId}}/Statistics/Daily?startDate=2026-10-01T00:00:00Z&endDate=2026-11-01T00:00:00Z
+Authorization: Bearer {{login.response.body.$.accessToken}}

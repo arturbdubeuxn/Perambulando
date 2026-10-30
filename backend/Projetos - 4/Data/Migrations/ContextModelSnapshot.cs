@@ -403,6 +403,44 @@ namespace Projetos___4._4Data.Migrations
                     b.ToTable("Programmings");
                 });
 
+            modelBuilder.Entity("Projetos___4.Domain.Model.ProgrammingInteraction", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("EventId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("ProgrammingId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("UserId")
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EventId")
+                        .IsUnique();
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("ProgrammingId", "CreatedAt");
+
+                    b.ToTable("ProgrammingInteractions", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_ProgrammingInteractions_Type", "\"Type\" BETWEEN 0 AND 3");
+                        });
+                });
+
             modelBuilder.Entity("Projetos___4.Domain.Model.ProgrammingXCategory", b =>
                 {
                     b.Property<int>("Id")
@@ -667,6 +705,24 @@ namespace Projetos___4._4Data.Migrations
                     b.Navigation("Host");
                 });
 
+            modelBuilder.Entity("Projetos___4.Domain.Model.ProgrammingInteraction", b =>
+                {
+                    b.HasOne("Projetos___4.Domain.Model.Programming", "Programming")
+                        .WithMany()
+                        .HasForeignKey("ProgrammingId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Projetos___4.Domain.Model.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Programming");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("Projetos___4.Domain.Model.ProgrammingXCategory", b =>
                 {
                     b.HasOne("Projetos___4.Domain.Model.Category", "Category")
@@ -676,7 +732,7 @@ namespace Projetos___4._4Data.Migrations
                         .IsRequired();
 
                     b.HasOne("Projetos___4.Domain.Model.Programming", "Programming")
-                        .WithMany()
+                        .WithMany("ProgrammingXCategories")
                         .HasForeignKey("ProgrammingId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -714,6 +770,11 @@ namespace Projetos___4._4Data.Migrations
                     b.Navigation("Category");
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("Projetos___4.Domain.Model.Programming", b =>
+                {
+                    b.Navigation("ProgrammingXCategories");
                 });
 #pragma warning restore 612, 618
         }

@@ -28,6 +28,34 @@ using Projetos___4.Domain.Validations.Validations;
 
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddScoped<IProgrammingInteractionRepository, ProgrammingInteractionRepository>();
+builder.Services.AddScoped<IProgrammingInteractionService, ProgrammingInteractionService>();
+builder.Services.AddScoped<IProgrammingInteractionMapping, ProgrammingInteractionMapping>();
+builder.Services.AddScoped<IProgrammingInteractionAppService, ProgrammingInteractionAppService>();
+builder.Services.AddScoped<IHostStatisticsRepository, HostStatisticsRepository>();
+builder.Services.AddScoped<IHostStatisticsService, HostStatisticsService>();
+builder.Services.AddScoped<IHostStatisticsAccessService, HostStatisticsAccessService>();
+builder.Services.AddScoped<IHostStatisticsFilterMapping, HostStatisticsFilterMapping>();
+builder.Services.AddScoped<IHostStatisticsSummaryMapping, HostStatisticsSummaryMapping>();
+builder.Services.AddScoped<IHostStatisticsDailyMapping, HostStatisticsDailyMapping>();
+builder.Services.AddScoped<IHostStatisticsRankingMapping, HostStatisticsRankingMapping>();
+builder.Services.AddScoped<IHostStatisticsAppService, HostStatisticsAppService>();
+
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.AddPolicy("ProgrammingInteractions", context =>
+        System.Threading.RateLimiting.RateLimitPartition.GetFixedWindowLimiter(
+            context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new System.Threading.RateLimiting.FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 120,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+                AutoReplenishment = true
+            }));
+});
 if (builder.Environment.IsDevelopment())
 {
     builder.Configuration.AddJsonFile("appsettings.json", optional: true, reloadOnChange: false);
@@ -182,7 +210,9 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
 }
 app.UseHttpsRedirection(); 
+app.UseRouting();
 app.UseAuthentication(); 
 app.UseAuthorization();  
+app.UseRateLimiter();
 app.MapControllers();
 app.Run();

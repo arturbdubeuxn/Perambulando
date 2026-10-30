@@ -994,3 +994,15 @@ Validação executada: compilação aprovada com zero erros e 10 avisos preexist
 ### Revalidação antes do commit — 28/10/2026
 
 GetAllTuristProgrammings aprovado na versão salva: 52 verificações HTTP/EF/PostgreSQL em banco descartável e 65 testes simulados do protótipo, com sintaxe JavaScript e compilação aprovadas. Git diff --check sem problemas após limpeza de espaço em branco. Sem falha funcional encontrada; dados reais preservados. Ocultação da seção no frontend final permanece responsabilidade da interface. [Relatório e limites dos testes](validacoes/turist-programmings-pre-commit-2026-10-28.md). Nenhuma migration ou PDF gerado.
+
+
+## Estatísticas implementadas em 29/10/2026
+
+Novas rotas: POST /api/Programming/{programmingId}/Interactions (identidade opcional, 204/400/401/404/409/429) e GET /api/Host/{hostId}/Statistics/Summary, /Daily e /Ranking (JWT do dono e Pro vigente, 200/400/401/403/404).
+
+[Contratos, regras, validação e pendências](validacoes/estatisticas-implementacao-2026-10-29.md). Esta seção registra o estado atual e prevalece sobre propostas anteriores de estatísticas. PDFs não regenerados.
+
+
+## Separação das consultas de estatísticas — 29/10/2026
+
+Resumo, gráfico e ranking possuem endpoints, DTOs e mappings independentes, sem herança. HostStatisticsAccessService reutiliza a validação de usuário, dono e Pro; filtros e agregações permanecem no banco. A rota única anterior foi removida. Consulte os [contratos atuais, exemplos JSON e pendência de concorrência da coleta](validacoes/estatisticas-implementacao-2026-10-29.md). Nenhuma alteração de schema nesta refatoração; migration da coleta ainda não aplicada ao banco real. Protótipo externo ausente neste computador; PDFs preservados.

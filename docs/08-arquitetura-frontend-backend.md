@@ -239,3 +239,15 @@ Validações adicionais em 26/10/2026: `tsc --noEmit` e `expo lint` aprovados; b
 Pendências intencionais: integrar os formulários à API, definir a URL por ambiente, implementar autenticação, armazenamento seguro do JWT, máscaras e validações completas, envio de dados e testes funcionais. Os botões de cadastro de host não fazem requisições nesta etapa.
 
 Backend, banco, containers, contratos HTTP e PDFs foram preservados.
+
+
+## Estatísticas implementadas em 29/10/2026
+
+Fluxo de coleta: Controller → AppService → mapping → Service → Repository. Consulta agrega no PostgreSQL. Frontend permanece pendente para gatilhos de interação e painel; GET de detalhes não registra visualização automaticamente.
+
+[Contratos, regras, validação e pendências](validacoes/estatisticas-implementacao-2026-10-29.md). Esta seção registra o estado atual e prevalece sobre propostas anteriores de estatísticas. PDFs não regenerados.
+
+
+## Separação das consultas de estatísticas — 29/10/2026
+
+Resumo, gráfico e ranking possuem endpoints, DTOs e mappings independentes, sem herança. HostStatisticsAccessService reutiliza a validação de usuário, dono e Pro; filtros e agregações permanecem no banco. A rota única anterior foi removida. Consulte os [contratos atuais, exemplos JSON e pendência de concorrência da coleta](validacoes/estatisticas-implementacao-2026-10-29.md). Nenhuma alteração de schema nesta refatoração; migration da coleta ainda não aplicada ao banco real. Protótipo externo ausente neste computador; PDFs preservados.
