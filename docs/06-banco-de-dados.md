@@ -377,3 +377,49 @@ Migration 20261029191257_AddProgrammingInteractions preparada com tabela de even
 ## Separação das consultas de estatísticas — 29/10/2026
 
 Resumo, gráfico e ranking possuem endpoints, DTOs e mappings independentes, sem herança. HostStatisticsAccessService reutiliza a validação de usuário, dono e Pro; filtros e agregações permanecem no banco. A rota única anterior foi removida. Consulte os [contratos atuais, exemplos JSON e pendência de concorrência da coleta](validacoes/estatisticas-implementacao-2026-10-29.md). Nenhuma alteração de schema nesta refatoração; migration da coleta ainda não aplicada ao banco real. Protótipo externo ausente neste computador; PDFs preservados.
+
+### Interações: idempotência e concorrência corrigidas — 30/10/2026
+
+Reenvio de EventId com mesmo ProgrammingId, Type e UserId retorna 204 sem inserir ou mudar CreatedAt; reutilização com outros dados retorna 409. Validação reconhece eventos já aceitos; service reutiliza o registro existente; repository recupera a linha vencedora ao disputar especificamente o índice único EventId. Falhas de outras constraints não são ocultadas. Sem alteração de DTO, rota, autorização, modelo ou migration.
+
+Build aprovado com zero erros e 10 avisos preexistentes; 24 verificações reais HTTP/BD/repository e 66 testes simulados do protótipo aprovados, incluindo concorrência idêntica e conflitante. Banco descartável removido e principal preservado. [Detalhes da correção e evidências](validacoes/programming-interaction-revisao-2026-10-30.md). PDFs preservados; API do Visual Studio não reiniciada.
+
+## US17 — Resumo de estatísticas implementado — 30/10/2026
+
+GET /api/Host/{hostId}/Statistics/Summary exige JWT de usuário ativo, propriedade do host ativo e Pro vigente no banco. Não há exceção administrativa. Retorna hostId, startDate, endDate e contadores long: detailViews, carouselClicks, ticketClicks, nearbyClicks, activeFavoritesNow. Sem dados, os contadores são zero. Período UTC de início inclusivo/fim exclusivo, padrão de 30 dias e limite 366. Interações incluem programações desativadas no histórico. Favoritos ativos de contas ativas representam o total atual e não são filtrados pelo período. Retornos: 200, 400 (período/ID), 401 (autenticação/conta), 403 (Pro) e 404 (host/propriedade).
+
+Implementado nas camadas existentes com HostStatisticsFilterDTO/HostStatisticsSummaryDTO, respectivos modelos NotMapped, mappings com interfaces, AppService, Service e Repository. Service concentra autorização/período; mappings só copiam campos; joins/agregações executam no banco. Nenhuma tabela de totais ou migration nova. A execução depende das migrations existentes de assinatura/interações/favoritos no banco utilizado.
+
+Coleta aprovada em 24 verificações reais após a correção do usuário; Summary aprovado em 35 verificações HTTP/EF/PostgreSQL, incluindo contagens e bloqueio imediato por cancelamento/expiração com mesmo JWT. Build sem erros, 10 avisos preexistentes; snapshot sem mudanças pendentes. Protótipo e .http atualizados; datas de query convertidas para UTC, totais exibidos e 67 testes simulados aprovados. Testes reais em bancos descartáveis removidos; principal preservado, API do Visual Studio não reiniciada e PDFs não exportados. Daily, Ranking, coleta automática e painel definitivo são as próximas etapas. [Regras, implementação e validação](validacoes/us17-host-summary-2026-10-30.md).
+
+## US17 — Série diária implementada — 30/10/2026
+
+GET /api/Host/{hostId}/Statistics/Daily usa os mesmos filtros e autorização do Summary por ISumarryStatitcsValidations. Retorna lista ordenada de {date, detailViews, carouselClicks, ticketClicks, nearbyClicks}, com dias UTC sem eventos preenchidos com zero. Inclui histórico de programações desativadas; não contém favoritos históricos. Início inclusivo/fim exclusivo e períodos parciais preservam as horas do filtro. Padrão de 30 dias de duração pode tocar 31 datas; máximo 366 dias de duração pode tocar 367 datas. Fim à meia-noite não gera dia extra.
+
+HostStatisticsDaily (NotMapped), HostStatisticsDailyDTO e mapping com interface seguem as pastas existentes; repository agrega no banco e service preenche lacunas, sem repetir validações. Nenhuma tabela ou migration nova. Controller usa try/catch. .http e protótipo atualizados; resultado apresentado como tabela diária em UTC.
+
+Summary revalidado antes da implementação (35 verificações). Daily e regressão do resumo aprovados em 73 verificações HTTP/EF/PostgreSQL, com fuso da conexão America/Recife; build sem erros e 10 avisos preexistentes; snapshot sem mudanças. Sintaxe JS e 68 testes simulados do protótipo aprovados. Bancos descartáveis removidos; banco principal preservado. Sem restart da API do Visual Studio ou exportação PDF. Ranking é a próxima etapa. [Contrato, regras e testes](validacoes/us17-host-daily-2026-10-30.md).
+
+## US17 — Ranking implementado — 30/10/2026
+
+GET /api/Host/{hostId}/Statistics/Ranking retorna ProgrammingStatisticsDTO[] com posição global, identificação/estado da programação e cinco indicadores. Aceita startDate/endDate, sortBy (detailViews padrão; carouselClicks, ticketClicks, nearbyClicks, activeFavoritesNow), take=10 (1–100) e skip=0 (>=0). Ordem decrescente e desempate pelo ID; página vazia retorna []. Inclui histórico desativado e programações sem dados. Interações respeitam o período UTC; favoritos ativos de contas ativas representam o total atual.
+
+Roles ADMIN,HOST acrescentadas pelo usuário foram preservadas em Summary/Daily e aplicadas ao Ranking. Nas três actions, essas roles são necessárias, mas não substituem propriedade do host ativo, usuário ativo e Pro vigente. ADMIN não tem exceção. Esta descrição substitui referências anteriores à dispensa de role. Retornos 200, 400, 401, 403 e 404 conforme filtro/autenticação/role/Pro/propriedade.
+
+RankingStatisticsValidations reaproveita ISumarryStatitcsValidations e valida paginação/indicador. Service usa o filtro validado, consulta e atribui posições; repository agrega interações e favoritos separadamente e usa left joins, ordenação e paginação no banco, evitando multiplicação das contagens. AppService usa mappings com interfaces; controller só coordena retornos e exceções. Filtro específico e classes/DTOs existentes seguem as pastas atuais. Não há tabela/índice/migration nova.
+
+Versão final aprovada em 129 verificações HTTP/EF/PostgreSQL de Ranking/Summary/Daily, com build sem erros e 10 avisos preexistentes. Protótipo/.http atualizados; sintaxe JS e 70 testes simulados aprovados, incluindo roles formatadas com espaços. Bancos descartáveis removidos, principal preservado, API principal não reiniciada e PDFs não exportados. Próximas etapas: coleta automática no frontend, painel Pro definitivo e validação integrada. [Contrato, regras e testes](validacoes/us17-host-ranking-2026-10-30.md).
+
+
+## Limite de três categorias — 31/10/2026
+
+Nenhuma alteração de schema ou migration. UserXCategoryRepository.AddAsync/EditAsync usam transação e SELECT 1 FROM "Users" WHERE "Id" = parâmetro FOR UPDATE antes de consultar os vínculos e conferir o total final de até 3 preferências. O SQL é parametrizado por ExecuteSqlInterpolatedAsync. A transação mantém o bloqueio até commit/dispose e o POST ignora IDs já existentes. Não há trigger/restrição de contagem no banco: gravações externas ao fluxo podem violar o limite. Dados antigos preservados. Integração e concorrência real ainda não verificadas nesta etapa por Docker desligado; build e testes com dependências simuladas aprovados.
+
+
+## Dados fictícios para teste de interações — 31/10/2026
+
+Com autorização expressa, a migration existente 20261029191257_AddProgrammingInteractions foi aplicada ao banco local perambulando em localhost:5432. Era a única migration pendente. Cria ProgrammingInteractions, FKs, check de tipo e índices existentes no código, incluindo unicidade de EventId. Referências anteriores à ausência dessa tabela neste banco ficam superadas. Não foram criadas migrations novas.
+
+Foi inserida uma conta fictícia HOST, com assinatura Pro ativa até 30/11/2026, host 37 e programações 20, 21, 22, 23 e 24. Foram distribuídas 20 interações anônimas, datadas nos 14 dias anteriores à carga, para aparecerem no período padrão das estatísticas: 4 DetailView, 5 CarouselClick, 5 TicketClick e 6 NearbyClick. Quantidades por programação: 20=3, 21=3, 22=5, 23=6, 24=3. Favoritos não foram criados. Endereço e CNPJ do host são sintéticos, inseridos diretamente para teste, sem consultas ViaCEP/Geoapify/CNPJ; não representam cadastro verificado de uma empresa real.
+
+A conta é dona das programações, mas as interações foram atribuídas a visitantes anônimos para não representar auto-interações do responsável. Verificadas a senha pelo Identity, a role HOST, a assinatura vigente, os cinco registros, os vinte eventos e o total 20 por HostStatisticsRepository.GetSummaryAsync. Credenciais de teste foram entregues no chat; senha não registrada na documentação. Nenhum dado preexistente removido, nenhuma API principal reiniciada e nenhum PDF exportado. Não foi realizado login HTTP nesta carga.

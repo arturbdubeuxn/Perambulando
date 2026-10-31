@@ -2,69 +2,48 @@ using Projetos___4.Domain.Exceptions;
 using Projetos___4.Domain.Interfaces.Repository;
 using Projetos___4.Domain.Interfaces.Service;
 using Projetos___4.Domain.Model;
+using Projetos___4.Domain.Validations.Interface;
 
 namespace Projetos___4.Domain.Service;
 
 public class ProgrammingInteractionService : IProgrammingInteractionService
 {
     private readonly IProgrammingInteractionRepository _programmingInteractionRepository;
+    private readonly IProgrammingInteractionValidation _programmingInteractionValidation;
     private readonly IProgrammingRepository _programmingRepository;
-    private readonly IUserService _userService;
-
-    public ProgrammingInteractionService(IProgrammingInteractionRepository programmingInteractionRepository,
-        IProgrammingRepository programmingRepository, IUserService userService)
+    public ProgrammingInteractionService(IProgrammingInteractionRepository programmingInteractionRepository,IProgrammingInteractionValidation programmingInteractionValidation,
+        IProgrammingRepository programmingRepository)
     {
         _programmingInteractionRepository = programmingInteractionRepository;
+        _programmingInteractionValidation = programmingInteractionValidation;
         _programmingRepository = programmingRepository;
-        _userService = userService;
     }
 
-    public async Task AddAsync(ProgrammingInteraction interaction)
+    public async Task<ProgrammingInteraction?> AddAsync(ProgrammingInteraction interaction)
     {
-        ArgumentNullException.ThrowIfNull(interaction);
-        if (interaction.ProgrammingId <= 0 || interaction.EventId == Guid.Empty || !Enum.IsDefined(interaction.Type))
+
+        await _programmingInteractionValidation.Validate(interaction);
+
+        var saved = await _programmingInteractionRepository.GetByEventIdAsync(interaction.EventId);
+        if (saved == null)
         {
-            throw new ArgumentException("Informe programação, EventId e tipo de interação válidos.");
-        }
-        if (interaction.UserId != null)
-        {
-            var user = await _userService.GetProfileAsync(interaction.UserId);
-            if (user == null || !user.IsActive)
+            if (interaction.UserId != null)
             {
-                throw new UnauthorizedAccessException("Usuário indisponível.");
+                var programming = await _programmingRepository.GetByIdAsync(interaction.ProgrammingId);
+                if (programming != null && interaction.UserId == programming.Host.UserId)
+                {
+                    return null;
+                }
             }
-        }
 
-        var existing = await _programmingInteractionRepository.GetByEventIdAsync(interaction.EventId);
-        if (existing != null)
-        {
-            if (existing.ProgrammingId != interaction.ProgrammingId || existing.Type != interaction.Type || existing.UserId != interaction.UserId)
-            {
-                throw new InteractionConflictException();
-            }
-            return;
+            interaction.CreatedAt = DateTime.UtcNow;
+            saved = await _programmingInteractionRepository.AddAsync(interaction);
         }
-
-        var programming = await _programmingRepository.GetByIdAsync(interaction.ProgrammingId);
-        if (programming == null || !programming.IsActive || !programming.Host.IsActive)
-        {
-            throw new KeyNotFoundException("Programação indisponível.");
-        }
-        var owner = await _userService.GetProfileAsync(programming.Host.UserId);
-        if (owner == null || !owner.IsActive)
-        {
-            throw new KeyNotFoundException("Programação indisponível.");
-        }
-        if (interaction.Type == ProgrammingInteractionType.TicketClick && string.IsNullOrWhiteSpace(programming.TicketUrl))
-        {
-            throw new ArgumentException("A programação não possui link de ingresso.");
-        }
-
-        interaction.CreatedAt = DateTime.UtcNow;
-        var saved = await _programmingInteractionRepository.AddAsync(interaction);
         if (saved.ProgrammingId != interaction.ProgrammingId || saved.Type != interaction.Type || saved.UserId != interaction.UserId)
         {
             throw new InteractionConflictException();
         }
+
+        return saved;
     }
 }

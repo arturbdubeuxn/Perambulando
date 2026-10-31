@@ -1,6 +1,7 @@
 using Projetos___4.Domain.Interfaces.Repository;
 using Projetos___4.Domain.Interfaces.Service;
 using Projetos___4.Domain.Model;
+using Projetos___4.Domain.Validations.Interface;
 
 namespace Projetos___4.Domain.Service
 {
@@ -8,38 +9,22 @@ namespace Projetos___4.Domain.Service
     {
         private readonly IUserXCategoryRepository _userXCategoryRepository;
         private readonly ICategoryService _categoryService;
-        public UserXCategoryService(IUserXCategoryRepository userXCategoryRepository, ICategoryService categoryService)
+        private readonly IUserXCategoryValidations _userXCategoryValidations;
+        public UserXCategoryService(IUserXCategoryRepository userXCategoryRepository, ICategoryService categoryService,
+            IUserXCategoryValidations userXCategoryValidations)
         {
             _userXCategoryRepository = userXCategoryRepository;
             _categoryService = categoryService;
+            _userXCategoryValidations = userXCategoryValidations;
         }
 
         public async Task<List<UserXCategory>> AddAsync(string userId, IReadOnlyCollection<UserXCategory> userCategories)
         {
-            ArgumentNullException.ThrowIfNull(userCategories);
-
-            if (string.IsNullOrWhiteSpace(userId))
-            {
-                throw new ArgumentException("Informe o usuário.", nameof(userId));
-            }
+            await _userXCategoryValidations.Validate(userId, userCategories);
 
             if (userCategories.Count == 0)
             {
                 return new List<UserXCategory>();
-            }
-
-            if (userCategories.Any(link => link.UserId != userId))
-            {
-                throw new ArgumentException("As categorias devem pertencer ao usuário informado.", nameof(userCategories));
-            }
-
-            var activeCategories = await _categoryService.GetallCategories();
-            var activeCategoryIds = activeCategories.Where(category => category.IsActive)
-                .Select(category => category.Id).ToHashSet();
-
-            if (userCategories.Any(link => link.CategoryId <= 0 || !activeCategoryIds.Contains(link.CategoryId)))
-            {
-                throw new ArgumentException("Uma ou mais categorias não existem ou estão inativas.", nameof(userCategories));
             }
 
             return await _userXCategoryRepository.AddAsync(userCategories);
@@ -47,6 +32,12 @@ namespace Projetos___4.Domain.Service
 
         public async Task<List<UserXCategory>> EditAsync(string userId, IReadOnlyCollection<UserXCategory> newLinks)
         {
+            ArgumentNullException.ThrowIfNull(newLinks);
+            if (newLinks.Select(link => link.CategoryId).Distinct().Count() > 3)
+            {
+                throw new ArgumentException("Selecione no máximo 3 categorias de preferência.");
+            }
+
             var newCategories = newLinks.Select(link => link.CategoryId).Distinct()
                 .Select(id => new Category { Id = id }).ToList();
 

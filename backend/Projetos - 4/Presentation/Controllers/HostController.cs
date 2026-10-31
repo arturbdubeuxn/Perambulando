@@ -18,12 +18,96 @@ namespace Projetos___4.Presentation.Controllers
         private readonly UserManager<User> _userManager;
         private readonly IHostAppService _hostAppService;
         private readonly JwtTokenService _tokenService;
+        private readonly IHostStatisticsAppService _hostStatisticsAppService;
 
-        public HostController(UserManager<User> userManager, IHostAppService hostAppService, JwtTokenService tokenService)
+        public HostController(UserManager<User> userManager, IHostAppService hostAppService, JwtTokenService tokenService,
+            IHostStatisticsAppService hostStatisticsAppService)
         {
             _userManager = userManager;
             _hostAppService = hostAppService;
             _tokenService = tokenService;
+            _hostStatisticsAppService = hostStatisticsAppService;
+        }
+
+        [Authorize (Roles ="ADMIN,HOST")]
+        [HttpGet("{hostId:int}/Statistics/Summary")]
+        public async Task<IActionResult> StatisticsSummary([FromRoute] int hostId, [FromQuery] HostStatisticsFilterDTO dto)
+        {
+            try
+            {
+                var userId = _userManager.GetUserId(User);
+                return Ok(await _hostStatisticsAppService.GetSummaryAsync(hostId, userId, dto));
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Problem(statusCode: StatusCodes.Status401Unauthorized, title: "Usuário não autenticado", detail: ex.Message);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return Problem(statusCode: StatusCodes.Status404NotFound, title: "Host indisponível", detail: ex.Message);
+            }
+            catch (StatisticsForbiddenException ex)
+            {
+                return Problem(statusCode: StatusCodes.Status403Forbidden, title: "Acesso às estatísticas indisponível", detail: ex.Message);
+            }
+            catch (ArgumentException ex)
+            {
+                return Problem(statusCode: StatusCodes.Status400BadRequest, title: "Período inválido", detail: ex.Message);
+            }
+        }
+
+        [Authorize (Roles ="ADMIN,HOST")]
+        [HttpGet("{hostId:int}/Statistics/Ranking")]
+        public async Task<IActionResult> StatisticsRanking([FromRoute] int hostId, [FromQuery] HostStatisticsRankingFilterDTO dto)
+        {
+            try
+            {
+                var userId = _userManager.GetUserId(User);
+                return Ok(await _hostStatisticsAppService.GetRankingAsync(hostId, userId, dto));
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Problem(statusCode: StatusCodes.Status401Unauthorized, title: "Usuário não autenticado", detail: ex.Message);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return Problem(statusCode: StatusCodes.Status404NotFound, title: "Host indisponível", detail: ex.Message);
+            }
+            catch (StatisticsForbiddenException ex)
+            {
+                return Problem(statusCode: StatusCodes.Status403Forbidden, title: "Acesso às estatísticas indisponível", detail: ex.Message);
+            }
+            catch (ArgumentException ex)
+            {
+                return Problem(statusCode: StatusCodes.Status400BadRequest, title: "Filtros inválidos", detail: ex.Message);
+            }
+        }
+
+        [Authorize (Roles = "ADMIN,HOST")]
+        [HttpGet("{hostId:int}/Statistics/Daily")]
+        public async Task<IActionResult> StatisticsDaily([FromRoute] int hostId, [FromQuery] HostStatisticsFilterDTO dto)
+        {
+            try
+            {
+                var userId = _userManager.GetUserId(User);
+                return Ok(await _hostStatisticsAppService.GetDailyAsync(hostId, userId, dto));
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Problem(statusCode: StatusCodes.Status401Unauthorized, title: "Usuário não autenticado", detail: ex.Message);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return Problem(statusCode: StatusCodes.Status404NotFound, title: "Host indisponível", detail: ex.Message);
+            }
+            catch (StatisticsForbiddenException ex)
+            {
+                return Problem(statusCode: StatusCodes.Status403Forbidden, title: "Acesso às estatísticas indisponível", detail: ex.Message);
+            }
+            catch (ArgumentException ex)
+            {
+                return Problem(statusCode: StatusCodes.Status400BadRequest, title: "Período inválido", detail: ex.Message);
+            }
         }
 
         [Authorize]

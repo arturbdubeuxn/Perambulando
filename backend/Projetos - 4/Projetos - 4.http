@@ -213,7 +213,7 @@ Accept: application/json
 ### CATEGORY - Adicionar categorias de interesse (200)
 # Execute login e getallCategories antes. Ajuste os IDs no início do arquivo.
 # Envie um array JSON direto, sem objeto categoryIds e sem userId; o usuário vem do JWT.
-# A operação adiciona vínculos; não substitui a seleção anterior. Evite reenviar categorias já salvas.
+# A operação adiciona vínculos; não substitui a seleção anterior. Limite total: 3 preferências, incluindo as já salvas.
 # Selecione categorias ativas retornadas por GetallCategories. O frontend envia os IDs.
 # Qualquer categoria inexistente/inativa rejeita todo o cadastro (400), sem gravação parcial.
 # Escolha opcional: pule esta requisição ou envie [] para não adicionar nada.
@@ -615,21 +615,82 @@ Content-Type: application/json
   "type": 0
 }
 
-### Ranking do próprio host, Pro obrigatório. Período sem datas: últimos 30 dias
+### HOST - Ranking das programações por cliques no Perto de mim
 GET {{Projetos___4_HostAddress}}/api/Host/{{StatisticsHostId}}/Statistics/Ranking?sortBy=nearbyClicks&take=10&skip=0
 Authorization: Bearer {{login.response.body.$.accessToken}}
 
-### Ranking do período; próxima página
+### HOST - Ranking do período; próxima página
 GET {{Projetos___4_HostAddress}}/api/Host/{{StatisticsHostId}}/Statistics/Ranking?startDate=2026-10-01T00:00:00Z&endDate=2026-11-01T00:00:00Z&sortBy=detailViews&take=10&skip=10
 Authorization: Bearer {{login.response.body.$.accessToken}}
 
 # Repita a consulta após cancelar/vencer o Pro: 403 mesmo com o JWT anterior.
 # Types: 0 detalhes, 1 carrossel, 2 ingresso, 3 Perto de mim.
 
-### Resumo independente (JWT do proprietário com Pro)
+### HOST - Resumo de estatísticas: dono do host ativo com Pro vigente
+# Início inclusivo, fim exclusivo. Máximo 366 dias. Inclui histórico de programações desativadas.
+# activeFavoritesNow representa o total atual de favoritos de contas ativas, sem filtro de período.
 GET {{Projetos___4_HostAddress}}/api/Host/{{StatisticsHostId}}/Statistics/Summary?startDate=2026-10-01T00:00:00Z&endDate=2026-11-01T00:00:00Z
 Authorization: Bearer {{login.response.body.$.accessToken}}
 
-### Série diária independente (mesmo período do resumo)
+### HOST - Série diária de interações (mesmo período do resumo)
 GET {{Projetos___4_HostAddress}}/api/Host/{{StatisticsHostId}}/Statistics/Daily?startDate=2026-10-01T00:00:00Z&endDate=2026-11-01T00:00:00Z
 Authorization: Bearer {{login.response.body.$.accessToken}}
+
+### HOST - Resumo: período padrão de últimos 30 dias
+# @name hostStatisticsSummary
+GET {{Projetos___4_HostAddress}}/api/Host/{{StatisticsHostId}}/Statistics/Summary
+Accept: application/json
+Authorization: Bearer {{login.response.body.$.accessToken}}
+
+### HOST - Resumo: período inválido (400)
+GET {{Projetos___4_HostAddress}}/api/Host/{{StatisticsHostId}}/Statistics/Summary?startDate=2026-11-01T00:00:00Z&endDate=2026-10-01T00:00:00Z
+Accept: application/json
+Authorization: Bearer {{login.response.body.$.accessToken}}
+
+# Resumo: 401 sem JWT/conta ativa; 403 sem Pro vigente; 404 host ausente/inativo/de outro dono.
+# Cancelar Pro e repetir o resumo com o mesmo JWT deve retornar 403.
+
+### HOST - Série diária: últimos 30 dias, incluindo dias com zero
+# @name hostStatisticsDaily
+GET {{Projetos___4_HostAddress}}/api/Host/{{StatisticsHostId}}/Statistics/Daily
+Accept: application/json
+Authorization: Bearer {{login.response.body.$.accessToken}}
+
+# Daily usa dias UTC: início inclusivo, fim exclusivo; datas com hora contam só os eventos dentro do intervalo.
+# Favoritos ativos agora ficam no Summary; Daily retorna apenas os quatro tipos de interação.
+
+### HOST - Ranking: padrões (detailViews, take=10, skip=0, últimos 30 dias)
+# @name hostStatisticsRanking
+GET {{Projetos___4_HostAddress}}/api/Host/{{StatisticsHostId}}/Statistics/Ranking
+Accept: application/json
+Authorization: Bearer {{login.response.body.$.accessToken}}
+
+### HOST - Ranking por favoritos ativos agora (independente do período)
+GET {{Projetos___4_HostAddress}}/api/Host/{{StatisticsHostId}}/Statistics/Ranking?sortBy=activeFavoritesNow&take=10&skip=0
+Accept: application/json
+Authorization: Bearer {{login.response.body.$.accessToken}}
+
+### HOST - Ranking: indicador inválido (400)
+GET {{Projetos___4_HostAddress}}/api/Host/{{StatisticsHostId}}/Statistics/Ranking?sortBy=invalido
+Accept: application/json
+Authorization: Bearer {{login.response.body.$.accessToken}}
+
+# Indicadores: detailViews, carouselClicks, ticketClicks, nearbyClicks, activeFavoritesNow.
+# Ordem decrescente; desempate por programmingId. Position é ordinal global (skip + índice + 1).
+# Inclui programações sem eventos e desativadas no histórico. Página sem resultados retorna [].
+
+
+### CATEGORY - Rejeitar mais de três preferências (400; não grava)
+# Testa o limite antes da consulta de existência dos IDs.
+POST {{Projetos___4_HostAddress}}/api/Category/AddCategoryToUser
+Content-Type: application/json
+Authorization: Bearer {{login.response.body.$.accessToken}}
+
+[1, 2, 3, 4]
+
+### CATEGORY - Rejeitar edição com quatro preferências (400; não altera)
+PUT {{Projetos___4_HostAddress}}/api/Category/EditCategoryToUser
+Content-Type: application/json
+Authorization: Bearer {{login.response.body.$.accessToken}}
+
+[1, 2, 3, 4]

@@ -13,9 +13,14 @@ public class ProgrammingValidation : IValidation<ProgrammingDTO>
         ArgumentNullException.ThrowIfNull(dto);
 
      
-        if (dto.categoryIds.Count() == 0)
+        if (dto.categoryIds == null || dto.categoryIds.Count == 0)
         {
             throw new ArgumentException("Selecione pelo menos uma categoria para a programação.");
+        }
+
+        if (dto.categoryIds.Count > 3)
+        {
+            throw new ArgumentException("Selecione no máximo 3 categorias para a programação.");
         }
 
         if (dto.StartDate.Kind != DateTimeKind.Utc || dto.EndDate.Kind != DateTimeKind.Utc)

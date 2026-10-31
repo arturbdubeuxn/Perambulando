@@ -17,10 +17,24 @@ public class ProgrammingInteractionRepository : IProgrammingInteractionRepositor
     public async Task<ProgrammingInteraction> AddAsync(ProgrammingInteraction interaction)
     {
         Db.ProgrammingInteractions.Add(interaction);
-       
-        await Db.SaveChangesAsync();
-        return interaction;
-        
+        try
+        {
+            await Db.SaveChangesAsync();
+            return interaction;
+        }
+        catch (DbUpdateException ex) when (ex.InnerException is PostgresException postgres &&
+            postgres.SqlState == PostgresErrorCodes.UniqueViolation &&
+            postgres.ConstraintName == "IX_ProgrammingInteractions_EventId")
+        {
+            Db.Entry(interaction).State = EntityState.Detached;
+            var existing = await GetByEventIdAsync(interaction.EventId);
+            if (existing == null)
+            {
+                throw;
+            }
+
+            return existing;
+        }
     }
 
     public async Task<ProgrammingInteraction?> GetByEventIdAsync(Guid eventId)

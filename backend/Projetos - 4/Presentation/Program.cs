@@ -28,20 +28,6 @@ using Projetos___4.Domain.Validations.Validations;
 
 
 var builder = WebApplication.CreateBuilder(args);
-
-builder.Services.AddScoped<IProgrammingInteractionRepository, ProgrammingInteractionRepository>();
-builder.Services.AddScoped<IProgrammingInteractionService, ProgrammingInteractionService>();
-builder.Services.AddScoped<IProgrammingInteractionMapping, ProgrammingInteractionMapping>();
-builder.Services.AddScoped<IProgrammingInteractionAppService, ProgrammingInteractionAppService>();
-builder.Services.AddScoped<IHostStatisticsRepository, HostStatisticsRepository>();
-builder.Services.AddScoped<IHostStatisticsService, HostStatisticsService>();
-builder.Services.AddScoped<IHostStatisticsAccessService, HostStatisticsAccessService>();
-builder.Services.AddScoped<IHostStatisticsFilterMapping, HostStatisticsFilterMapping>();
-builder.Services.AddScoped<IHostStatisticsSummaryMapping, HostStatisticsSummaryMapping>();
-builder.Services.AddScoped<IHostStatisticsDailyMapping, HostStatisticsDailyMapping>();
-builder.Services.AddScoped<IHostStatisticsRankingMapping, HostStatisticsRankingMapping>();
-builder.Services.AddScoped<IHostStatisticsAppService, HostStatisticsAppService>();
-
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
@@ -142,11 +128,29 @@ builder.Services.AddScoped<ICategoryService, CategoryService>();
 builder.Services.AddScoped<ICategoryAppService, CategoryAppService>();
 builder.Services.AddScoped<IUserXCategoryRepository, UserXCategoryRepository>();
 builder.Services.AddScoped<IUserXCategoryService, UserXCategoryService>();
+builder.Services.AddScoped<IUserXCategoryValidations, UserXCategoryValidations>();
 builder.Services.AddScoped<IUserXCategoryAppService, UserXCategoryAppService>();
 builder.Services.AddScoped<IValidation<ProgrammingDTO>, ProgrammingValidation>();
 builder.Services.AddScoped<IValidation<HostDTO>, HostValidation>();
 builder.Services.AddScoped<IValidation<UserDTO>, UserValidation>();
 builder.Services.AddScoped<IValidation<UserXCategoryDTO>, UserXCategoryValidation>();
+builder.Services.AddScoped<IProgrammingInteractionRepository, ProgrammingInteractionRepository>();
+builder.Services.AddScoped<IProgrammingInteractionService, ProgrammingInteractionService>();
+builder.Services.AddScoped<IProgrammingInteractionMapping, ProgrammingInteractionMapping>();
+builder.Services.AddScoped<IProgrammingInteractionAppService, ProgrammingInteractionAppService>();
+builder.Services.AddScoped<IProgrammingInteractionValidation, ProgrammingInteractionValidation>();
+builder.Services.AddScoped<IHostStatisticsRepository, HostStatisticsRepository>();
+builder.Services.AddScoped<IHostStatisticsService, HostStatisticsService>();
+builder.Services.AddScoped<ISumarryStatitcsValidations, SumarryStatitcsValidations>();
+//builder.Services.AddScoped<IHostStatisticsAccessService, HostStatisticsAccessService>();
+builder.Services.AddScoped<IHostStatisticsFilterMapping, HostStatisticsFilterMapping>();
+builder.Services.AddScoped<IHostStatisticsSummaryMapping, HostStatisticsSummaryMapping>();
+builder.Services.AddScoped<IHostStatisticsDailyMapping, HostStatisticsDailyMapping>();
+builder.Services.AddScoped<IHostStatisticsRankingMapping, HostStatisticsRankingMapping>();
+builder.Services.AddScoped<IHostStatisticsRankingFilterMapping, HostStatisticsRankingFilterMapping>();
+builder.Services.AddScoped<IRankingStatisticsValidations, RankingStatisticsValidations>();
+builder.Services.AddScoped<IHostStatisticsAppService, HostStatisticsAppService>();
+
 
 
 ///

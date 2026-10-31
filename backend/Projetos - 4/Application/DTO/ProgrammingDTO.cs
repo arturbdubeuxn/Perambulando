@@ -27,6 +27,7 @@ namespace Projetos___4.Application.DTO
         [Required]
         [Range(typeof(decimal), "0", "9999999999.99", ParseLimitsInInvariantCulture = true)]
         public decimal MaxPrice { get; set; }
+        [MaxLength(3, ErrorMessage = "Selecione no máximo 3 categorias para a programação.")]
         public List<int> categoryIds { get; set; } = new List<int>();
     }
 }

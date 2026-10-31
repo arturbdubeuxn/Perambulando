@@ -12,6 +12,11 @@ public class UserXCategoryValidation : IValidation<UserXCategoryDTO>
             throw new ArgumentException("Informe uma lista de categorias; use [] para nenhuma seleção.");
         }
 
+        if (dto.CategoryIds.Count > 3)
+        {
+            throw new ArgumentException("Selecione no máximo 3 categorias de preferência.");
+        }
+
         if (dto.CategoryIds.Any(categoryId => categoryId <= 0))
         {
             throw new ArgumentException("Informe IDs de categorias maiores que zero.");
