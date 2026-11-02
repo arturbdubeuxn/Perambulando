@@ -8,13 +8,15 @@ public class HostConfiguration : IEntityTypeConfiguration<Hosts>
 {
     public void Configure(EntityTypeBuilder<Hosts> builder)
     {
-        builder.ToTable("Hosts");
+        builder.ToTable("Hosts", table => table.HasCheckConstraint(
+            "CK_Hosts_CNPJ_Normalized", "\"CNPJ\" ~ '^[A-Z0-9]{12}[0-9]{2}$'"));
 
         builder.Property(host => host.Name).HasMaxLength(150).IsRequired();
 
         builder.Property(host => host.Description).HasMaxLength(2000).IsRequired();
 
         builder.Property(host => host.CNPJ).HasMaxLength(18).IsRequired();
+        builder.HasIndex(host => host.CNPJ).IsUnique();
 
 
         builder.Property(host => host.Phone).HasMaxLength(30).IsRequired();

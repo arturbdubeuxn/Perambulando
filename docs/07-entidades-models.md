@@ -366,3 +366,27 @@ Roles ADMIN,HOST acrescentadas pelo usuário foram preservadas em Summary/Daily 
 RankingStatisticsValidations reaproveita ISumarryStatitcsValidations e valida paginação/indicador. Service usa o filtro validado, consulta e atribui posições; repository agrega interações e favoritos separadamente e usa left joins, ordenação e paginação no banco, evitando multiplicação das contagens. AppService usa mappings com interfaces; controller só coordena retornos e exceções. Filtro específico e classes/DTOs existentes seguem as pastas atuais. Não há tabela/índice/migration nova.
 
 Versão final aprovada em 129 verificações HTTP/EF/PostgreSQL de Ranking/Summary/Daily, com build sem erros e 10 avisos preexistentes. Protótipo/.http atualizados; sintaxe JS e 70 testes simulados aprovados, incluindo roles formatadas com espaços. Bancos descartáveis removidos, principal preservado, API principal não reiniciada e PDFs não exportados. Próximas etapas: coleta automática no frontend, painel Pro definitivo e validação integrada. [Contrato, regras e testes](validacoes/us17-host-ranking-2026-10-30.md).
+
+
+## Unicidade de CNPJ no banco — 01/11/2026
+
+Hosts mantém os mesmos atributos. HostConfiguration passa a declarar índice único em CNPJ (IX_Hosts_CNPJ) e CHECK CK_Hosts_CNPJ_Normalized para formato canônico: ^[A-Z0-9]{12}[0-9]{2}$. O tamanho máximo da coluna continua 18, mas valores armazenados válidos têm 14 caracteres sem máscara e letras maiúsculas. HostDTO continua aceitando máscara e caixa baixa na entrada; CnpjValidations/HostService normalizam antes da persistência. A unicidade vale também para hosts inativos. Não é um check de dígitos verificadores nem de situação cadastral. Snapshot/Designer foram gerados pelo EF, com DbContext referenciado pelo nome completo para evitar ambiguidade entre namespace e classe Context. Migration AddUniqueHostCnpj aplicada ao banco local após auditoria sem duplicidades.
+
+
+## Favoritos e preferências repetidos — 01/11/2026
+
+Favorite mantém os mesmos atributos e a mesma configuração EF. Id/CreatedAt identificam a criação original do vínculo e são preservados na reativação. IsActive alterna com favoritar/desfavoritar; UpdatedAt muda somente quando há transição efetiva, em UTC após o bloqueio transacional. Repetir favorito ativo ou desfavoritar um vínculo já inativo mantém os dados anteriores. O índice único do par usuário/programação permanece existente e não houve migration.
+
+
+## Exclusão lógica de usuário — 01/11/2026
+
+User.IsActive passa a representar também a exclusão lógica pelo endpoint existente. A entidade permanece com Id, Email/NormalizedEmail, PasswordHash, CreatedAt e vínculos Identity. UserManager.UpdateAsync mantém ConcurrencyStamp; nenhum DeletedAt ou campo novo foi criado.
+
+Na mesma operação, Hosts.IsActive e Programming.IsActive ficam false, com suas datas de atualização; Favorite.IsActive dos vínculos próprios fica false; Subscription.Status fica Cancelled e recebe CancelledAt/UpdatedAt quando ainda não cancelada. Endereços, interações, relações de categorias e favoritos alheios são preservados. Valores já inativos/cancelados preservam suas datas anteriores. A eventual reativação somente do usuário não altera esses estados relacionados. Não há mudança no snapshot ou necessidade de migration.
+
+
+## AuthenticationToken como resultado de serviço — 01/11/2026
+
+Adicionado Domain/Model/AuthenticationToken: AccessToken (string), TokenType (string, padrão Bearer) e ExpiresAt (DateTime UTC). É um resultado tipado de IJwtTokenService, sem DbSet, configuração EF, navegação ou tabela. A classe permite que o contrato do domínio não dependa da implementação criptográfica nem de um DTO da Application. O modelo EF/snapshot continua alinhado, sem migration necessária.
+
+Adicionada CategoryNotFoundException em Domain/Exceptions para comunicar categoria inexistente sem referência a HTTP/PostgreSQL. Recebe InnerException opcional; o repository traduz a FK conhecida e a Presentation mantém o HTTP 400. CnpjException e CategoryLinksConflictException seguem como falhas de domínio; a extensão que monta a resposta HTTP de CNPJ foi movida para Presentation/Controllers.

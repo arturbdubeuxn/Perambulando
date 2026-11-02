@@ -1,13 +1,10 @@
 using Projetos___4.Domain.Exceptions;
 using Projetos___4.Domain.Validations.Interface;
 using Microsoft.AspNetCore.Identity;
-using Projetos___4.Application.DTO;
 using Projetos___4.Domain.Interfaces;
 using Projetos___4.Domain.Model;
-using Projetos___4.Application.AppServices;
 using Projetos___4.Domain.Interfaces.Repository;
 using Projetos___4.Domain.Interfaces.Service;
-using Microsoft.AspNetCore.Http.HttpResults;
 
 namespace Projetos___4.Domain.Service
 {
@@ -186,9 +183,13 @@ namespace Projetos___4.Domain.Service
         {
             ArgumentNullException.ThrowIfNull(filter);
 
-            if (filter.Take <= 0 || filter.Skip < 0)
+            if (filter.Take <= 0 || filter.Take > 100)
             {
-                throw new ArgumentException("Take deve ser maior que zero e Skip deve ser maior ou igual a zero.");
+                throw new ArgumentException("Take deve estar entre 1 e 100.", nameof(filter.Take));
+            }
+            if (filter.Skip < 0)
+            {
+                throw new ArgumentException("Skip deve ser maior ou igual a zero.", nameof(filter.Skip));
             }
 
             if (filter.Types != null && filter.Types.Any(type => !Enum.IsDefined(type)))

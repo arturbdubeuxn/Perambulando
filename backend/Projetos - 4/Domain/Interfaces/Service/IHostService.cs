@@ -1,7 +1,5 @@
 using Microsoft.AspNetCore.Identity;
-using Projetos___4.Application.DTO;
 using Projetos___4.Domain.Model;
-using Projetos___4.Application.AppServices;
 
 namespace Projetos___4.Domain.Interfaces.Service
 {

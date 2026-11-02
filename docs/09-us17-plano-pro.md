@@ -411,3 +411,10 @@ Eventos de outros usuários e visitantes anônimos continuam sendo salvos. Sem a
 O protótipo descreve 204 como ação aceita, pois não permite distinguir persistência de descarte intencional. Service concentra a decisão; repository mantém persistência, unicidade e recuperação de concorrência existentes.
 
 Validação: build sem erros (10 avisos preexistentes na compilação do backend); 14 verificações do service com dependências simuladas aprovadas, cobrindo quatro tipos, reenvio, visitante, usuário diferente, data UTC, conflito e validação. Sintaxe JS aprovada e 83 testes do protótipo com API simulada aprovados. Teste HTTP/PostgreSQL preparado, mas bloqueado por conexão recusada em 5432 e Docker Desktop desligado. Banco principal preservado, nenhuma migration e nenhum PDF exportado.
+
+
+## Correção da renovação — 01/11/2026
+
+Concluído: ActivateAsync usa GetStatus para detectar expiração, mesmo quando o status persistido ainda é Active. O POST renova o mesmo registro por um mês a partir da ativação, preservando Id/CreatedAt e limpando cancelamento. Assinatura vigente continua idempotente: sem extensão nem alteração das datas. O repository e o DTO mantêm seus contratos. Não exige consultar MySubscription antes de renovar.
+
+Pagamento continua simulado; esta mudança não implementa controle de concorrência entre ativação/cancelamento nem altera o controle de SimulationEnabled. Essas questões permanecem fora desta correção. Verificação em HTTP/PostgreSQL descartáveis incluída nos 33 testes específicos de renovação/exceções aprovados; protótipo com ajuda atualizada e 91 testes simulados aprovados. Sem migration ou exportação de PDF.

@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 ﻿using Projetos___4.Domain.Model;
 
 namespace Projetos___4.Application.DTO
@@ -12,8 +13,10 @@ namespace Projetos___4.Application.DTO
 
         public bool? HasProgrammings { get; set; }
 
+        [Range(1, 100)]
         public int Take { get; set; } = 10;
 
+        [Range(0, int.MaxValue)]
         public int Skip { get; set; } = 0;
     }
 }

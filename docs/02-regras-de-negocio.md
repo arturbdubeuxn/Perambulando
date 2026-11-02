@@ -876,3 +876,104 @@ Validate recebe userId e os vínculos: rejeita coleção nula, usuário vazio, v
 A edição não foi refatorada nesta etapa. Repository, transação, bloqueio concorrente e verificação do total antes de salvar permanecem como estavam. Nenhuma rota, DTO, autenticação, resposta, model ou migration mudou; revisão do protótipo confirmou compatibilidade dos fluxos existentes, sem alteração funcional de interface.
 
 Build sem erros, com 10 avisos preexistentes. Foram aprovadas 24 verificações locais de validações/service com dependências simuladas, incluindo regressões dos limites, vínculo alheio, usuário vazio, coleção nula, categoria inválida/ausente e ausência de gravação em rejeições. Não foi executada nova integração PostgreSQL nem reiniciada a API principal. PDFs preservados.
+
+
+## Conta ativa na autenticação JWT — 01/11/2026
+
+A configuração JwtBearer agora utiliza OnTokenValidated em Presentation/Program.cs para, após validar assinatura, emissor, audiência e prazo, exigir sub não vazio e consultar IUserService.GetProfileAsync. Esse service reutiliza IUserRepository.GetbyId e retorna null para conta ausente ou inativa. Nesses casos, context.Fail encerra a autenticação. Nenhuma regra de propriedade/role/Pro foi removida ou substituída.
+
+Rotas protegidas retornam 401 antes de executar a action, mesmo com JWT ainda dentro da validade. O POST público de interações já valida explicitamente um Authorization enviado e também retorna 401, sem transformar a tentativa em evento anônimo. Requisições realmente anônimas e leituras AllowAnonymous permanecem públicas; AllowAnonymous não passa a exigir login. Não foi alterada nesta etapa a seleção de programações publicadas por donos inativos.
+
+A consulta é feita a cada autenticação JWT, sem cache, refletindo desativação/exclusão na próxima requisição. Não há cancelamento retroativo de uma requisição que já passou pela autenticação. Se a conta for reativada, um JWT ainda válido volta a funcionar: isto não implementa revogação permanente por token, SecurityStamp, alteração de senha ou mudança imediata de roles. Falhas de banco não são convertidas em autenticação bem-sucedida.
+
+O callback foi colocado na configuração de autenticação existente; controllers, services, repositories, models, DTOs e migrations não receberam novas estruturas. O protótipo mantém JWT/IDs e mostra orientação sobre token/conta ativa em 401 sem corpo, sem reenviar chamadas automaticamente nem apagar a sessão indiscriminadamente. Nenhuma alteração no frontend Expo.
+
+Validação desta etapa: compilação isolada sem erros, com 10 avisos preexistentes; 37 verificações HTTP/Identity/PostgreSQL aprovadas, incluindo login real, mesmo JWT antes/depois da desativação, exclusão, sub ausente/vazio, assinatura inválida, expiração, ausência de gravações, acesso anônimo e propriedade. Mais 129 verificações de Summary/Daily/Ranking e 85 testes simulados do protótipo aprovados; sintaxe JS e git diff --check aprovados. Docker Desktop local iniciado para os testes; bancos e APIs temporários encerrados/removidos. Banco principal e seus dados fictícios preservados, sem migrations ou exportação de PDFs. A API principal precisa ser reiniciada normalmente pelo usuário para carregar a alteração.
+
+
+## Limite de categorias sob concorrência — 01/11/2026
+
+Os fluxos de gravação de vínculos passam a conferir o estado final dentro da transação, após adquirir bloqueio da linha da programação (Programmings) ou do usuário (Users) com SELECT ... FOR UPDATE parametrizado. Não há bloqueio global: operações em programações/usuários distintos podem prosseguir. As validações existentes no DTO e nos services permanecem como primeira verificação.
+
+ProgrammingRepository.EditWithCategoriesAsync usa currentLinks recebido como seleção esperada, bloqueia a programação e relê os vínculos. Se o conjunto de IDs mudou desde a leitura do service, lança CategoryLinksConflictException, já tratado como 409 na controller. Caso contrário, calcula o conjunto final após remoções/adições e exige de 1 a 3 categorias antes de salvar campos e vínculos. CreateWithCategoriesAsync também rejeita listas com zero ou mais de três antes de anexar entidades/gravar.
+
+UserXCategoryRepository.AddAsync e EditAsync bloqueiam a mesma linha Users, serializando POST versus POST, PUT versus PUT e POST versus PUT. AddAsync relê os vínculos e confere a união com os novos IDs: excesso de três gera ArgumentException/400, sem inserções parciais. Reenvio de categoria existente reaproveita o vínculo e retorna os itens solicitados, sem violar unicidade. Lista vazia continua sem efeito.
+
+O service de edição de preferências envia expectedCategoryIds com os IDs da seleção que leu, através do parâmetro acrescentado em IUserXCategoryRepository.EditAsync. O repository compara essa seleção com a leitura feita após o bloqueio e retorna 409 se houve alteração. Depois valida o total final de até três e aplica a diferença existente. [] continua removendo todas as preferências. O snapshot é interno, entre leitura do service e gravação; não implementa versão/ETag de formulário nem detecta edições de campos não relacionados às categorias.
+
+Com conflito, recarregue e revise a seleção antes de reenviar. A controller já traduz a exceção, sem action nova. Nenhum formato de DTO, rota, autenticação, model, índice ou migration foi alterado. Não houve limpeza de dados antigos. As garantias abrangem os fluxos de persistência da aplicação que compartilham esses bloqueios, não gravações SQL externas que os ignorem.
+
+Validação desta etapa: build isolado sem erros (10 avisos preexistentes), 32 verificações HTTP/PostgreSQL de concorrência/limites/atomicidade e 37 regressões HTTP de autenticação aprovadas. Os testes mantiveram duas requisições reais aguardando bloqueio no PostgreSQL para garantir a sobreposição: POST/POST com IDs distintos, POSTs idênticos, PUT/PUT de preferências, POST/PUT e PUT/PUT de programação. Confirmados 200/400 para excesso no POST, 200/409 nas edições, ausência de gravação parcial e de sobrescrita dos campos da programação perdedora, além de substituição normal e listas vazias. Sintaxe JS e 85 testes simulados do protótipo passaram.
+
+API/bancos descartáveis removidos. Banco principal preservado, API principal não reiniciada e PDFs não exportados. Protótipo e .http esclarecem limite e conflito; não há reenvio automático.
+
+
+## Unicidade de CNPJ no banco — 01/11/2026
+
+Um CNPJ normalizado pode pertencer a somente um host, inclusive se esse host estiver inativo. A garantia passa a existir também no banco, através de IX_Hosts_CNPJ único. A consulta de existência prévia permanece para mensagem amigável, mas não é a garantia final. CHECK CK_Hosts_CNPJ_Normalized exige 14 caracteres canônicos (primeiros 12 alfanuméricos em maiúsculas; dois últimos numéricos), sem máscara/espaços, impedindo representações diferentes de contornar o índice. Isso não substitui validação de dígitos verificadores nem consulta de situação cadastral, que permanecem no fluxo existente.
+
+HostRepository.Create/EditAsync tratam somente SQLSTATE 23505 com constraint IX_Hosts_CNPJ como duplicidade. Fazem rollback e limpam o rastreamento antes de lançar a exceção de negócio existente. Perdedores de uma corrida não deixam endereço/host parcialmente salvos nem executam a atribuição de role do cadastro. Falhas de FK ou de outra restrição única continuam sendo propagadas como suas falhas originais. Esta etapa não modificou a política de outras exceções do sistema.
+
+
+## Favoritos e preferências repetidos — 01/11/2026
+
+Favoritar expressa a intenção de manter ativo um único vínculo UserId/ProgrammingId. FavoriteService continua validando usuário e programação e prepara o model ativo. FavoriteRepository.AddAsync abre transação, bloqueia a linha Users com SELECT ... FOR UPDATE, busca o vínculo existente e relê seus valores no EF. Se ausente, insere; se presente, reaproveita seu Id/CreatedAt e aplica o estado solicitado somente quando houver transição. POST de favorito já ativo não muda UpdatedAt.
+
+DeleteAsync usa o mesmo bloqueio e recarrega o vínculo depois de adquiri-lo, mesmo que o service já o tenha consultado/alterado no ChangeTracker. Isso evita que uma leitura anterior à reativação faça o PATCH ignorar a mudança concorrente. Na transição para ativo ou inativo, UpdatedAt é gerado em UTC após o bloqueio; comandos repetidos sem transição preservam a data. POST/PATCH simultâneos são aplicados na ordem de aquisição do bloqueio, mantendo uma única linha; nenhuma ordem de chegada HTTP é prometida.
+
+POST repetido de preferências foi reconfirmado com o código já existente: reaproveita vínculos, mantém IDs/datas e retorna 200, inclusive em duas chamadas sobrepostas. A correção não remove limites de três, verificações de usuário ativo ou de propriedade.
+
+
+## Exclusão lógica de usuário — 01/11/2026
+
+A exclusão de conta do MVP é lógica, não uma remoção/anonimização definitiva dos dados pessoais. User.IsActive fica false; hosts e programações do usuário ficam inativos; favoritos próprios ficam inativos; assinatura fica Cancelled, com CancelledAt/UpdatedAt em UTC. Assinatura já cancelada mantém sua data anterior; assinatura expirada também é cancelada ao excluir a conta. Campos de criação e histórico são preservados.
+
+O e-mail continua reservado pelo Identity. Como os hosts são mantidos, seus CNPJs continuam reservados pelo índice único, inclusive inativos. Interações anônimas/identificadas, endereços, categorias, roles/claims e favoritos de outras pessoas não são apagados. Favoritos de terceiros nas programações desativadas permanecem no banco, mas somem da listagem disponível por causa do estado da programação/host.
+
+O service consulta programações ativas de todos os hosts do usuário, inclusive hosts já inativos, e todos os favoritos próprios ativos, inclusive em programações indisponíveis. Não depende dos filtros de disponibilidade usados nas telas. Só os registros ativos têm seu estado/data de atualização alterados; os demais permanecem como estavam.
+
+UserService coordena dentro de UserRepository.DeleteAsync, que abre transação, bloqueia Users e recarrega o usuário. A função passada pelo service usa os repositories existentes, altera os estados e chama UserManager.UpdateAsync. O store Identity e os repositories compartilham o Context scoped. O repository só confirma após sucesso; falhas do Identity ou banco desfazem tudo e limpam o rastreamento. ConcurrencyStamp é atualizado pelo Identity, impedindo atualização antiga de sobrescrever a conta como ativa.
+
+Nenhuma rota de reativação foi criada. Uma eventual reativação explícita do usuário não reativa automaticamente hosts/programações/favoritos nem assinatura. A checagem JWT recusa novas requisições da conta inativa; não implementa cancelamento retroativo de todas as operações já autenticadas antes da exclusão. O teste desta etapa não pretendeu garantir serialização de todos os cadastros relacionados em andamento.
+
+
+## Filtro turístico correlacionado — 01/11/2026
+
+A seleção turística é definida pelo vínculo de cada programação com a categoria ativa de nome canônico Turismo. O repository utiliza Any correlacionado por link.ProgrammingId == programming.Id e verifica link.Category.IsActive/Name. Programação, host e proprietário também precisam estar ativos. Existência global de Turismo ou de outra categoria não torna as demais programações elegíveis. Vários vínculos na mesma programação não duplicam o resultado.
+
+O nome definitivo Turismo foi confirmado pelo usuário. Seu ID é consultado no catálogo de categorias (8 no banco local nesta data), sem ID numérico fixo no código. A consulta ainda usa o nome canônico; renomeá-lo exige alinhar a regra. Não foi criado código/enum/flag de classificação nem migration nesta etapa.
+
+Controller e service continuam restringindo o acesso a usuários turistas ativos, pela claim e pelo tipo atual persistido. Conta Local não ganha acesso apenas por apresentar claim turística. Paginação e DTOs foram preservados, assim como a regra atual de incluir eventos iniciados/encerrados. O protótipo/.http orientam vincular Turismo ao criar/editar a programação e tratam [] como resultado válido.
+
+
+## Validação compartilhada de preferências — 01/11/2026
+
+UserXCategoryValidations implementa Validate (adição) e ValidateEdit (substituição), reutilizando ValidateSelection. A regra consulta ICategoryService.GetallCategories e rejeita IDs que não pertencem ao catálogo ativo. Também verifica coleção nula, usuário, propriedade dos vínculos e máximo de três IDs distintos. Seleção vazia continua válida. Não há validação nova na controller.
+
+No cadastro, Validate confere ainda a união das preferências atuais com as solicitadas. Na edição, ValidateEdit considera apenas a seleção final, permitindo trocar três por outras três. UserXCategoryService chama a validação antes de consultar/comparar vínculos e delegar a persistência. O repository mantém bloqueio por usuário, releitura, comparação da seleção esperada e limite final dentro da transação. Nenhuma alteração de schema ou repository nesta etapa.
+
+Uma categoria inexistente/inativa provoca ArgumentException, convertida pela action existente em 400; nenhuma inclusão ou remoção é aplicada. Uma categoria vinculada que ficou inativa pode ser removida (inclusive com []), mas não mantida na nova seleção. Esta checagem não remove automaticamente preferências quando o catálogo muda nem impede que uma categoria seja desativada depois da validação.
+
+Validação: 40 verificações HTTP/PostgreSQL específicas e 32 regressões de concorrência aprovadas; 90 testes simulados do protótipo. Sem escrita no banco principal ou migration.
+
+
+## Renovação Pro sem GET prévio e exceções específicas — 01/11/2026
+
+A ativação passa a decidir por GetStatus(current), no SubscriptionService, em vez de confiar apenas em Status persistido. Somente uma assinatura Active dentro de StartsAt/ExpiresAt é devolvida sem mudanças. Assinatura vencida, cancelada, inativa ou ainda fora da vigência é ativada no mesmo registro: StartsAt/UpdatedAt recebem UTC atual, ExpiresAt é StartsAt.AddMonths(1), CancelledAt é limpo e CreatedAt/Id são preservados. Sem registro anterior, o cadastro continua criando um. Repetição vigente não acumula meses. SubscriptionRepository mantém GetByUserIdAsync, AddAsync e UpdateAsync; nenhuma lógica nova no mapping ou controller. Esta correção não acrescenta controle de ativações/cancelamentos simultâneos nem modifica SimulationEnabled/pagamento.
+
+Na persistência de edição de programação, somente UniqueViolation (23505) do índice IX_ProgrammingXCategories_ProgrammingId_CategoryId vira CategoryLinksConflictException. Essa exceção aceita InnerException opcional, mantendo DbUpdateException e PostgresException disponíveis para diagnóstico. O conflito de snapshot já identificado antes de salvar continua gerando 409 sem uma causa de banco artificial. Demais falhas mantêm tipo e causa; o descarte da transação reverte inclusões/remoções e os campos editados. A controller usa o nome exato da FK de categorias para converter somente esse caso em 400.
+
+CnpjException também aceita InnerException opcional. HostRepository passa a exceção original nos dois catches específicos do índice IX_Hosts_CNPJ; validação prévia sem erro de banco continua sem InnerException. Mantidos mensagem e retorno 409 de negócio. Não foram alterados os tratamentos de provedores externos, incluindo a proteção da chave na URI do geocodificador.
+
+Validação: 33 verificações HTTP/PostgreSQL cobriram renovação vencida com/sem GET prévio, reativação, repetição vigente, primeira assinatura, autorização, FK inexistente, NOT NULL, unicidade de outro índice, duplicidade real do vínculo, rollback e edição posterior válida. Mais 28 regressões CNPJ/concorrência/HTTP confirmaram causa original e retornos. Sintaxe JS e 91 testes simulados aprovados. Bancos descartáveis limpos, sem alterações nos dados principais ou migration.
+
+
+## Fronteiras de negócio, persistência e HTTP — 01/11/2026
+
+Esta refatoração preserva as regras de negócio existentes. O domínio comunica falhas sem escolher códigos HTTP: CategoryNotFoundException informa categoria inexistente, CategoryLinksConflictException informa conflito de vínculos e CnpjException contém CnpjFailure. Todas preservam a causa original quando derivadas de uma falha técnica conhecida.
+
+O repository continua responsável pela persistência/transação e identifica detalhes PostgreSQL: em CreateWithCategoriesAsync/EditWithCategoriesAsync, somente a FK de categoria é convertida em CategoryNotFoundException. Somente o índice único específico de vínculos é convertido em CategoryLinksConflictException. Outras falhas seguem com sua causa original. A controller recebe essas exceções e decide 400/409. CnpjExceptionExtensions foi movida para Presentation, mantendo o mapeamento HTTP de CNPJ fora do domínio.
+
+Services continuam com autorização/propriedade, regras de período/preço/categorias e coordenação das operações. AppServices continuam validando/mapeando DTOs. Referências não utilizadas do Domain à Application foram removidas; não se passou DTO ao repository. A implementação JWT, que depende de configuração/assinatura criptográfica, fica em Data/Services atrás de IJwtTokenService. Esta etapa não remove a integração existente do domínio com Identity nem separa o backend em projetos/assemblies.
+
+Validação: build aprovado, 46 verificações específicas, 37 regressões de autenticação e 91 testes simulados do protótipo. Confirmados rollback, preservação de causas, conversão de cinco falhas CNPJ, contratos JWT e ausência de mudança de modelo. Sem dados reais alterados, nova pasta, migration ou PDF.

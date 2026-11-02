@@ -43,6 +43,12 @@ namespace Projetos___4.Application.AppServices
             return _userService.EditUserAsync(user, userId);
         }
 
+        public Task<IdentityResult?> DeleteUserAsync(UserDeleteDTO dto, string userId)
+        {
+            ArgumentNullException.ThrowIfNull(dto);
+            return _userService.DeleteUserAsync(dto.Email, userId);
+        }
+
         public async Task<IdentityResult> Create(UserDTO dto)
         {
             _userValidation.Validate(dto, DateTime.UtcNow);

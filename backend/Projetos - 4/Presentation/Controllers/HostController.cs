@@ -7,7 +7,7 @@ using Projetos___4.Application.DTO;
 using Projetos___4.Domain.Model;
 using Microsoft.AspNetCore.Identity;
 using Projetos___4.Application.Interfaces;
-using Projetos___4.Domain.Service;
+using Projetos___4.Domain.Interfaces.Service;
 
 namespace Projetos___4.Presentation.Controllers
 {
@@ -17,10 +17,10 @@ namespace Projetos___4.Presentation.Controllers
     {
         private readonly UserManager<User> _userManager;
         private readonly IHostAppService _hostAppService;
-        private readonly JwtTokenService _tokenService;
+        private readonly IJwtTokenService _tokenService;
         private readonly IHostStatisticsAppService _hostStatisticsAppService;
 
-        public HostController(UserManager<User> userManager, IHostAppService hostAppService, JwtTokenService tokenService,
+        public HostController(UserManager<User> userManager, IHostAppService hostAppService, IJwtTokenService tokenService,
             IHostStatisticsAppService hostStatisticsAppService)
         {
             _userManager = userManager;

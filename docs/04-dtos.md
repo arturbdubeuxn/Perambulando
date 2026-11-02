@@ -887,3 +887,18 @@ Versão final aprovada em 129 verificações HTTP/EF/PostgreSQL de Ranking/Summa
 ## Limite de três categorias — 31/10/2026
 
 ProgrammingDTO.categoryIds e UserXCategoryDTO.CategoryIds possuem MaxLength(3), com mensagens em português. ProgrammingValidation e UserXCategoryValidation também verificam o limite para chamadas do AppService fora da validação automática MVC. O primeiro rejeita lista nula/vazia; o segundo preserva [] para seleção opcional. As actions de preferências recebem List<int> diretamente, por isso a validação do AppService é necessária. Formatos JSON e nomes de propriedades preservados. Foram aprovadas 17 verificações cobrindo limites, total acumulado, edição e lista vazia.
+
+
+## Favoritos e preferências repetidos — 01/11/2026
+
+FavoriteResponseDTO permanece inalterado; não expõe IsActive, CreatedAt ou UpdatedAt. Cadastro/reativação/desativação mantêm o formato atual. O protótipo não exige IsActive no DTO para mostrar Desfavoritar nos itens de GetAllByUserId, pois esse endpoint já filtra favoritos ativos disponíveis. IDs e datas foram conferidos diretamente no PostgreSQL nos testes, e não inferidos a partir da resposta do DTO. Não foram adicionados campos, atributos, rotas ou parâmetros de entrada nesta etapa.
+
+
+## Exclusão lógica de usuário — 01/11/2026
+
+UserDeleteDTO continua contendo somente Email, com Required, EmailAddress e MaxLength(256). Não exige Name, Password, TypeofUser ou userId no corpo. O usuário autenticado é identificado pelo JWT; tentar confirmar com e-mail de outra conta retorna 403 no service. O sucesso permanece 204 sem corpo. UserDTO/UserProfileDTO e demais contratos não mudaram. O .http antigo que ainda mandava os campos de cadastro foi ajustado para somente email.
+
+
+## Contrato de autenticação tipado — 01/11/2026
+
+Os DTOs de entrada/saída existentes não mudaram nesta refatoração. IJwtTokenService.CreateAsync retorna agora AuthenticationToken (Domain/Model), substituindo object anônimo somente no contrato interno. O resultado contém AccessToken, TokenType e ExpiresAt; a serialização web preserva accessToken/tokenType/expiresAt. Login continua com esse objeto na raiz; cadastro de host continua com result e auth. Campos, mapeamentos e fluxos do protótipo foram preservados. Verificados em 46 testes específicos, 37 regressões de autenticação e 91 testes simulados.

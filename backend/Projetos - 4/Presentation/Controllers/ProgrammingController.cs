@@ -4,8 +4,6 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.RateLimiting;
 using Projetos___4.Domain.Exceptions;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.EntityFrameworkCore;
-using Npgsql;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Projetos___4.Application.DTO;
@@ -94,7 +92,7 @@ namespace Projetos___4.Presentation.Controllers
 
         [AllowAnonymous]
         [HttpGet("GetAllProgrammings")]
-        public async Task<IActionResult> GetAllProgrammings([FromQuery] int take = 10, [FromQuery] int skip = 0)
+        public async Task<IActionResult> GetAllProgrammings([FromQuery, Range(1, 100)] int take = 10, [FromQuery, Range(0, int.MaxValue)] int skip = 0)
         {
             try
             {
@@ -191,12 +189,10 @@ namespace Projetos___4.Presentation.Controllers
                     title: ex.ServiceUnavailable ? "Serviço de localização indisponível" : "Endereço não localizado",
                     detail: ex.Message);
             }
-            catch (DbUpdateException ex) when (ex.InnerException is PostgresException postgres &&
-                postgres.SqlState == PostgresErrorCodes.ForeignKeyViolation &&
-                postgres.ConstraintName?.Contains("CategoryId", StringComparison.OrdinalIgnoreCase) == true)
+            catch (CategoryNotFoundException ex)
             {
                 return Problem(statusCode: StatusCodes.Status400BadRequest,
-                    title: "Categorias inválidas", detail: "Uma ou mais categorias informadas não existem.");
+                    title: "Categorias inválidas", detail: ex.Message);
             }
             catch (ArgumentException ex)
             {
@@ -245,12 +241,10 @@ namespace Projetos___4.Presentation.Controllers
                     title: ex.ServiceUnavailable ? "Serviço de localização indisponível" : "Endereço não localizado",
                     detail: ex.Message);
             }
-            catch (DbUpdateException ex) when (ex.InnerException is PostgresException postgres &&
-                postgres.SqlState == PostgresErrorCodes.ForeignKeyViolation &&
-                postgres.ConstraintName?.Contains("CategoryId", StringComparison.OrdinalIgnoreCase) == true)
+            catch (CategoryNotFoundException ex)
             {
                 return Problem(statusCode: StatusCodes.Status400BadRequest,
-                    title: "Categorias inválidas", detail: "Uma ou mais categorias informadas não existem.");
+                    title: "Categorias inválidas", detail: ex.Message);
             }
             catch (ArgumentException ex)
             {
@@ -274,7 +268,7 @@ namespace Projetos___4.Presentation.Controllers
         }
       
         [HttpGet("GetAllProgrammingsWithProHost")]
-        public async Task<IActionResult> GetAllProgrammingsWithProHost([FromQuery] int take = 10, [FromQuery] int skip = 0)
+        public async Task<IActionResult> GetAllProgrammingsWithProHost([FromQuery, Range(1, 100)] int take = 10, [FromQuery, Range(0, int.MaxValue)] int skip = 0)
         {
             try
             {
@@ -290,7 +284,7 @@ namespace Projetos___4.Presentation.Controllers
 
         [HttpGet("GetAllTuristProgrammings")]
         [Authorize]
-        public async Task<IActionResult> GetAllTuristProgrammings([FromQuery] int take = 10, [FromQuery] int skip = 0)
+        public async Task<IActionResult> GetAllTuristProgrammings([FromQuery, Range(1, 100)] int take = 10, [FromQuery, Range(0, int.MaxValue)] int skip = 0)
         {
             if (!User.HasClaim("typeofuser", ((int)Domain.Model.User.TypeofUser.Turist).ToString(System.Globalization.CultureInfo.InvariantCulture)))
             {

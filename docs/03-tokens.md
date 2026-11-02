@@ -235,3 +235,32 @@ Eventos de outros usuários e visitantes anônimos continuam sendo salvos. Sem a
 O protótipo descreve 204 como ação aceita, pois não permite distinguir persistência de descarte intencional. Service concentra a decisão; repository mantém persistência, unicidade e recuperação de concorrência existentes.
 
 Validação: build sem erros (10 avisos preexistentes na compilação do backend); 14 verificações do service com dependências simuladas aprovadas, cobrindo quatro tipos, reenvio, visitante, usuário diferente, data UTC, conflito e validação. Sintaxe JS aprovada e 83 testes do protótipo com API simulada aprovados. Teste HTTP/PostgreSQL preparado, mas bloqueado por conexão recusada em 5432 e Docker Desktop desligado. Banco principal preservado, nenhuma migration e nenhum PDF exportado.
+
+
+## Conta ativa na autenticação JWT — 01/11/2026
+
+A configuração JwtBearer agora utiliza OnTokenValidated em Presentation/Program.cs para, após validar assinatura, emissor, audiência e prazo, exigir sub não vazio e consultar IUserService.GetProfileAsync. Esse service reutiliza IUserRepository.GetbyId e retorna null para conta ausente ou inativa. Nesses casos, context.Fail encerra a autenticação. Nenhuma regra de propriedade/role/Pro foi removida ou substituída.
+
+Rotas protegidas retornam 401 antes de executar a action, mesmo com JWT ainda dentro da validade. O POST público de interações já valida explicitamente um Authorization enviado e também retorna 401, sem transformar a tentativa em evento anônimo. Requisições realmente anônimas e leituras AllowAnonymous permanecem públicas; AllowAnonymous não passa a exigir login. Não foi alterada nesta etapa a seleção de programações publicadas por donos inativos.
+
+A consulta é feita a cada autenticação JWT, sem cache, refletindo desativação/exclusão na próxima requisição. Não há cancelamento retroativo de uma requisição que já passou pela autenticação. Se a conta for reativada, um JWT ainda válido volta a funcionar: isto não implementa revogação permanente por token, SecurityStamp, alteração de senha ou mudança imediata de roles. Falhas de banco não são convertidas em autenticação bem-sucedida.
+
+O callback foi colocado na configuração de autenticação existente; controllers, services, repositories, models, DTOs e migrations não receberam novas estruturas. O protótipo mantém JWT/IDs e mostra orientação sobre token/conta ativa em 401 sem corpo, sem reenviar chamadas automaticamente nem apagar a sessão indiscriminadamente. Nenhuma alteração no frontend Expo.
+
+Validação desta etapa: compilação isolada sem erros, com 10 avisos preexistentes; 37 verificações HTTP/Identity/PostgreSQL aprovadas, incluindo login real, mesmo JWT antes/depois da desativação, exclusão, sub ausente/vazio, assinatura inválida, expiração, ausência de gravações, acesso anônimo e propriedade. Mais 129 verificações de Summary/Daily/Ranking e 85 testes simulados do protótipo aprovados; sintaxe JS e git diff --check aprovados. Docker Desktop local iniciado para os testes; bancos e APIs temporários encerrados/removidos. Banco principal e seus dados fictícios preservados, sem migrations ou exportação de PDFs. A API principal precisa ser reiniciada normalmente pelo usuário para carregar a alteração.
+
+
+## Exclusão lógica de usuário — 01/11/2026
+
+Ao concluir DELETE /api/User com 204, a conta fica inativa. A verificação existente em OnTokenValidated consulta IUserService.GetProfileAsync e recusa novas requisições protegidas, mesmo com JWT ainda dentro da validade. Login também recusa contas inativas. O protótipo limpa JWT/perfil/fila de interações somente no sucesso; uma exclusão recusada preserva a sessão.
+
+Não foram adicionados blacklist, refresh token ou comparação de SecurityStamp ao JWT. A exclusão é feita via UserManager.UpdateAsync, que mantém o controle de ConcurrencyStamp do Identity. Em teste, uma edição carregada antes da exclusão falhou com ConcurrencyFailure e não reativou a conta. Se um procedimento futuro reativar manualmente a conta, o JWT ainda válido pode voltar a autenticar, conforme regra existente; isso não reativa automaticamente assinatura ou publicações. Nenhuma rota de recuperação foi implementada.
+
+
+## Emissor JWT por interface — 01/11/2026
+
+A implementação JwtTokenService foi movida de Domain/Service para Data/Services. O contrato IJwtTokenService está em Domain/Interfaces/Service e retorna Task<AuthenticationToken>, modelo de resultado em Domain/Model. UserController e HostController recebem a interface; Program.cs registra AddScoped<IJwtTokenService, JwtTokenService>. A configuração e os detalhes de emissão/assinatura permanecem na implementação de infraestrutura.
+
+AuthenticationToken possui AccessToken, TokenType (Bearer) e ExpiresAt. Com a serialização web existente, o JSON mantém exatamente accessToken, tokenType e expiresAt; o cadastro de host continua usando auth.accessToken. Sem alterações de chave, algoritmo, issuer/audience, duração, claims sub/jti/name/typeofuser/role, atualização de roles ou validação de conta ativa. Não foi criada entidade persistida de token nem nova tabela.
+
+Validação: contrato tipado e DI conferidos entre as 46 verificações da refatoração. Login real e uso do JWT conferidos nas 37 regressões HTTP/Identity/PostgreSQL; protótipo aprovado em 91 testes simulados. Banco/API principais preservados. Reinicie a API normalmente para carregar o novo registro de DI. Sem migration ou exportação de PDF.

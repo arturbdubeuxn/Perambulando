@@ -20,6 +20,7 @@ using System.Text;
 using static System.Net.Mime.MediaTypeNames;
 
 using Projetos___4.Application.DTO;
+using Projetos___4.Application.Validations.Validations;
 using Projetos___4.Application.Validations.Validations.User;
 using Projetos___4.Application.Validations.Validations.Host;
 using Projetos___4.Domain.Validations.Interface;
@@ -97,7 +98,7 @@ builder.Services.AddScoped<IAddressService, AddressService>();
 builder.Services.AddScoped<IAddressAppService, AddressAppService>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IUserAppService, UserAppService>();
-builder.Services.AddScoped<JwtTokenService>();
+builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
 builder.Services.AddScoped<IHostAppService,HostAppService>();
 builder.Services.AddScoped<IHostService,HostService>();
 builder.Services.AddScoped<ICnpjValidations, CnpjValidations>();
@@ -131,6 +132,7 @@ builder.Services.AddScoped<IUserXCategoryService, UserXCategoryService>();
 builder.Services.AddScoped<IUserXCategoryValidations, UserXCategoryValidations>();
 builder.Services.AddScoped<IUserXCategoryAppService, UserXCategoryAppService>();
 builder.Services.AddScoped<IValidation<ProgrammingDTO>, ProgrammingValidation>();
+builder.Services.AddScoped<IValidation<ItineraryRequestDTO>, ItineraryValidation>();
 builder.Services.AddScoped<IValidation<HostDTO>, HostValidation>();
 builder.Services.AddScoped<IValidation<UserDTO>, UserValidation>();
 builder.Services.AddScoped<IValidation<UserXCategoryDTO>, UserXCategoryValidation>();
@@ -172,6 +174,25 @@ builder.Services.AddAuthentication(options =>
 }).AddJwtBearer(options =>
 {
     options.MapInboundClaims = false;
+    options.Events = new JwtBearerEvents
+    {
+        OnTokenValidated = async context =>
+        {
+            var userId = context.Principal?.FindFirst("sub")?.Value;
+            if (string.IsNullOrWhiteSpace(userId))
+            {
+                context.Fail("Token sem identificação do usuário.");
+                return;
+            }
+
+            var userService = context.HttpContext.RequestServices.GetRequiredService<IUserService>();
+            var user = await userService.GetProfileAsync(userId);
+            if (user == null)
+            {
+                context.Fail("Usuário indisponível.");
+            }
+        }
+    };
     options.TokenValidationParameters = new TokenValidationParameters
     {
         NameClaimType = "name",

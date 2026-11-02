@@ -259,3 +259,14 @@ Por decisão explícita do usuário, esta etapa foi feita em prototipo-api e nã
 UUID novo por ação; falhas transitórias oferecem reenvio manual com o mesmo UUID, tipo, programação, API e JWT originais. Fila limitada a 50 em memória, limpa no logout/exclusão de conta e perdida ao recarregar. Coleta não bloqueia navegação e não substitui a resposta principal. Services/repositories/contratos/backend permanecem inalterados; o envio utiliza a idempotência já implementada.
 
 Sintaxe JS e 83 testes com API simulada aprovados. Nenhum dado real alterado ou teste contra API principal nesta etapa; frontend/ confirmado sem alterações, nenhuma migration/PDF ou reinicialização de backend/Expo. Recarregar o protótipo para receber a interface. Coleta e painel do frontend definitivo continuam pendentes. [Fluxos, regras, limites e testes](validacoes/us17-coleta-prototipo-2026-10-30.md).
+
+
+## Redução de dependências no backend — 01/11/2026
+
+As camadas continuam como pastas no mesmo projeto .NET. Nesta etapa foram removidas referências não utilizadas do Domain à Application e do ProgrammingRepository a DTOs. A regra pretendida é: Presentation consome contratos e traduz HTTP; Application coordena DTOs/mappings; Domain contém modelos, regras e interfaces; Data implementa persistência e integrações técnicas. O composition root Program.cs liga interfaces e implementações.
+
+- JWT: Presentation -> IJwtTokenService (Domain); Data/Services/JwtTokenService implementa o contrato e retorna AuthenticationToken. Domain não contém mais o emissor criptográfico concreto.
+- Categorias: Data identifica a FK/índice específico -> lança exceção de Domain -> Presentation converte para 400/409. ProgrammingController não importa EF/Npgsql.
+- CNPJ: Domain conserva CnpjFailure/CnpjException; Presentation/Controllers/CnpjExceptionExtensions converte em ProblemDetails. O domínio não referencia MVC para construir respostas.
+
+As pastas existentes foram reutilizadas. Nenhuma mudança no Expo, endpoints, autorização, regras de negócio ou banco. Permanecem dependências do domínio com Identity e configurações em outros serviços; isto não constitui isolamento completo de Clean Architecture por assemblies. Verificação: 46 testes específicos, 37 regressões de autenticação e 91 testes simulados do protótipo aprovados. Sem nova migration ou exportação de PDF.

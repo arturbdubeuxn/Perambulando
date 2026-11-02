@@ -4,12 +4,13 @@ using System.Text;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.IdentityModel.Tokens;
 using Projetos___4.Domain.Model;
+using Projetos___4.Domain.Interfaces.Service;
 
-namespace Projetos___4.Domain.Service;
+namespace Projetos___4.Data.Services;
 
-public class JwtTokenService(IConfiguration configuration, UserManager<User> userManager)
+public class JwtTokenService(IConfiguration configuration, UserManager<User> userManager) : IJwtTokenService
 {
-    public async Task<object> CreateAsync(User user)
+    public async Task<AuthenticationToken> CreateAsync(User user)
     {
         var expiresAt = DateTime.UtcNow.AddHours(configuration.GetValue<int>("Jwt:ExpirationHours"));
         var claims = new List<Claim>
@@ -20,12 +21,19 @@ public class JwtTokenService(IConfiguration configuration, UserManager<User> use
             new("typeofuser", ((int)user.Typeofuser).ToString(System.Globalization.CultureInfo.InvariantCulture), ClaimValueTypes.Integer32)
         };
         foreach (var role in await userManager.GetRolesAsync(user))
+        {
             claims.Add(new Claim("role", role));
+        }
 
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(configuration["Jwt:Key"]!));
         var token = new JwtSecurityToken(configuration["Jwt:Issuer"], configuration["Jwt:Audience"],
             claims, notBefore: DateTime.UtcNow, expires: expiresAt,
             signingCredentials: new SigningCredentials(key, SecurityAlgorithms.HmacSha256));
-        return new { accessToken = new JwtSecurityTokenHandler().WriteToken(token), tokenType = "Bearer", expiresAt };
+        return new AuthenticationToken
+        {
+            AccessToken = new JwtSecurityTokenHandler().WriteToken(token),
+            TokenType = "Bearer",
+            ExpiresAt = expiresAt
+        };
     }
 }

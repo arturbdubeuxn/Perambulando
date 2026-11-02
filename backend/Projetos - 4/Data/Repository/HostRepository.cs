@@ -1,6 +1,7 @@
 using Projetos___4.Domain.Exceptions;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 using Projetos___4.Domain.Model;
 using Projetos___4.Data.Context;
 using Projetos___4.Domain.Interfaces.Repository;
@@ -51,6 +52,13 @@ namespace Projetos___4.Data.Repository
                 await transaction.CommitAsync();
                 return hosts;
             }
+            catch (DbUpdateException ex) when (ex.InnerException is PostgresException postgres &&
+                postgres.SqlState == PostgresErrorCodes.UniqueViolation && postgres.ConstraintName == "IX_Hosts_CNPJ")
+            {
+                await transaction.RollbackAsync();
+                Db.ChangeTracker.Clear();
+                throw new CnpjException(CnpjFailure.Duplicate, "Já existe um host cadastrado com este CNPJ.", ex);
+            }
             catch
             {
                 await transaction.RollbackAsync();
@@ -74,17 +82,27 @@ namespace Projetos___4.Data.Repository
         public async Task<Hosts> EditAsync(Hosts host)
         {
             await using var transaction = await Db.Database.BeginTransactionAsync();
-            if (Db.Entry(host).Property(item => item.CNPJ).OriginalValue != host.CNPJ)
+            try
             {
-                await CheckCnpjForSaveAsync(host);
+                if (Db.Entry(host).Property(item => item.CNPJ).OriginalValue != host.CNPJ)
+                {
+                    await CheckCnpjForSaveAsync(host);
+                }
+                if (host.Address.Id == 0)
+                {
+                    Db.Addresses.Add(host.Address);
+                }
+                await Db.SaveChangesAsync();
+                await transaction.CommitAsync();
+                return host;
             }
-            if (host.Address.Id == 0)
+            catch (DbUpdateException ex) when (ex.InnerException is PostgresException postgres &&
+                postgres.SqlState == PostgresErrorCodes.UniqueViolation && postgres.ConstraintName == "IX_Hosts_CNPJ")
             {
-                Db.Addresses.Add(host.Address);
+                await transaction.RollbackAsync();
+                Db.ChangeTracker.Clear();
+                throw new CnpjException(CnpjFailure.Duplicate, "Já existe um host cadastrado com este CNPJ.", ex);
             }
-            await Db.SaveChangesAsync();
-            await transaction.CommitAsync();
-            return host;
         }
 
         public async Task<bool> UserOwnsActiveHostAsync(Programming programming, string userId)

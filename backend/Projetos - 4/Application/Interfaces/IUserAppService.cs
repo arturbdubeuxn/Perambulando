@@ -10,5 +10,6 @@ namespace Projetos___4.Application.Interfaces
         Task<UserProfileDTO?> GetProfileAsync(string userId);
 
         Task<IdentityResult?> EditUserAsync(UserDTO dto, string userId);
+        Task<IdentityResult?> DeleteUserAsync(UserDeleteDTO dto, string userId);
     }
 }

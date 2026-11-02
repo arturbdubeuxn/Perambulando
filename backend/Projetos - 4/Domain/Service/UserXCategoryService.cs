@@ -32,21 +32,10 @@ namespace Projetos___4.Domain.Service
 
         public async Task<List<UserXCategory>> EditAsync(string userId, IReadOnlyCollection<UserXCategory> newLinks)
         {
-            ArgumentNullException.ThrowIfNull(newLinks);
-            if (newLinks.Select(link => link.CategoryId).Distinct().Count() > 3)
-            {
-                throw new ArgumentException("Selecione no máximo 3 categorias de preferência.");
-            }
+            await _userXCategoryValidations.ValidateEdit(userId, newLinks);
 
             var newCategories = newLinks.Select(link => link.CategoryId).Distinct()
                 .Select(id => new Category { Id = id }).ToList();
-
-            var activeCategories = await _categoryService.GetallCategories();
-
-            if (newCategories.Any(category => category.Id <= 0))
-            {
-                throw new ArgumentException("Uma ou mais categorias não existem ou estão inativas.", nameof(newLinks));
-            }
 
             var currentCategories = await _categoryService.GetAllCategoriesPrefereces(userId);
             var categoriesToAdd = new List<Category>();
@@ -84,7 +73,8 @@ namespace Projetos___4.Domain.Service
                 CategoryId = c.Id
             }).ToList();
 
-            return await _userXCategoryRepository.EditAsync(userId, LinkstoAdd, LinkstoDelete);
+            var expectedCategoryIds = currentCategories.Select(category => category.Id).ToList();
+            return await _userXCategoryRepository.EditAsync(userId, LinkstoAdd, LinkstoDelete, expectedCategoryIds);
         }
     }
 }

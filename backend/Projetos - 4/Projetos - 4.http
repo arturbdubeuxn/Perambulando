@@ -220,7 +220,7 @@ Accept: application/json
 # No PUT EditCategoryToUser, [] remove todas as preferências atuais.
 # Resposta 200: DTO com userId e categoryIds; a mensagem de sucesso anterior foi substituída.
 # Pode executar este POST novamente: vínculos existentes são reaproveitados e a resposta continua 200.
-# Um conflito externo de unicidade retorna 409; nenhum vínculo novo é gravado parcialmente.
+# A transação relê os vínculos: excesso de três preferências retorna 400 sem gravação parcial.
 # @name addCategoryToUser
 POST {{Projetos___4_HostAddress}}/api/Category/AddCategoryToUser
 Content-Type: application/json
@@ -238,9 +238,11 @@ Accept: application/json
 Authorization: Bearer {{login.response.body.$.accessToken}}
 
 ### CATEGORY - Editar categorias de interesse (200 com todos os vínculos atualizados)
-# Execute login e consulte GetallCategories para escolher IDs existentes.
+# Execute login e consulte GetallCategories para escolher IDs existentes e ativos.
+# IDs inexistentes/inativos retornam 400 e preservam toda a seleção anterior.
+# Até três categorias na seleção final; [] remove todas, inclusive vínculos que ficaram inativos.
 # Envie a seleção completa desejada: ausentes serão removidos; repetidos são ignorados.
-# Em edição concorrente, 409 indica que a seleção mudou durante a operação; recarregue os interesses e tente novamente.
+# Em edição concorrente, 409 indica que a seleção lida pelo service mudou antes da gravação; recarregue e revise antes de reenviar.
 # @name editUserCategories
 PUT {{Projetos___4_HostAddress}}/api/Category/EditCategoryToUser
 Content-Type: application/json
@@ -248,6 +250,16 @@ Accept: application/json
 Authorization: Bearer {{login.response.body.$.accessToken}}
 
 [{{EditCategoryId}}]
+
+### CATEGORY - Rejeitar edição com categoria inexistente (400; não altera)
+# Confirme que 999999 não existe no catálogo antes do teste manual.
+# @name editUserCategoriesInvalid
+PUT {{Projetos___4_HostAddress}}/api/Category/EditCategoryToUser
+Content-Type: application/json
+Accept: application/json
+Authorization: Bearer {{login.response.body.$.accessToken}}
+
+[999999]
 
 ### CATEGORY - Conferir interesses após editar (200)
 # @name userCategoriesAfterEdit
@@ -401,10 +413,11 @@ PATCH {{Projetos___4_HostAddress}}/api/Host/{{createHost.response.body.$.result.
 Accept: application/json
 Authorization: Bearer {{createHost.response.body.$.auth.accessToken}}
 
-### USER - Excluir a própria conta (204, sem corpo)
+### USER - Excluir logicamente a própria conta (204, sem corpo)
 # Execute por último, somente para encerrar os testes desta conta.
-# A action atual recebe o DTO de cadastro, busca pelo e-mail e confere o dono pelo JWT.
-# Se editar o e-mail, ajuste este corpo para usar o novo endereço.
+# Desativa usuário, hosts, programações e favoritos; cancela assinatura na mesma transação.
+# Histórico e e-mail preservados. O JWT deixa de autenticar a conta após a desativação.
+# UserDeleteDTO recebe somente email. Se editar o e-mail, ajuste o corpo.
 # @name deleteUser
 DELETE {{Projetos___4_HostAddress}}/api/User
 Content-Type: application/json
@@ -412,10 +425,7 @@ Accept: application/json
 Authorization: Bearer {{login.response.body.$.accessToken}}
 
 {
-  "name": "{{nome}}",
-  "email": "{{email}}",
-  "password": "{{senha}}",
-  "typeofUser": 0
+  "email": "{{email}}"
 }
 
 ### ADDRESS - Consultar ViaCEP (não grava endereço)
@@ -443,12 +453,13 @@ Authorization: Bearer {{login.response.body.$.accessToken}}
 
 # Create/Edit: CNPJ obrigatório para todos os tipos; salve apenas CNPJ de empresa que representa.
 # Novo CNPJ: consulta ativa obrigatória; duplicidade inclusive hosts inativos => 409.
+# IX_Hosts_CNPJ garante unicidade também sob concorrência; a API mantém retorno 409.
 # Alteração somente de máscara não exige nova consulta. CNPJ não ativo => 422.
 # Não localizado na base => 404; falha/limite/timeout do provedor => 503, sem salvar.
 
 
 # ============================================================
-# FAVORITE — depende da revisão e aplicação futura da migration
+# FAVORITE — favoritar, repetir e reativar o mesmo vínculo (sem nova migration)
 # ============================================================
 # Use uma programação ativa de host ativo. Qualquer usuário autenticado pode favoritar.
 # Não envie userId: ele vem do JWT. O ID da rota é o da programação, não do favorito.
@@ -486,7 +497,9 @@ GET {{Projetos___4_HostAddress}}/api/Host/HostFilter?take=0
 Accept: application/json
 Authorization: Bearer {{login.response.body.$.accessToken}}
 
-### FAVORITE - Desfavoritar (200 com isActive false; 404 se não houver vínculo seu)
+### FAVORITE - Desfavoritar (200; vínculo fica inativo no banco)
+# O DTO atual não expõe IsActive; confira a listagem para verificar a remoção.
+# Sem vínculo próprio, o tratamento atual retorna 400. Repetir um PATCH existente retorna 200.
 # @name deleteFavorite
 PATCH {{Projetos___4_HostAddress}}/api/Favorite/{{FavoriteProgrammingId}}/Delete
 Accept: application/json
@@ -523,13 +536,14 @@ GET {{Projetos___4_HostAddress}}/api/Programming/GetAllProgrammingsWithProHost?t
 Accept: application/json
 
 # US17: executar somente após revisão e aplicação da migration.
-# Configure Pro__SimulationEnabled=true para ativação simulada sem cobrança.
-# Execute login antes; repetir Activate não estende o período.
+# Ativação atual é simulada, sem cobrança; o controle de SimulationEnabled não foi alterado nesta correção.
+# Execute login antes; repetir Activate durante a vigência não estende o período.
+# Se vencida, o POST renova por um mês no mesmo registro, mesmo sem consultar MySubscription antes.
 ### Consultar Pro (sem assinatura: 200, status 0)
 GET {{Projetos___4_HostAddress}}/api/Subscription/MySubscription
 Authorization: Bearer {{login.response.body.$.accessToken}}
 
-### Ativar Pro simulado (200; 403 com simulação desabilitada)
+### Ativar ou renovar Pro simulado (200; JWT ADMIN/HOST)
 POST {{Projetos___4_HostAddress}}/api/Subscription/Activate
 Authorization: Bearer {{login.response.body.$.accessToken}}
 
@@ -537,7 +551,7 @@ Authorization: Bearer {{login.response.body.$.accessToken}}
 GET {{Projetos___4_HostAddress}}/api/User/Profile
 Authorization: Bearer {{login.response.body.$.accessToken}}
 
-### Repetir ativação: mesmas datas
+### Repetir ativação vigente: mesmas datas
 POST {{Projetos___4_HostAddress}}/api/Subscription/Activate
 Authorization: Bearer {{login.response.body.$.accessToken}}
 
@@ -555,6 +569,9 @@ Authorization: Bearer {{login.response.body.$.accessToken}}
 
 ### PROGRAMMING - Listagem exclusiva para turista
 # Faça login com TypeofUser=1. O JWT deve conter typeofuser=1.
+# Só aparecem programações vinculadas à categoria ativa Turismo, com host/proprietário ativos.
+# Use GetallCategories para obter o ID (8 no banco local auditado); não é um ID fixo da API.
+# Sem programação com esse vínculo, o retorno correto é 200 com [].
 # Retorna 200 e lista paginada; sem token: 401; Local: 403.
 # @name turistProgrammings
 GET {{Projetos___4_HostAddress}}/api/Programming/GetAllTuristProgrammings?take=10&skip=0
@@ -694,3 +711,55 @@ Content-Type: application/json
 Authorization: Bearer {{login.response.body.$.accessToken}}
 
 [1, 2, 3, 4]
+
+
+### HOST - Reutilizar CNPJ já cadastrado (409; não cria outro host)
+# Execute createHost com sucesso antes. Esta requisição tem nome próprio para preservar seus IDs e JWT.
+# @name duplicateHostCnpj
+POST {{Projetos___4_HostAddress}}/api/Host/Create
+Content-Type: application/json
+Accept: application/json
+Authorization: Bearer {{createHost.response.body.$.auth.accessToken}}
+
+{
+  "typeofhost": 2,
+  "cnpj": "{{CNPJHost}}",
+  "name": "Tentativa de CNPJ duplicado",
+  "description": "Deve retornar 409 sem criar outro host.",
+  "addressId": {{createHost.response.body.$.result.addressId}}
+}
+
+
+### FAVORITE - Repetir favorito ativo (200; sem duplicar)
+# Execute createFavorite antes. Mantém ID e CreatedAt no banco.
+# @name repeatFavorite
+POST {{Projetos___4_HostAddress}}/api/Favorite/{{FavoriteProgrammingId}}/Create
+Accept: application/json
+Authorization: Bearer {{login.response.body.$.accessToken}}
+
+### FAVORITE - Reativar após desfavoritar (200; mesmo registro)
+# Execute createFavorite e deleteFavorite antes; depois confira myFavorites.
+# @name reactivateFavorite
+POST {{Projetos___4_HostAddress}}/api/Favorite/{{FavoriteProgrammingId}}/Create
+Accept: application/json
+Authorization: Bearer {{login.response.body.$.accessToken}}
+
+
+### USER - Perfil após exclusão lógica (401)
+# Execute deleteUser antes; o token pode estar no prazo, mas a conta estará inativa.
+# @name profileAfterLogicalDelete
+GET {{Projetos___4_HostAddress}}/api/User/Profile
+Accept: application/json
+Authorization: Bearer {{login.response.body.$.accessToken}}
+
+### USER - Login após exclusão lógica (401)
+# O e-mail continua reservado; este login não reativa automaticamente a conta.
+# @name loginAfterLogicalDelete
+POST {{Projetos___4_HostAddress}}/api/User/auth/Login
+Content-Type: application/json
+Accept: application/json
+
+{
+  "email": "{{email}}",
+  "password": "{{senha}}"
+}

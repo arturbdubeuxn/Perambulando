@@ -69,7 +69,7 @@ public class SubscriptionService : ISubscriptionService
 
         var current = await _subscriptionRepository.GetByUserIdAsync(subscription.UserId);
         var now = DateTime.UtcNow;
-        if (current != null && current.Status == SubscriptionStatus.Active)
+        if (GetStatus(current) == SubscriptionStatus.Active)
         {
             return current;
         }

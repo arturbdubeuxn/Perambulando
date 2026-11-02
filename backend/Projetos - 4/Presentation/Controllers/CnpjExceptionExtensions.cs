@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
+using Projetos___4.Domain.Exceptions;
 
-namespace Projetos___4.Domain.Exceptions;
+namespace Projetos___4.Presentation.Controllers;
 
 public static class CnpjExceptionExtensions
 {

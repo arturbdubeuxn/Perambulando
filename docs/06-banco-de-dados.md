@@ -423,3 +423,47 @@ Com autorização expressa, a migration existente 20261029191257_AddProgrammingI
 Foi inserida uma conta fictícia HOST, com assinatura Pro ativa até 30/11/2026, host 37 e programações 20, 21, 22, 23 e 24. Foram distribuídas 20 interações anônimas, datadas nos 14 dias anteriores à carga, para aparecerem no período padrão das estatísticas: 4 DetailView, 5 CarouselClick, 5 TicketClick e 6 NearbyClick. Quantidades por programação: 20=3, 21=3, 22=5, 23=6, 24=3. Favoritos não foram criados. Endereço e CNPJ do host são sintéticos, inseridos diretamente para teste, sem consultas ViaCEP/Geoapify/CNPJ; não representam cadastro verificado de uma empresa real.
 
 A conta é dona das programações, mas as interações foram atribuídas a visitantes anônimos para não representar auto-interações do responsável. Verificadas a senha pelo Identity, a role HOST, a assinatura vigente, os cinco registros, os vinte eventos e o total 20 por HostStatisticsRepository.GetSummaryAsync. Credenciais de teste foram entregues no chat; senha não registrada na documentação. Nenhum dado preexistente removido, nenhuma API principal reiniciada e nenhum PDF exportado. Não foi realizado login HTTP nesta carga.
+
+
+## Limite de categorias sob concorrência — 01/11/2026
+
+Os fluxos de gravação de vínculos passam a conferir o estado final dentro da transação, após adquirir bloqueio da linha da programação (Programmings) ou do usuário (Users) com SELECT ... FOR UPDATE parametrizado. Não há bloqueio global: operações em programações/usuários distintos podem prosseguir. As validações existentes no DTO e nos services permanecem como primeira verificação.
+
+ProgrammingRepository.EditWithCategoriesAsync usa currentLinks recebido como seleção esperada, bloqueia a programação e relê os vínculos. Se o conjunto de IDs mudou desde a leitura do service, lança CategoryLinksConflictException, já tratado como 409 na controller. Caso contrário, calcula o conjunto final após remoções/adições e exige de 1 a 3 categorias antes de salvar campos e vínculos. CreateWithCategoriesAsync também rejeita listas com zero ou mais de três antes de anexar entidades/gravar.
+
+UserXCategoryRepository.AddAsync e EditAsync bloqueiam a mesma linha Users, serializando POST versus POST, PUT versus PUT e POST versus PUT. AddAsync relê os vínculos e confere a união com os novos IDs: excesso de três gera ArgumentException/400, sem inserções parciais. Reenvio de categoria existente reaproveita o vínculo e retorna os itens solicitados, sem violar unicidade. Lista vazia continua sem efeito.
+
+O service de edição de preferências envia expectedCategoryIds com os IDs da seleção que leu, através do parâmetro acrescentado em IUserXCategoryRepository.EditAsync. O repository compara essa seleção com a leitura feita após o bloqueio e retorna 409 se houve alteração. Depois valida o total final de até três e aplica a diferença existente. [] continua removendo todas as preferências. O snapshot é interno, entre leitura do service e gravação; não implementa versão/ETag de formulário nem detecta edições de campos não relacionados às categorias.
+
+Com conflito, recarregue e revise a seleção antes de reenviar. A controller já traduz a exceção, sem action nova. Nenhum formato de DTO, rota, autenticação, model, índice ou migration foi alterado. Não houve limpeza de dados antigos. As garantias abrangem os fluxos de persistência da aplicação que compartilham esses bloqueios, não gravações SQL externas que os ignorem.
+
+Validação desta etapa: build isolado sem erros (10 avisos preexistentes), 32 verificações HTTP/PostgreSQL de concorrência/limites/atomicidade e 37 regressões HTTP de autenticação aprovadas. Os testes mantiveram duas requisições reais aguardando bloqueio no PostgreSQL para garantir a sobreposição: POST/POST com IDs distintos, POSTs idênticos, PUT/PUT de preferências, POST/PUT e PUT/PUT de programação. Confirmados 200/400 para excesso no POST, 200/409 nas edições, ausência de gravação parcial e de sobrescrita dos campos da programação perdedora, além de substituição normal e listas vazias. Sintaxe JS e 85 testes simulados do protótipo passaram.
+
+API/bancos descartáveis removidos. Banco principal preservado, API principal não reiniciada e PDFs não exportados. Protótipo e .http esclarecem limite e conflito; não há reenvio automático.
+
+
+## Unicidade de CNPJ no banco — 01/11/2026
+
+Aplicada **20261101123823_AddUniqueHostCnpj** ao banco local perambulando em localhost:5432. Auditoria anterior: sete hosts, zero grupos de CNPJ normalizado duplicado, zero formatos estruturais inválidos e zero registros precisando de normalização. Depois da aplicação, os sete IDs/CNPJs permanecem idênticos e as 20 interações do host 37 foram confirmadas. Histórico sem migrations pendentes e modelo/snapshot alinhados.
+
+Up adquire LOCK TABLE Hosts IN SHARE ROW EXCLUSIVE MODE dentro da transação; verifica formatos e duplicidades pela representação normalizada, interrompendo em caso de inconsistência, sem apagar/escolher registros automaticamente. Remove máscara/espaços externos e converte letras para maiúsculas nos registros compatíveis, cria índice único IX_Hosts_CNPJ e check CK_Hosts_CNPJ_Normalized. Em caso de duplicidade/formato inválido, nada é aplicado. Down remove somente o índice e o check; não apaga hosts nem restaura máscaras antigas. Não foi alterado tamanho/tipo da coluna CNPJ.
+
+Testes em banco descartável cobriram a cadeia de migrations, rejeição de dados duplicados/inválidos, normalização numérica/alfanumérica, rollback de auditoria, Down/Up sem perda de hosts, cadastros e edições simultâneos, índice para inativos, inserção direta e HTTP 409. Não foram realizadas consultas reais de CNPJ/CEP/geocodificação nesses testes. API principal não reiniciada e PDFs preservados.
+
+
+## Favoritos e preferências repetidos — 01/11/2026
+
+Nenhuma migration ou alteração de schema nesta correção. O índice único existente IX_Favorites_UserId_ProgrammingId continua garantindo um vínculo por par, inclusive quando IsActive=false. FavoriteRepository.AddAsync/DeleteAsync passam a compartilhar bloqueio transacional na linha Users antes de consultar/recarregar e gravar o favorito. Isso serializa criação/reativação/desativação pelo mesmo usuário, inclusive entre instâncias da API atualizada, sem bloqueio global.
+
+Id e CreatedAt do vínculo existente são preservados. UpdatedAt muda em transições de estado, calculado em UTC depois de adquirir o bloqueio. Repetições que já estão no estado desejado não alteram a data. Recarregar a entidade impede usar valores antigos do ChangeTracker após aguardar outra operação. SQL externo que ignore o protocolo de bloqueio não recebe garantia de idempotência da API, mas o índice único não foi removido.
+
+43 verificações em API/PostgreSQL descartáveis aprovadas, incluindo POST/PATCH repetidos/simultâneos, reativação entre leitura inicial e bloqueio do PATCH, datas/identidade, preferências repetidas, isolamento por usuário, conta/host/programação inativos e manutenção do índice/snapshot. Banco principal não foi escrito, nenhum favorito real foi modificado e nenhuma migration foi executada. APIs/bancos de teste encerrados/removidos.
+
+
+## Exclusão lógica de usuário — 01/11/2026
+
+Nenhuma alteração de model/schema/migration foi necessária: IsActive e os campos de status/data já existiam. DELETE /api/User deixa de executar a remoção física do Identity. A conta e as FKs permanecem, eliminando o bloqueio por FK Restrict de assinaturas/interações no fluxo normal de exclusão.
+
+UserRepository.DeleteAsync controla transação e SELECT ... FOR UPDATE na linha Users, recarrega o usuário e executa a função de desativação coordenada pelo service. Hosts/programações/favoritos/assinatura são obtidos como entidades rastreadas no mesmo Context scoped do store do Identity. UserManager.UpdateAsync salva a conta e as alterações rastreadas dentro dessa transação. Em falha de Identity/banco há rollback e ChangeTracker.Clear; em sucesso há commit. FKs Restrict/Cascade e índices únicos permanecem inalterados, sem exclusão em cascata nem remoção de registros históricos.
+
+50 verificações em PostgreSQL/API descartáveis cobriram assinatura ativa/cancelada/expirada/ausente; múltiplos hosts e programação ativa em host já inativo; favoritos próprios indisponíveis e favoritos de terceiros; interações/endereços/categorias/Identity preservados; reserva de e-mail; bloqueio do JWT/login; concorrência do Identity e reativação manual sem republicação. Trigger de falha e validator Identity simulados, apenas no banco/contexto descartável, confirmaram rollback completo e posterior reenvio bem-sucedido. Mais 37 regressões de autenticação e 89 testes simulados do protótipo passaram. Build sem erros, com 10 avisos preexistentes. Nenhum usuário/host/programação do banco principal foi desativado nos testes; nenhum PDF exportado.

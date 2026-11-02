@@ -886,3 +886,58 @@ A conta é dona das programações, mas as interações foram atribuídas a visi
 ## Revisão sênior — 31/10/2026
 
 Avaliação da versão salva: **6,5/10** para MVP em desenvolvimento. Foram reproduzidos 15 cenários de defeitos em banco/API descartáveis; 129 verificações de estatísticas e 84 testes simulados do protótipo passaram. Prioridades: conta inativa com JWT válido, limites de categorias sob concorrência, CNPJ duplicado, favoritos/preferências repetidos e exclusão de conta com assinatura. Sem correções funcionais, migrations, alterações no banco principal ou exportação de PDFs nesta revisão. A versão salva de UserXCategoryRepository insere diretamente e não contém o bloqueio/checagem final citados em atualizações anteriores; a avaliação atual registra essa pendência. [Relatório completo, evidências e ordem de correção](validacoes/revisao-senior-2026-10-31.md).
+
+
+## Correção de autenticação de conta inativa — 01/11/2026
+
+JWT validado agora exige sub válido e conta existente/ativa no banco em OnTokenValidated, reaproveitando IUserService.GetProfileAsync. Rotas protegidas e coleta de interações com bearer de conta inativa retornam 401; propriedade/roles/Pro e acesso realmente anônimo preservados. Build sem erros; 37 verificações HTTP de autenticação, 129 regressões das estatísticas e 85 testes simulados do protótipo passaram. Nenhuma migration, alteração dos dados principais ou PDF exportado. Consulte [tokens](03-tokens.md) e a atualização da [revisão sênior](validacoes/revisao-senior-2026-10-31.md). Visibilidade pública de programações de donos inativos não foi modificada nesta etapa.
+
+
+## Correção do limite de categorias sob concorrência — 01/11/2026
+
+Repositories relêem os vínculos sob bloqueio por programação/usuário e validam o total final antes de salvar. Edições com seleção alterada desde a leitura do service retornam 409; POST que ultrapassaria três preferências retorna 400 sem inserção parcial. POST idêntico reaproveita os vínculos. Nenhuma migration ou mudança de contrato HTTP. Aprovadas 32 verificações HTTP/PostgreSQL de concorrência, 37 regressões de autenticação e 85 testes simulados do protótipo; build sem erros e 10 avisos preexistentes. Banco principal e PDFs preservados. Atualiza o achado R02 da [revisão sênior](validacoes/revisao-senior-2026-10-31.md).
+
+
+## Unicidade de CNPJ no banco — 01/11/2026
+
+A migration **20261101123823_AddUniqueHostCnpj** foi criada, testada e aplicada ao banco local perambulando (localhost:5432), após auditoria de sete hosts sem CNPJ duplicado ou fora do formato. Índice único IX_Hosts_CNPJ e check de formato canônico protegem todos os hosts, inclusive inativos. Hosts/CNPJs e as 20 interações do host 37 preservados. Repository traduz apenas a violação desse índice em duplicidade/409, tanto no cadastro quanto na edição. Build sem erros, com 10 avisos preexistentes; 26 verificações específicas de migration/concorrência/HTTP, 32 regressões de categorias, 37 de autenticação e 86 testes simulados do protótipo aprovados. API principal não reiniciada; PDFs preservados.
+
+
+## Favoritos e preferências repetidos — 01/11/2026
+
+Corrigido o POST após desfavoritar: FavoriteRepository.AddAsync reaproveita o vínculo usuário/programação e reativa o registro original. POST repetido de favorito ativo retorna 200 sem modificar datas. Add/Delete usam transação e bloqueio por usuário, com releitura/reload do favorito; atualizam UpdatedAt somente quando o estado muda e preservam Id/CreatedAt. Confirmado também o POST repetido de preferências, já protegido pelo UserXCategoryRepository anterior. Build sem erros (10 avisos preexistentes), 43 verificações HTTP/PostgreSQL e 87 testes simulados do protótipo aprovados. Sem migration, alteração de dados principais ou exportação de PDFs. API principal precisa ser reiniciada normalmente pelo usuário.
+
+
+## Exclusão lógica de usuário — 01/11/2026
+
+DELETE /api/User mantém UserDeleteDTO (somente email) e retorno 204, mas agora realiza exclusão lógica pelo fluxo Controller → AppService → Service → Repository. Desativa usuário, hosts, programações e favoritos próprios, cancela assinatura e preserva histórico, endereços, vínculos e e-mail. UserRepository controla a transação com bloqueio/reload do usuário; UserManager.UpdateAsync substitui a exclusão física e mantém a concorrência do Identity. 50 verificações de exclusão/rollback/histórico, 37 regressões de autenticação e 89 testes simulados do protótipo aprovados. Build sem erros, 10 avisos preexistentes. Sem migration, alteração dos dados principais ou PDFs. Reativação da conta não republica automaticamente conteúdo nem assinatura; nenhuma rota de reativação foi criada.
+
+
+## Filtro turístico correlacionado — 01/11/2026
+
+Corrigida a consulta GetAllTusristProgrammingsAsync: o Any agora exige ProgrammingId igual ao da programação consultada e categoria ativa com nome canônico Turismo, confirmado pelo usuário e presente no banco local (ID 8, não fixado no código). Também exige programação, host e proprietário ativos. Sem vínculo elegível retorna 200 com []; endereço/categorias, paginação e autorização de turista preservados. Build sem erros (10 avisos preexistentes), 29 verificações HTTP/PostgreSQL e 89 testes simulados do protótipo aprovados. Sem migration, alterações de dados principais, reinicialização da API principal ou PDFs.
+
+
+## Validação da edição de preferências — 01/11/2026
+
+UserXCategoryService.EditAsync chama IUserXCategoryValidations.ValidateEdit antes de calcular inclusões e remoções. A validação compartilhada com o cadastro aceita somente categorias existentes e ativas. Seleção inválida retorna 400 e preserva os vínculos anteriores; [] continua limpando a seleção. O PUT limita a seleção final a três; o POST considera também as preferências já armazenadas. Repositório e proteção de concorrência preservados.
+
+Validação: 40 verificações HTTP/PostgreSQL específicas, 32 regressões de concorrência e 90 testes simulados do protótipo aprovados; compilação e sintaxe JavaScript aprovadas. Bancos descartáveis removidos, banco principal preservado. Sem migration, mudança de DTO/rota, alteração no Expo ou exportação de PDF.
+
+
+## Renovação Pro e causas de persistência — 01/11/2026
+
+SubscriptionService.ActivateAsync verifica GetStatus(current), considerando as datas, antes de reaproveitar uma assinatura vigente. Se vencida, mesmo ainda gravada como Active, renova o mesmo registro por um mês a partir de agora, sem exigir GET prévio; preserva Id/CreatedAt e limpa CancelledAt. Ativação repetida durante a vigência não altera prazo nem datas.
+
+ProgrammingRepository.EditWithCategoriesAsync traduz somente PostgreSQL 23505 do índice IX_ProgrammingXCategories_ProgrammingId_CategoryId em CategoryLinksConflictException, preservando InnerException. Outras falhas propagam sua causa; a controller reconhece apenas a FK exata de categoria como 400, mantendo conflitos conhecidos em 409 e falhas técnicas em 500. HostRepository preserva também a cadeia original ao traduzir duplicidade de CNPJ em 409.
+
+Compilação aprovada (9 avisos preexistentes; removido o aviso de variável ex sem uso). Aprovadas 33 verificações de renovação/exceções HTTP/PostgreSQL, 28 regressões CNPJ/concorrência/HTTP e 91 testes simulados do protótipo, além da sintaxe JS. Testes em bancos/APIs descartáveis, com limpeza confirmada; banco/API principais preservados. Sem migration, novas pastas, mudanças de DTO/rotas/Expo ou exportação de PDFs.
+
+
+## Separação de responsabilidades entre camadas — 01/11/2026
+
+Removidas referências não utilizadas a Application/DTO/AppServices nos serviços e contratos do Domain e no ProgrammingRepository. A conversão CnpjException -> ProblemDetails foi movida de Domain/Exceptions para Presentation/Controllers/CnpjExceptionExtensions.cs; a exceção e CnpjFailure permanecem no domínio.
+
+ProgrammingRepository traduz somente a FK de categoria inexistente em CategoryNotFoundException, preservando a causa técnica. ProgrammingController trata essa falha sem depender de EF Core ou Npgsql; mantém HTTP 400, 409 nos conflitos conhecidos e propagação das demais falhas técnicas. JwtTokenService foi movido para Data/Services e implementa IJwtTokenService, injetada em UserController/HostController. AuthenticationToken substitui o object anônimo no contrato interno, preservando os três campos JSON. Nenhuma pasta nova ou mudança de rota/verbo/autorização.
+
+Validação: build sem erros (9 avisos de nulabilidade preexistentes), 46 verificações de contratos/camadas/HTTP/PostgreSQL, 37 regressões de autenticação/Identity/PostgreSQL e 91 testes simulados do protótipo aprovados, além de sintaxe JS/catálogo. Bancos/APIs descartáveis removidos; ambiente principal preservado. Modelo sem alteração pendente; sem migration, Expo ou exportação de PDF. A separação continua lógica dentro de um único projeto .NET; o domínio ainda utiliza Identity em usuários/serviços. Testes versionados/CI continuam uma pendência separada.

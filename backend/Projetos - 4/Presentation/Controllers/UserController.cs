@@ -6,8 +6,9 @@ using System.Security.Claims;
 using Projetos___4.Domain.Model;
 using Projetos___4.Application.DTO;
 using Projetos___4.Application.Interfaces;
-using Projetos___4.Domain.Service;
+using Projetos___4.Domain.Interfaces.Service;
 using Projetos___4.Application.AppServices;
+using Projetos___4.Domain.Exceptions;
 
 namespace Projetos___4.Presentation.Controllers
 {
@@ -17,12 +18,12 @@ namespace Projetos___4.Presentation.Controllers
     {
         private readonly UserManager<User> _userManager;
         private readonly IUserAppService _userAppService;
-        private readonly JwtTokenService _tokenService;
+        private readonly IJwtTokenService _tokenService;
         private readonly SignInManager<User> _signInManager;
         private readonly IUserXCategoryAppService _userXCategoryAppService;
         private readonly IProgrammingAppService _programmingAppService;
 
-        public UserController(UserManager<User> userManager, IUserAppService userAppService, JwtTokenService tokenService, SignInManager<User> signInManager, IUserXCategoryAppService userXCategoryAppService, IProgrammingAppService programmingAppService)
+        public UserController(UserManager<User> userManager, IUserAppService userAppService, IJwtTokenService tokenService, SignInManager<User> signInManager, IUserXCategoryAppService userXCategoryAppService, IProgrammingAppService programmingAppService)
         {
             _userManager = userManager;
             _userAppService = userAppService;
@@ -184,19 +185,28 @@ namespace Projetos___4.Presentation.Controllers
                 return Problem(statusCode: StatusCodes.Status400BadRequest,
                     title: "Dados inválidos", detail: "Informe os dados da requisição.");
             }
-            var existingUser = await _userManager.FindByEmailAsync(dto.Email);
-
-            if (existingUser != null && existingUser.Id != userId)
+            IdentityResult? result;
+            try
             {
-                return Problem(statusCode: StatusCodes.Status403Forbidden, title: "Acesso negado", detail: "Você só pode excluir a própria conta.");
+                result = await _userAppService.DeleteUserAsync(dto, userId);
+            }
+            catch (UserForbiddenException ex)
+            {
+                return Problem(statusCode: StatusCodes.Status403Forbidden, title: "Acesso negado", detail: ex.Message);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Problem(statusCode: StatusCodes.Status401Unauthorized, title: "Usuário não autenticado", detail: ex.Message);
+            }
+            catch (ArgumentException ex)
+            {
+                return Problem(statusCode: StatusCodes.Status400BadRequest, title: "Dados inválidos", detail: ex.Message);
             }
 
-            if (existingUser == null)
+            if (result == null)
             {
-                return Problem(statusCode: StatusCodes.Status404NotFound, title: "Usuário não encontrado");
+                return Problem(statusCode: StatusCodes.Status404NotFound, title: "Usuário não encontrado ou inativo");
             }
-
-            var result = await _userManager.DeleteAsync(existingUser);
 
             if (!result.Succeeded)
             {
