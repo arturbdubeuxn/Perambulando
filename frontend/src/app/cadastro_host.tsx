@@ -2,7 +2,7 @@ import { Fredoka_700Bold } from '@expo-google-fonts/fredoka/700Bold';
 import { useFonts } from 'expo-font';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import {
   Image,
   KeyboardAvoidingView,
@@ -110,6 +110,7 @@ type UserRegistrationDraft = {
 
 type AddressDraft = {
   city: string;
+  state: string;
   street: string;
   number: string;
   complement: string;
@@ -151,7 +152,10 @@ type RegistrationErrors = Partial<{
 
 type PreparedRegistration = {
   user: UserRegistrationDraft;
-  host: Omit<HostRegistrationDraft, 'typeofhost'> & { typeofhost: HostType };
+  host: Omit<HostRegistrationDraft, 'typeofhost' | 'address'> & {
+    typeofhost: HostType;
+    address: Omit<AddressDraft, 'state'>;
+  };
 };
 
 type AuthResponse = {
@@ -159,8 +163,27 @@ type AuthResponse = {
 };
 
 type CompanyRegistrationResponse = {
+  cnpj: string;
   legalName: string;
   tradeName: string;
+  registrationStatus: number;
+  statusDescription: string;
+  checkedAt: string;
+  street: string;
+  number: string;
+  complement: string;
+  neighborhood: string;
+  cep: string;
+  city: string;
+  state: string;
+};
+
+type PostalAddressResponse = {
+  cep: string;
+  street: string;
+  neighborhood: string;
+  city: string;
+  state: string;
 };
 
 type HostCreateResponse = {
@@ -183,6 +206,11 @@ type SubmissionState = {
   message: string;
   hostId?: number;
   addressId?: number;
+};
+
+type LookupState = {
+  status: 'idle' | 'loading' | 'success' | 'error';
+  message: string;
 };
 
 class ApiRequestError extends Error {
@@ -294,8 +322,12 @@ function SectionTitle({ number, title, description }: SectionTitleProps) {
 export default function HostRegistrationScreen() {
   const { width: viewportWidth } = useWindowDimensions();
   const [fontsLoaded] = useFonts({ Fredoka_700Bold });
+  const cnpjLookupRequest = useRef(0);
+  const cepLookupRequest = useRef(0);
   const [hostTypeOpen, setHostTypeOpen] = useState(false);
   const [legalName, setLegalName] = useState('');
+  const [cnpjLookup, setCnpjLookup] = useState<LookupState>({ status: 'idle', message: '' });
+  const [cepLookup, setCepLookup] = useState<LookupState>({ status: 'idle', message: '' });
   const [errors, setErrors] = useState<RegistrationErrors>({});
   const [userRegistered, setUserRegistered] = useState(false);
   const [submission, setSubmission] = useState<SubmissionState>({
@@ -318,6 +350,7 @@ export default function HostRegistrationScreen() {
     description: '',
     address: {
       city: '',
+      state: '',
       street: '',
       number: '',
       complement: '',
@@ -353,6 +386,135 @@ export default function HostRegistrationScreen() {
       ...current,
       address: { ...current.address, [field]: value },
     }));
+  };
+
+  const lookupCnpj = async (cnpj: string, requestId: number) => {
+    setCnpjLookup({ status: 'loading', message: 'Consultando CNPJ...' });
+    try {
+      const company = await apiRequest<CompanyRegistrationResponse>(
+        `/api/Host/GetByCNPJ?cnpj=${encodeURIComponent(cnpj)}`,
+      );
+      if (requestId !== cnpjLookupRequest.current) {
+        return;
+      }
+      if (company.registrationStatus !== 2) {
+        throw new Error(
+          company.statusDescription
+            ? `O CNPJ não está ativo: ${company.statusDescription}.`
+            : 'O CNPJ precisa estar ativo para cadastrar o host.',
+        );
+      }
+
+      const suggestedName = company.tradeName.trim() || company.legalName.trim();
+      cepLookupRequest.current += 1;
+      setCepLookup({ status: 'idle', message: '' });
+      setLegalName(company.legalName);
+      setHostDraft((current) => ({
+        ...current,
+        name: suggestedName || current.name,
+        address: {
+          city: company.city.trim(),
+          state: company.state.trim(),
+          street: company.street.trim(),
+          number: company.number.trim(),
+          complement: company.complement.trim(),
+          neighborhood: company.neighborhood.trim(),
+          cep: maskCep(company.cep),
+        },
+      }));
+      setErrors((current) => ({ ...current, cnpj: undefined }));
+      setCnpjLookup({
+        status: 'success',
+        message: 'CNPJ validado. Dados empresariais e endereço sugerido preenchidos.',
+      });
+    } catch (error) {
+      if (requestId !== cnpjLookupRequest.current) {
+        return;
+      }
+      const message =
+        error instanceof TypeError
+          ? `Não foi possível acessar ${apiBaseUrl}.`
+          : error instanceof Error
+            ? error.message
+            : 'Não foi possível consultar o CNPJ.';
+      setLegalName('');
+      setErrors((current) => ({ ...current, cnpj: message }));
+      setCnpjLookup({ status: 'error', message });
+    }
+  };
+
+  const handleCnpjChange = (value: string) => {
+    resetValidation();
+    const masked = maskCnpj(value);
+    const digits = onlyDigits(masked);
+    const requestId = cnpjLookupRequest.current + 1;
+    cnpjLookupRequest.current = requestId;
+    setLegalName('');
+    setCnpjLookup({ status: 'idle', message: '' });
+    setHostDraft((current) => ({ ...current, cnpj: masked }));
+
+    if (digits.length === 14) {
+      if (!isValidCnpj(digits)) {
+        setErrors((current) => ({ ...current, cnpj: 'Informe um CNPJ válido.' }));
+        return;
+      }
+      void lookupCnpj(digits, requestId);
+    }
+  };
+
+  const lookupCep = async (cep: string, requestId: number) => {
+    setCepLookup({ status: 'loading', message: 'Consultando CEP...' });
+    try {
+      const address = await apiRequest<PostalAddressResponse>(
+        `/api/Address/GetByCEP?cep=${encodeURIComponent(cep)}`,
+      );
+      if (requestId !== cepLookupRequest.current) {
+        return;
+      }
+
+      setHostDraft((current) => ({
+        ...current,
+        address: {
+          ...current.address,
+          city: address.city.trim(),
+          state: address.state.trim(),
+          street: address.street.trim(),
+          neighborhood: address.neighborhood.trim(),
+          cep: maskCep(address.cep),
+        },
+      }));
+      setErrors((current) => ({ ...current, cep: undefined }));
+      setCepLookup({ status: 'success', message: 'CEP localizado. Endereço preenchido automaticamente.' });
+    } catch (error) {
+      if (requestId !== cepLookupRequest.current) {
+        return;
+      }
+      const message =
+        error instanceof TypeError
+          ? `Não foi possível acessar ${apiBaseUrl}. Preencha o endereço manualmente.`
+          : error instanceof Error
+            ? error.message
+            : 'Não foi possível consultar o CEP. Preencha o endereço manualmente.';
+      setErrors((current) => ({ ...current, cep: message }));
+      setCepLookup({ status: 'error', message });
+    }
+  };
+
+  const handleCepChange = (value: string) => {
+    resetValidation();
+    const masked = maskCep(value);
+    const digits = onlyDigits(masked);
+    const requestId = cepLookupRequest.current + 1;
+    cepLookupRequest.current = requestId;
+    setCepLookup({ status: 'idle', message: '' });
+    setHostDraft((current) => ({
+      ...current,
+      address: { ...current.address, cep: masked },
+    }));
+
+    if (digits.length === 8) {
+      void lookupCep(digits, requestId);
+    }
   };
 
   const validateRegistration = (): PreparedRegistration | null => {
@@ -634,10 +796,21 @@ export default function HostRegistrationScreen() {
                 keyboardType="numeric"
                 label="CNPJ *"
                 maxLength={18}
-                onChangeText={(value) => updateHost('cnpj', maskCnpj(value))}
+                onChangeText={handleCnpjChange}
                 placeholder="00.000.000/0000-00"
                 value={hostDraft.cnpj}
               />
+              {cnpjLookup.status !== 'idle' && cnpjLookup.status !== 'error' && (
+                <Text
+                  accessibilityRole="alert"
+                  style={[
+                    styles.lookupMessage,
+                    cnpjLookup.status === 'success' ? styles.lookupSuccess : styles.lookupLoading,
+                  ]}
+                >
+                  {cnpjLookup.message}
+                </Text>
+              )}
 
               <View style={styles.fieldGroup}>
                 <Text style={styles.fieldLabel}>Tipo de host *</Text>
@@ -725,10 +898,21 @@ export default function HostRegistrationScreen() {
                 label="CEP *"
                 keyboardType="numeric"
                 maxLength={9}
-                onChangeText={(value) => updateAddress('cep', maskCep(value))}
+                onChangeText={handleCepChange}
                 placeholder="00000-000"
                 value={hostDraft.address.cep}
               />
+              {cepLookup.status !== 'idle' && cepLookup.status !== 'error' && (
+                <Text
+                  accessibilityRole="alert"
+                  style={[
+                    styles.lookupMessage,
+                    cepLookup.status === 'success' ? styles.lookupSuccess : styles.lookupLoading,
+                  ]}
+                >
+                  {cepLookup.message}
+                </Text>
+              )}
               <Field
                 error={errors.city}
                 label="Cidade"
@@ -736,6 +920,14 @@ export default function HostRegistrationScreen() {
                 onChangeText={(value) => updateAddress('city', value)}
                 placeholder="Recife"
                 value={hostDraft.address.city}
+              />
+              <Field
+                editable={false}
+                label="Estado"
+                maxLength={2}
+                onChangeText={() => undefined}
+                placeholder="Preenchido após consultar o CNPJ ou CEP"
+                value={hostDraft.address.state}
               />
               <Field
                 error={errors.street}
@@ -994,6 +1186,17 @@ const styles = StyleSheet.create({
     color: '#B42318',
     fontSize: 11,
     lineHeight: 15,
+  },
+  lookupMessage: {
+    marginTop: -4,
+    fontSize: 11,
+    lineHeight: 15,
+  },
+  lookupLoading: {
+    color: colors.muted,
+  },
+  lookupSuccess: {
+    color: colors.success,
   },
   textArea: {
     minHeight: 104,

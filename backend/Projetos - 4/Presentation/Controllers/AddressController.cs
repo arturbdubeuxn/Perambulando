@@ -17,6 +17,7 @@ public class AddressController : Controller
     {
         _addressAppService = addressAppService;
     }
+    [AllowAnonymous]
     [HttpGet("GetByCEP")]
     public async Task<IActionResult> GetByCEP([FromQuery] string cep)
     {

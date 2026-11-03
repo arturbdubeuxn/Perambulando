@@ -706,3 +706,9 @@ Upload de arquivo e rascunho permanecem indisponíveis por não haver contratos 
 O banco local `perambulando` no container `perambulando-postgres` recebeu, em transação idempotente, 12 categorias ativas: Música, Gastronomia, Artes e exposições, Teatro, Dança, Cinema, Esportes, Feiras e mercados, Cultura popular, Infantil, Literatura e Negócios e tecnologia. Nomes preexistentes seriam reativados e não duplicados; nesta execução a tabela estava vazia e 12 linhas foram inseridas.
 
 Validação: consulta SQL retornou 12 registros ativos; `GET /api/Category/GetallCategories` respondeu HTTP 200 com os mesmos 12 IDs e nomes. Nenhuma tabela, migration, model, DTO, rota ou código do backend foi alterado. PDFs não foram regenerados.
+
+## Autopreenchimento de CNPJ e CEP no frontend — 03/11/2026
+
+O cadastro Expo de host passou a consultar CNPJ e CEP automaticamente quando os valores ficam completos. CNPJ ativo preenche razão social, nome fantasia e endereço sugerido; CEP preenche cidade, UF auxiliar, logradouro e bairro, preservando número/complemento. `GET /api/Host/GetByCNPJ` e `GET /api/Address/GetByCEP` receberam `AllowAnonymous` para funcionar antes da criação/login da conta; operações de gravação permanecem protegidas e revalidam os dados. Consulte [Controllers](01-controllers.md), [Regras de negócio](02-regras-de-negocio.md), [DTOs](04-dtos.md) e [Arquitetura frontend e backend](08-arquitetura-frontend-backend.md).
+
+Build do backend, TypeScript e ESLint direto da tela aprovados. Teste HTTP temporário bloqueado pela permissão do Event Log no ambiente isolado; `expo lint` sem saída foi interrompido. Protótipo externo indisponível no caminho configurado. Nenhuma migration, gravação ou atualização de PDF. Rate limiting dos dois endpoints públicos permanece pendente para implantação pública.

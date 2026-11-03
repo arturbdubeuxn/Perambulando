@@ -26,7 +26,7 @@ namespace Projetos___4.Presentation.Controllers
             _tokenService = tokenService;
         }
 
-        [Authorize]
+        [AllowAnonymous]
         [HttpGet("GetByCNPJ")]
         public async Task<IActionResult> GetByCNPJ([FromQuery] string cnpj)
         {

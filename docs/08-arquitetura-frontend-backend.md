@@ -1,6 +1,6 @@
 # Arquitetura e separação entre frontend e backend
 
-Atualização: 28/10/2026.
+Atualização: 03/11/2026.
 
 ## Objetivo da separação
 
@@ -257,3 +257,11 @@ O backend aplica globalmente aos controllers a política nomeada `FrontendCors`.
 A permissão está restrita a essas duas origens; não foi usado `AllowAnyOrigin`. CORS apenas libera a comunicação no navegador e não substitui JWT, autorização ou validações da API. Quando o frontend for publicado, sua origem real deverá ser incluída explicitamente na política.
 
 Implementação: somente `Presentation/Program.cs` foi alterado. Rotas, verbos, DTOs, regras de negócio, models, migrations, banco, containers e PDFs foram preservados. Validação: compilação do backend; o teste funcional pelo navegador depende de API, banco e frontend iniciados simultaneamente.
+
+## Autopreenchimento no cadastro de host — 03/11/2026
+
+A rota `/cadastro_host` consulta automaticamente `GET /api/Host/GetByCNPJ` ao completar um CNPJ válido e `GET /api/Address/GetByCEP` ao completar oito dígitos de CEP. O CNPJ ativo preenche razão social, nome fantasia e um endereço sugerido; o CEP preenche cidade, UF visual, logradouro e bairro sem substituir número e complemento. Identificadores de requisição impedem que respostas antigas sobrescrevam valores mais recentes.
+
+Esses dois GETs de leitura receberam `AllowAnonymous`, pois o formulário ainda não possui JWT antes de registrar e autenticar a conta. A API continua revalidando CNPJ ativo e geocodificando o endereço na criação autenticada do host. A UF exibida não é enviada no `HostDTO`, pois `AddressCreateDTO` não possui esse campo; cidade já faz parte do contrato. A exposição pública encaminha tráfego aos provedores Minha Receita e ViaCEP, portanto rate limiting permanece pendente antes de publicar a aplicação fora do ambiente local.
+
+Validações realizadas: TypeScript e ESLint direto da tela aprovados; backend compilado em saída temporária porque a API aberta bloqueava seus binários normais. O teste HTTP temporário não concluiu no ambiente isolado por falta de permissão do logger do Event Log. O wrapper `expo lint` permaneceu sem saída e foi interrompido. O protótipo externo não estava disponível no caminho configurado. PDFs não foram regenerados.
