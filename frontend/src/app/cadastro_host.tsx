@@ -228,7 +228,7 @@ class ApiRequestError extends Error {
 const hostTypes: { label: string; value: HostType }[] = [
   { label: 'Produtor de eventos', value: 0 },
   { label: 'Gastronomia', value: 1 },
-  { label: 'Empresa', value: 2 },
+  { label: 'Comércio', value: 2 },
 ];
 
 const onlyDigits = (value: string) => value.replace(/\D/g, '');

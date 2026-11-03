@@ -716,3 +716,11 @@ Build do backend, TypeScript e ESLint direto da tela aprovados. Teste HTTP tempo
 ## CEP primeiro e autopreenchimento na criação de evento — 03/11/2026
 
 A seção “Onde acontece” da tela Expo de criação de evento agora começa pelo CEP. Com JWT de host na sessão, o endereço retornado em `GetAllHostsbyUserId` preenche imediatamente CEP, cidade, logradouro, número, complemento e bairro do host selecionado como sugestão; `GET /api/Address/GetByCEP` completa a UF. Trocar o host troca a sugestão, e editar o CEP consulta novamente cidade/UF/logradouro/bairro, preservando número/complemento. Sem login, hosts e provedor não são consultados. A UF auxiliar não é enviada porque não pertence ao `AddressCreateDTO`. TypeScript, ESLint direto e `git diff --check` aprovados; sem chamada real ao provedor, gravação no banco, mudança de backend/protótipo ou PDF.
+
+## Autocomplete de endereços cadastrados no evento — 03/11/2026
+
+O Logradouro da criação de evento consulta `GET /api/Address/GetAllAddress` com JWT após 300 ms e seis letras/dígitos, apresentando até dez endereços cadastrados. Selecionar uma opção preenche o formulário e faz o POST reutilizar `addressId`; editar qualquer parte do endereço desfaz a seleção e volta a enviar um endereço novo. O endereço sugerido pelo host também preserva o ID existente. TypeScript, ESLint direto e `git diff --check` aprovados; sem alteração do backend, banco, migration, protótipo ou PDF.
+
+## Rótulo Comércio no frontend — 03/11/2026
+
+O tipo de host e a navegação inferior passaram a exibir `Comércio` no lugar de `Empresa`. O enum enviado à API continua com valor `2`; contratos e banco não mudaram. PDFs não foram regenerados.

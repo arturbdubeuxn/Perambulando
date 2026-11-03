@@ -39,7 +39,7 @@ Conferido em 19/10/2026 a partir dos controllers, DTOs e serviços salvos do pro
 | Programming | PATCH | `/api/Programming/{hostId}/Delete/{programmingId}` | ADMIN ou HOST e dono do host |
 | Category | GET | `/api/Category/GetallCategories` | Público |
 | Category | PUT | `/api/Category/EditCategoryToUser` | Autenticado |
-| Address | GET | `/api/Address/GetAllAddress?search=...&limit=10` | Autenticado; código aguardando migration |
+| Address | GET | `/api/Address/GetAllAddress?search=...` | Autenticado |
 
 ## UserController
 
@@ -417,7 +417,7 @@ Validação adicional no PostgreSQL — 20/10/2026: oito verificações com Cont
 
 **Estado atual do código:** endereço normalizado na entidade Address (tabela planejada Addresses), com Street, Number, Complement, Neighborhood, CEP e Location. Hosts/Programming usam AddressId e navegação. **O banco ainda usa o modelo anterior: nenhuma migration ou transferência de dados foi executada.** As seções anteriores desta documentação registram o funcionamento anterior e não substituem o novo contrato descrito nesta seção.
 
-GET /api/Address/GetAllAddress?search=Cais&limit=10 exige JWT, sem role específica; retorna somente endereços próprios ou publicados por programações/hosts ativos. Abaixo de três letras/dígitos retorna []; limite 1–20. Host/programação recebem exatamente AddressId ou objeto AddressCreateDTO (Street/Number obrigatórios, bairro/complemento opcionais, CEP válido). Detalhes retornam endereço aninhado; os campos antigos na raiz foram retirados. IDs inacessíveis retornam 404; seleção inválida retorna 400; mantidos 422/503 da geocodificação.
+GET /api/Address/GetAllAddress?search=Cais exige JWT, sem role específica. A implementação atual retorna até dez endereços da tabela `Addresses` cujo logradouro contém o texto sem diferenciar caixa ou cujo CEP contém a sequência pesquisada; abaixo de seis letras/dígitos retorna `[]`. O endpoint atual não recebe `limit` nem aplica filtro por autoria/publicação. Host/programação recebem exatamente AddressId ou objeto AddressCreateDTO (Street/Number obrigatórios, bairro/complemento opcionais, CEP válido). Detalhes retornam endereço aninhado; os campos antigos na raiz foram retirados. ID inexistente retorna erro na resolução; seleção inválida retorna 400; mantidos 422/503 da geocodificação.
 
 O serviço de endereços resolve seleção/equivalência e coordena a geocodificação; não salva isoladamente. Inclusão de endereço e host/programação ocorre no mesmo SaveChanges. Trocar o endereço muda o vínculo e preserva o registro anterior. Location/índice GiST passam a Address. Autoria usa FK opcional SetNull na exclusão de usuário, preservando o endereço; os vínculos de host/programação usam Restrict. NormalizedKey tem índice não único; duplicidade simultânea continua possível.
 
@@ -925,3 +925,11 @@ A consulta de programações não foi alterada nesta correção: eventos em anda
 Na rota Expo `/cadastro_host`, completar um CNPJ localmente válido dispara a consulta. CNPJ não ativo é recusado na interface; quando ativo, razão social, nome fantasia e endereço sugerido são preenchidos. Completar oito dígitos do CEP consulta o ViaCEP e preenche cidade, UF auxiliar, logradouro e bairro, preservando número e complemento. Respostas atrasadas são descartadas quando o valor muda. Cidade integra o `AddressCreateDTO`; UF permanece apenas visual porque o contrato persistido não possui `State`.
 
 Validações: `tsc --noEmit` e ESLint direto da tela aprovados; build do backend aprovado em saída temporária, com um aviso `NETSDK1194` causado pelo uso de `--output` na solução e zero erros. O build normal ficou impedido pelos binários da API já em execução. O teste HTTP temporário foi impedido pelo logger de Event Log sem permissão no ambiente isolado; a autorização foi conferida pelos atributos compilados/código. `expo lint` permaneceu sem saída e foi interrompido. O protótipo externo não existe no caminho indicado neste computador e não pôde ser alterado; o `.http` foi alinhado. Nenhuma migration, gravação no banco ou PDF foi gerado. Como os dois endpoints agora encaminham consultas públicas a provedores externos, limitação de frequência permanece uma pendência operacional antes de exposição pública.
+
+## Autocomplete de endereços na criação de evento Expo — 03/11/2026
+
+O campo Logradouro da seção “Onde acontece” espera 300 ms após cada alteração e, a partir de seis letras/dígitos, consulta `GET /api/Address/GetAllAddress?search=...` com o JWT da sessão. Exibe até dez opções com logradouro, número, bairro, cidade e CEP. Consultas antigas são descartadas quando o texto muda.
+
+Selecionar uma opção preenche o endereço e mantém seu `addressId`; o POST de programação envia somente `addressId`, reutilizando o registro. Alterar CEP, cidade, logradouro, número, complemento ou bairro depois da escolha remove o ID e faz o formulário voltar a enviar um novo objeto `address`. O endereço inicialmente sugerido pelo host selecionado também usa o ID existente. Nenhuma rota, DTO, repositório, migration ou banco foi alterado.
+
+Validação: TypeScript, ESLint direto e `git diff --check` aprovados. Não houve chamada autenticada real, publicação de evento, gravação no banco, alteração do protótipo externo ou regeneração de PDFs.

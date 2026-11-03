@@ -281,6 +281,7 @@ export default function CreateEventScreen() {
   const { width: viewportWidth } = useWindowDimensions();
   const [fontsLoaded] = useFonts({ Fredoka_700Bold });
   const cepLookupRequest = useRef(0);
+  const addressSearchRequest = useRef(0);
   const [draft, setDraft] = useState<EventDraft>(initialDraft);
   const [categories, setCategories] = useState<CategoryResponse[]>([]);
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<number[]>([]);
@@ -288,6 +289,9 @@ export default function CreateEventScreen() {
   const [selectedHostId, setSelectedHostId] = useState<number | null>(null);
   const [hostOpen, setHostOpen] = useState(false);
   const [accessToken, setAccessToken] = useState('');
+  const [selectedAddressId, setSelectedAddressId] = useState<number | null>(null);
+  const [addressSuggestions, setAddressSuggestions] = useState<AddressResponse[]>([]);
+  const [addressSearch, setAddressSearch] = useState<LookupState>({ status: 'idle', message: '' });
   const [loadingReferences, setLoadingReferences] = useState(true);
   const [referenceMessage, setReferenceMessage] = useState('');
   const [cepLookup, setCepLookup] = useState<LookupState>({ status: 'idle', message: '' });
@@ -336,6 +340,7 @@ export default function CreateEventScreen() {
         const initialHost = preferredHost ?? activeHosts[0] ?? null;
         setSelectedHostId(initialHost?.id ?? null);
         if (initialHost) {
+          setSelectedAddressId(initialHost.address.id);
           const hostCep = onlyDigits(initialHost.address.cep);
           setDraft((current) => ({
             ...current,
@@ -383,6 +388,17 @@ export default function CreateEventScreen() {
     }
   };
 
+  const updateAddressDraft = <Key extends 'city' | 'street' | 'number' | 'complement' | 'neighborhood'>(
+    key: Key,
+    value: EventDraft[Key],
+  ) => {
+    addressSearchRequest.current += 1;
+    setSelectedAddressId(null);
+    setAddressSuggestions([]);
+    setAddressSearch({ status: 'idle', message: '' });
+    updateDraft(key, value);
+  };
+
   const lookupCep = async (cep: string, requestId: number) => {
     setCepLookup({ status: 'loading', message: 'Consultando CEP...' });
     try {
@@ -425,6 +441,10 @@ export default function CreateEventScreen() {
     const digits = onlyDigits(masked);
     const requestId = cepLookupRequest.current + 1;
     cepLookupRequest.current = requestId;
+    addressSearchRequest.current += 1;
+    setSelectedAddressId(null);
+    setAddressSuggestions([]);
+    setAddressSearch({ status: 'idle', message: '' });
     updateDraft('cep', masked);
     setCepLookup({ status: 'idle', message: '' });
 
@@ -492,6 +512,82 @@ export default function CreateEventScreen() {
     };
   }, [accessToken, selectedHost]);
 
+  useEffect(() => {
+    const search = draft.street.trim();
+    if (!accessToken || selectedAddressId || (search.match(/[\p{L}\p{N}]/gu) ?? []).length < 6) {
+      return;
+    }
+
+    const requestId = addressSearchRequest.current + 1;
+    addressSearchRequest.current = requestId;
+    let active = true;
+    const timer = setTimeout(() => {
+      async function searchRegisteredAddresses() {
+        setAddressSearch({ status: 'loading', message: 'Buscando endereços já cadastrados...' });
+        try {
+          const addresses = await apiRequest<AddressResponse[]>(
+            `/api/Address/GetAllAddress?search=${encodeURIComponent(search)}`,
+            { headers: { Authorization: `Bearer ${accessToken}` } },
+          );
+          if (!active || requestId !== addressSearchRequest.current) {
+            return;
+          }
+          setAddressSuggestions(addresses);
+          setAddressSearch({
+            status: 'success',
+            message:
+              addresses.length > 0
+                ? 'Selecione um endereço cadastrado ou continue preenchendo um novo.'
+                : 'Nenhum endereço cadastrado encontrado. Continue preenchendo o novo endereço.',
+          });
+        } catch (error) {
+          if (!active || requestId !== addressSearchRequest.current) {
+            return;
+          }
+          setAddressSuggestions([]);
+          setAddressSearch({
+            status: 'error',
+            message: error instanceof Error ? error.message : 'Não foi possível buscar endereços cadastrados.',
+          });
+        }
+      }
+
+      void searchRegisteredAddresses();
+    }, 300);
+
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [accessToken, draft.street, selectedAddressId]);
+
+  const selectAddressSuggestion = (address: AddressResponse) => {
+    addressSearchRequest.current += 1;
+    setSelectedAddressId(address.id);
+    setAddressSuggestions([]);
+    setAddressSearch({
+      status: 'success',
+      message: 'Endereço cadastrado selecionado. Ele será reutilizado na publicação.',
+    });
+    setDraft((current) => ({
+      ...current,
+      cep: maskCep(address.cep),
+      city: address.city.trim(),
+      state: '',
+      street: address.street.trim(),
+      number: address.number.trim(),
+      complement: address.complement.trim(),
+      neighborhood: address.neighborhood.trim(),
+    }));
+
+    const cep = onlyDigits(address.cep);
+    if (cep.length === 8 && accessToken) {
+      const requestId = cepLookupRequest.current + 1;
+      cepLookupRequest.current = requestId;
+      void lookupCep(cep, requestId);
+    }
+  };
+
   const toggleCategory = (categoryId: number) => {
     setSelectedCategoryIds((current) =>
       current.includes(categoryId)
@@ -502,6 +598,7 @@ export default function CreateEventScreen() {
 
   const resetForm = () => {
     cepLookupRequest.current += 1;
+    addressSearchRequest.current += 1;
     const hostAddress = selectedHost?.address;
     setDraft(
       hostAddress
@@ -517,6 +614,9 @@ export default function CreateEventScreen() {
           }
         : initialDraft,
     );
+    setSelectedAddressId(hostAddress?.id ?? null);
+    setAddressSuggestions([]);
+    setAddressSearch({ status: 'idle', message: '' });
     setSelectedCategoryIds([]);
     setCepLookup(
       hostAddress
@@ -582,10 +682,11 @@ export default function CreateEventScreen() {
       return;
     }
     if (
-      !draft.city.trim() ||
-      !draft.street.trim() ||
-      !draft.number.trim() ||
-      onlyDigits(draft.cep).length !== 8
+      !selectedAddressId &&
+      (!draft.city.trim() ||
+        !draft.street.trim() ||
+        !draft.number.trim() ||
+        onlyDigits(draft.cep).length !== 8)
     ) {
       setSubmission({ status: 'error', message: 'Informe cidade, logradouro, número e CEP válido.' });
       return;
@@ -602,14 +703,18 @@ export default function CreateEventScreen() {
           startDate: start.toISOString(),
           endDate: end.toISOString(),
           isFree: draft.isFree,
-          address: {
-            city: draft.city.trim(),
-            street: draft.street.trim(),
-            number: draft.number.trim(),
-            complement: draft.complement.trim(),
-            neighborhood: draft.neighborhood.trim(),
-            cep: onlyDigits(draft.cep),
-          },
+          ...(selectedAddressId
+            ? { addressId: selectedAddressId }
+            : {
+                address: {
+                  city: draft.city.trim(),
+                  street: draft.street.trim(),
+                  number: draft.number.trim(),
+                  complement: draft.complement.trim(),
+                  neighborhood: draft.neighborhood.trim(),
+                  cep: onlyDigits(draft.cep),
+                },
+              }),
           imageUrl: draft.imageUrl.trim(),
           ticketUrl: draft.ticketUrl.trim(),
           instagranUrl: draft.instagranUrl.trim(),
@@ -692,7 +797,11 @@ export default function CreateEventScreen() {
                           onPress={() => {
                             const hostCep = onlyDigits(host.address.cep);
                             cepLookupRequest.current += 1;
+                            addressSearchRequest.current += 1;
                             setSelectedHostId(host.id);
+                            setSelectedAddressId(host.address.id);
+                            setAddressSuggestions([]);
+                            setAddressSearch({ status: 'idle', message: '' });
                             setDraft((current) => ({
                               ...current,
                               cep: maskCep(host.address.cep),
@@ -828,18 +937,51 @@ export default function CreateEventScreen() {
                   {cepLookup.message}
                 </Text>
               ) : null}
-              <Field label="Cidade" maxLength={150} onChangeText={(value) => updateDraft('city', value)} placeholder="Recife" value={draft.city} />
+              <Field label="Cidade" maxLength={150} onChangeText={(value) => updateAddressDraft('city', value)} placeholder="Recife" value={draft.city} />
               <Field editable={false} label="Estado" maxLength={2} onChangeText={() => undefined} placeholder="Preenchido após consultar o CEP" value={draft.state} />
-              <Field label="Logradouro" maxLength={300} onChangeText={(value) => updateDraft('street', value)} placeholder="Avenida Cais do Apolo" value={draft.street} />
+              <Field label="Logradouro" maxLength={300} onChangeText={(value) => updateAddressDraft('street', value)} placeholder="Avenida Cais do Apolo" value={draft.street} />
+              {addressSearch.status !== 'idle' ? (
+                <Text
+                  accessibilityRole="alert"
+                  style={[
+                    styles.lookupMessage,
+                    addressSearch.status === 'error' ? styles.lookupError : styles.lookupLoading,
+                  ]}
+                >
+                  {addressSearch.message}
+                </Text>
+              ) : null}
+              {addressSuggestions.length > 0 ? (
+                <View style={styles.addressSuggestions}>
+                  {addressSuggestions.map((address) => (
+                    <Pressable
+                      accessibilityLabel={`Usar endereço ${address.street}, ${address.number}`}
+                      accessibilityRole="button"
+                      key={address.id}
+                      onPress={() => selectAddressSuggestion(address)}
+                      style={({ pressed }) => [styles.addressSuggestion, pressed && styles.pressed]}
+                    >
+                      <Text style={styles.addressSuggestionTitle}>
+                        {address.street}, {address.number}
+                      </Text>
+                      <Text style={styles.addressSuggestionMeta}>
+                        {[address.neighborhood, address.city, maskCep(address.cep)]
+                          .filter((value) => value.trim().length > 0)
+                          .join(' • ')}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+              ) : null}
               <View style={styles.inlineFields}>
                 <View style={styles.inlineFieldSmall}>
-                  <Field label="Número" maxLength={20} onChangeText={(value) => updateDraft('number', value)} placeholder="77" value={draft.number} />
+                  <Field label="Número" maxLength={20} onChangeText={(value) => updateAddressDraft('number', value)} placeholder="77" value={draft.number} />
                 </View>
                 <View style={styles.inlineField}>
-                  <Field label="Complemento" maxLength={200} onChangeText={(value) => updateDraft('complement', value)} placeholder="Opcional" value={draft.complement} />
+                  <Field label="Complemento" maxLength={200} onChangeText={(value) => updateAddressDraft('complement', value)} placeholder="Opcional" value={draft.complement} />
                 </View>
               </View>
-              <Field label="Bairro" maxLength={150} onChangeText={(value) => updateDraft('neighborhood', value)} placeholder="Bairro do Recife" value={draft.neighborhood} />
+              <Field label="Bairro" maxLength={150} onChangeText={(value) => updateAddressDraft('neighborhood', value)} placeholder="Bairro do Recife" value={draft.neighborhood} />
             </View>
 
             {submission.status === 'error' ? (
@@ -883,7 +1025,7 @@ export default function CreateEventScreen() {
             <Text style={styles.activeNavLabel}>Criar evento</Text>
           </Pressable>
           <NavItem icon="⊙" label="Explorar" />
-          <NavItem icon="▥" label="Empresa" onPress={() => router.push('/cadastro_host')} />
+          <NavItem icon="▥" label="Comércio" onPress={() => router.push('/cadastro_host')} />
         </View>
       </View>
     </View>
@@ -926,6 +1068,10 @@ const styles = StyleSheet.create({
   lookupLoading: { color: colors.muted },
   lookupSuccess: { color: colors.success },
   lookupError: { color: colors.danger },
+  addressSuggestions: { overflow: 'hidden', borderRadius: 12, borderColor: colors.line, borderWidth: 1, backgroundColor: colors.card },
+  addressSuggestion: { paddingHorizontal: 14, paddingVertical: 11, gap: 3, borderBottomColor: colors.line, borderBottomWidth: 1 },
+  addressSuggestionTitle: { color: colors.ink, fontSize: 12, fontWeight: '700' },
+  addressSuggestionMeta: { color: colors.muted, fontSize: 10, lineHeight: 14 },
   textArea: { minHeight: 112, paddingTop: 14, lineHeight: 20 },
   inlineFields: { flexDirection: 'row', gap: 10, alignItems: 'flex-start' },
   inlineField: { flex: 1, minWidth: 0 },

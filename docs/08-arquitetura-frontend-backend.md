@@ -273,3 +273,13 @@ Na seção “Onde acontece” da rota `/`, o CEP passou a ser o primeiro campo.
 Sem sessão, a tela não carrega hosts nem chama o provedor e informa que o login de host é necessário para o autopreenchimento. A UF é somente auxiliar e não integra o JSON enviado, pois `AddressCreateDTO` não possui `State`; o payload de criação permanece com city, street, number, complement, neighborhood e cep. Nenhuma rota, autorização, DTO, regra do backend, migration ou banco foi alterado nesta etapa.
 
 Validações realizadas: `tsc --noEmit`, ESLint direto de `CreateEventScreen.tsx` e `git diff --check` aprovados. Não houve publicação de evento, consulta real ao ViaCEP, alteração do protótipo externo ou regeneração de PDFs.
+
+## Autocomplete de logradouro cadastrado — 03/11/2026
+
+Ao editar o Logradouro em “Onde acontece”, a tela aguarda 300 ms e, com pelo menos seis letras/dígitos, chama o endpoint autenticado `GET /api/Address/GetAllAddress?search=...`. Até dez resultados são apresentados com número, bairro, cidade e CEP. A troca do texto invalida respostas anteriores.
+
+Escolher uma sugestão preenche os campos e guarda `addressId`; a publicação envia somente esse ID para reutilizar o endereço existente. Qualquer alteração posterior em CEP, cidade, logradouro, número, complemento ou bairro remove a seleção e restaura o envio do objeto `address`. O endereço sugerido inicialmente pelo host também conserva seu ID. TypeScript, ESLint direto e `git diff --check` aprovados; sem mudança de backend, migration, banco, protótipo ou PDF.
+
+## Nomenclatura Comércio no frontend — 03/11/2026
+
+O rótulo visual `Empresa` foi substituído por `Comércio` na opção de tipo de host e na navegação inferior da criação de evento. O valor `2` do enum `TypeofHost` foi preservado; não houve mudança de DTO, serialização, regra do backend ou banco. Os textos genéricos sobre dados empresariais permanecem inalterados.
