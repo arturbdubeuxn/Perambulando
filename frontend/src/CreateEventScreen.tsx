@@ -2,7 +2,7 @@ import { Fredoka_700Bold } from '@expo-google-fonts/fredoka/700Bold';
 import { useFonts } from 'expo-font';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Image,
   KeyboardAvoidingView,
@@ -39,13 +39,40 @@ type StorageLike = {
 };
 
 type CategoryResponse = { id: number; name: string; isActive: boolean };
-type HostResponse = { id: number; name: string; isActive: boolean };
+type AddressResponse = {
+  id: number;
+  city: string;
+  street: string;
+  number: string;
+  complement: string;
+  neighborhood: string;
+  cep: string;
+};
+type HostResponse = {
+  id: number;
+  name: string;
+  isActive: boolean;
+  address: AddressResponse;
+};
 type ProgrammingResponse = { id: number; name: string; hostId: number; addressId: number };
 type ApiErrorBody = { title?: string; detail?: string; errors?: Record<string, string[]> };
 type SubmissionState = {
   status: 'idle' | 'submitting' | 'success' | 'error';
   message: string;
   programmingId?: number;
+};
+
+type PostalAddressResponse = {
+  cep: string;
+  street: string;
+  neighborhood: string;
+  city: string;
+  state: string;
+};
+
+type LookupState = {
+  status: 'idle' | 'loading' | 'success' | 'error';
+  message: string;
 };
 
 type EventDraft = {
@@ -61,6 +88,7 @@ type EventDraft = {
   isFree: boolean;
   minPrice: string;
   maxPrice: string;
+  state: string;
   city: string;
   street: string;
   number: string;
@@ -82,6 +110,7 @@ const initialDraft: EventDraft = {
   isFree: false,
   minPrice: '',
   maxPrice: '',
+  state: '',
   city: '',
   street: '',
   number: '',
@@ -251,6 +280,7 @@ function parsePrice(value: string) {
 export default function CreateEventScreen() {
   const { width: viewportWidth } = useWindowDimensions();
   const [fontsLoaded] = useFonts({ Fredoka_700Bold });
+  const cepLookupRequest = useRef(0);
   const [draft, setDraft] = useState<EventDraft>(initialDraft);
   const [categories, setCategories] = useState<CategoryResponse[]>([]);
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<number[]>([]);
@@ -260,6 +290,7 @@ export default function CreateEventScreen() {
   const [accessToken, setAccessToken] = useState('');
   const [loadingReferences, setLoadingReferences] = useState(true);
   const [referenceMessage, setReferenceMessage] = useState('');
+  const [cepLookup, setCepLookup] = useState<LookupState>({ status: 'idle', message: '' });
   const [submission, setSubmission] = useState<SubmissionState>({ status: 'idle', message: '' });
 
   const selectedHost = useMemo(
@@ -302,7 +333,28 @@ export default function CreateEventScreen() {
         const activeHosts = hostList.filter((host) => host.isActive);
         setHosts(activeHosts);
         const preferredHost = activeHosts.find((host) => host.id === preferredHostId);
-        setSelectedHostId(preferredHost?.id ?? activeHosts[0]?.id ?? null);
+        const initialHost = preferredHost ?? activeHosts[0] ?? null;
+        setSelectedHostId(initialHost?.id ?? null);
+        if (initialHost) {
+          const hostCep = onlyDigits(initialHost.address.cep);
+          setDraft((current) => ({
+            ...current,
+            cep: maskCep(initialHost.address.cep),
+            city: initialHost.address.city.trim(),
+            state: '',
+            street: initialHost.address.street.trim(),
+            number: initialHost.address.number.trim(),
+            complement: initialHost.address.complement.trim(),
+            neighborhood: initialHost.address.neighborhood.trim(),
+          }));
+          setCepLookup({
+            status: hostCep.length === 8 ? 'loading' : 'success',
+            message:
+              hostCep.length === 8
+                ? 'Endereço do host carregado. Consultando o CEP para completar a sugestão...'
+                : 'Endereço do host carregado como sugestão. Revise antes de publicar.',
+          });
+        }
 
         if (activeHosts.length === 0) {
           setReferenceMessage('Nenhum host ativo foi encontrado para esta conta.');
@@ -331,6 +383,115 @@ export default function CreateEventScreen() {
     }
   };
 
+  const lookupCep = async (cep: string, requestId: number) => {
+    setCepLookup({ status: 'loading', message: 'Consultando CEP...' });
+    try {
+      const address = await apiRequest<PostalAddressResponse>(
+        `/api/Address/GetByCEP?cep=${encodeURIComponent(cep)}`,
+        { headers: { Authorization: `Bearer ${accessToken}` } },
+      );
+      if (requestId !== cepLookupRequest.current) {
+        return;
+      }
+
+      setDraft((current) => ({
+        ...current,
+        cep: maskCep(address.cep),
+        city: address.city.trim(),
+        state: address.state.trim(),
+        street: address.street.trim(),
+        neighborhood: address.neighborhood.trim(),
+      }));
+      setCepLookup({
+        status: 'success',
+        message: 'CEP localizado. Use os dados preenchidos como sugestão e revise antes de publicar.',
+      });
+    } catch (error) {
+      if (requestId !== cepLookupRequest.current) {
+        return;
+      }
+      const message =
+        error instanceof TypeError
+          ? `Não foi possível acessar ${apiBaseUrl}. Preencha o endereço manualmente.`
+          : error instanceof Error
+            ? error.message
+            : 'Não foi possível consultar o CEP. Preencha o endereço manualmente.';
+      setCepLookup({ status: 'error', message });
+    }
+  };
+
+  const handleCepChange = (value: string) => {
+    const masked = maskCep(value);
+    const digits = onlyDigits(masked);
+    const requestId = cepLookupRequest.current + 1;
+    cepLookupRequest.current = requestId;
+    updateDraft('cep', masked);
+    setCepLookup({ status: 'idle', message: '' });
+
+    if (digits.length === 8) {
+      if (!accessToken) {
+        setCepLookup({
+          status: 'error',
+          message: 'Entre como host para usar o preenchimento automático do endereço.',
+        });
+        return;
+      }
+      void lookupCep(digits, requestId);
+    }
+  };
+
+  useEffect(() => {
+    const hostAddress = selectedHost?.address;
+    if (!accessToken || !hostAddress) {
+      return;
+    }
+
+    const requestId = cepLookupRequest.current + 1;
+    cepLookupRequest.current = requestId;
+    const cep = onlyDigits(hostAddress.cep);
+
+    if (cep.length !== 8) {
+      return;
+    }
+
+    let active = true;
+    async function completeHostAddressSuggestion() {
+      try {
+        const address = await apiRequest<PostalAddressResponse>(
+          `/api/Address/GetByCEP?cep=${encodeURIComponent(cep)}`,
+          { headers: { Authorization: `Bearer ${accessToken}` } },
+        );
+        if (!active || requestId !== cepLookupRequest.current) {
+          return;
+        }
+        setDraft((current) => ({
+          ...current,
+          city: current.city || address.city.trim(),
+          state: address.state.trim(),
+          street: current.street || address.street.trim(),
+          neighborhood: current.neighborhood || address.neighborhood.trim(),
+        }));
+        setCepLookup({
+          status: 'success',
+          message: 'Endereço do host preenchido como sugestão. Revise antes de publicar.',
+        });
+      } catch {
+        if (!active || requestId !== cepLookupRequest.current) {
+          return;
+        }
+        setCepLookup({
+          status: 'error',
+          message: 'O endereço do host foi sugerido, mas não foi possível completar a UF pelo CEP.',
+        });
+      }
+    }
+
+    void completeHostAddressSuggestion();
+    return () => {
+      active = false;
+    };
+  }, [accessToken, selectedHost]);
+
   const toggleCategory = (categoryId: number) => {
     setSelectedCategoryIds((current) =>
       current.includes(categoryId)
@@ -340,8 +501,28 @@ export default function CreateEventScreen() {
   };
 
   const resetForm = () => {
-    setDraft(initialDraft);
+    cepLookupRequest.current += 1;
+    const hostAddress = selectedHost?.address;
+    setDraft(
+      hostAddress
+        ? {
+            ...initialDraft,
+            cep: maskCep(hostAddress.cep),
+            city: hostAddress.city,
+            state: draft.state,
+            street: hostAddress.street,
+            number: hostAddress.number,
+            complement: hostAddress.complement,
+            neighborhood: hostAddress.neighborhood,
+          }
+        : initialDraft,
+    );
     setSelectedCategoryIds([]);
+    setCepLookup(
+      hostAddress
+        ? { status: 'success', message: 'Endereço do host carregado como sugestão. Revise antes de publicar.' }
+        : { status: 'idle', message: '' },
+    );
     setSubmission({ status: 'idle', message: '' });
   };
 
@@ -509,7 +690,26 @@ export default function CreateEventScreen() {
                         <Pressable
                           key={host.id}
                           onPress={() => {
+                            const hostCep = onlyDigits(host.address.cep);
+                            cepLookupRequest.current += 1;
                             setSelectedHostId(host.id);
+                            setDraft((current) => ({
+                              ...current,
+                              cep: maskCep(host.address.cep),
+                              city: host.address.city.trim(),
+                              state: '',
+                              street: host.address.street.trim(),
+                              number: host.address.number.trim(),
+                              complement: host.address.complement.trim(),
+                              neighborhood: host.address.neighborhood.trim(),
+                            }));
+                            setCepLookup({
+                              status: hostCep.length === 8 ? 'loading' : 'success',
+                              message:
+                                hostCep.length === 8
+                                  ? 'Endereço do host carregado. Consultando o CEP para completar a sugestão...'
+                                  : 'Endereço do host carregado como sugestão. Revise antes de publicar.',
+                            });
                             setHostOpen(false);
                           }}
                           style={({ pressed }) => [
@@ -612,7 +812,24 @@ export default function CreateEventScreen() {
 
             <View style={styles.card}>
               <SectionTitle description="O endereço precisa ser enviado em campos separados." number="04" title="Onde acontece" />
+              <Field keyboardType="numeric" label="CEP" maxLength={9} onChangeText={handleCepChange} placeholder="50030-220" value={draft.cep} />
+              {cepLookup.status !== 'idle' ? (
+                <Text
+                  accessibilityRole="alert"
+                  style={[
+                    styles.lookupMessage,
+                    cepLookup.status === 'success'
+                      ? styles.lookupSuccess
+                      : cepLookup.status === 'error'
+                        ? styles.lookupError
+                        : styles.lookupLoading,
+                  ]}
+                >
+                  {cepLookup.message}
+                </Text>
+              ) : null}
               <Field label="Cidade" maxLength={150} onChangeText={(value) => updateDraft('city', value)} placeholder="Recife" value={draft.city} />
+              <Field editable={false} label="Estado" maxLength={2} onChangeText={() => undefined} placeholder="Preenchido após consultar o CEP" value={draft.state} />
               <Field label="Logradouro" maxLength={300} onChangeText={(value) => updateDraft('street', value)} placeholder="Avenida Cais do Apolo" value={draft.street} />
               <View style={styles.inlineFields}>
                 <View style={styles.inlineFieldSmall}>
@@ -623,7 +840,6 @@ export default function CreateEventScreen() {
                 </View>
               </View>
               <Field label="Bairro" maxLength={150} onChangeText={(value) => updateDraft('neighborhood', value)} placeholder="Bairro do Recife" value={draft.neighborhood} />
-              <Field keyboardType="numeric" label="CEP" maxLength={9} onChangeText={(value) => updateDraft('cep', maskCep(value))} placeholder="50030-220" value={draft.cep} />
             </View>
 
             {submission.status === 'error' ? (
@@ -706,6 +922,10 @@ const styles = StyleSheet.create({
   fieldLabel: { color: colors.ink, fontSize: 11, fontWeight: '700' },
   input: { minHeight: 52, paddingHorizontal: 14, borderRadius: 12, borderColor: colors.line, borderWidth: 1, backgroundColor: colors.input, color: colors.ink, fontSize: 14 },
   inputDisabled: { opacity: 0.65, backgroundColor: '#F1EEE9' },
+  lookupMessage: { marginTop: -4, fontSize: 11, lineHeight: 15 },
+  lookupLoading: { color: colors.muted },
+  lookupSuccess: { color: colors.success },
+  lookupError: { color: colors.danger },
   textArea: { minHeight: 112, paddingTop: 14, lineHeight: 20 },
   inlineFields: { flexDirection: 'row', gap: 10, alignItems: 'flex-start' },
   inlineField: { flex: 1, minWidth: 0 },
