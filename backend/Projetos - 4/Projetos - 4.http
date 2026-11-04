@@ -125,6 +125,8 @@ Authorization: Bearer {{login.response.body.$.accessToken}}
 
 ### HOST - Criar host e receber JWT atualizado (201 com result e auth)
 # Execute login antes. result contém somente id, addressId e name; o JWT fica em auth.accessToken.
+# Horários opcionais somente para comércio/gastronomia; semana completa de sete dias.
+# Host, endereço novo, horários e role são persistidos na mesma transação. Migration ainda pendente.
 # @name createHost
 POST {{Projetos___4_HostAddress}}/api/Host/Create
 Content-Type: application/json
@@ -145,7 +147,52 @@ Authorization: Bearer {{login.response.body.$.accessToken}}
   },
   "phone": "(11) 99999-0000",
   "name": "Novo Host",
-  "description": "Estabelecimento de teste da API."
+  "description": "Estabelecimento de teste da API.",
+  "openingWeek": {
+    "days": [
+      {
+        "dayOfWeek": 0,
+        "isClosed": true,
+        "periods": []
+      },
+      {
+        "dayOfWeek": 1,
+        "isClosed": false,
+        "periods": [
+          {
+            "openingTime": "09:00:00",
+            "closingTime": "18:00:00",
+            "closesNextDay": false
+          }
+        ]
+      },
+      {
+        "dayOfWeek": 2,
+        "isClosed": true,
+        "periods": []
+      },
+      {
+        "dayOfWeek": 3,
+        "isClosed": true,
+        "periods": []
+      },
+      {
+        "dayOfWeek": 4,
+        "isClosed": true,
+        "periods": []
+      },
+      {
+        "dayOfWeek": 5,
+        "isClosed": true,
+        "periods": []
+      },
+      {
+        "dayOfWeek": 6,
+        "isClosed": true,
+        "periods": []
+      }
+    ]
+  }
 }
 
 ### HOST - Listar hosts ativos do usuário (200, inclusive [])
@@ -162,6 +209,42 @@ Authorization: Bearer {{createHost.response.body.$.auth.accessToken}}
 GET {{Projetos___4_HostAddress}}/api/Host/Details/{{createHost.response.body.$.result.id}}
 Accept: application/json
 Authorization: Bearer {{createHost.response.body.$.auth.accessToken}}
+
+### HOST - Consultar funcionamento semanal (200; days vazio = ainda não configurado)
+# Exige dono ou ADMIN confirmado pelo servidor; somente gastronomia e comércio.
+# Depende da futura migration de dias/períodos, ainda não aplicada nesta etapa.
+# @name getOpeningHours
+GET {{Projetos___4_HostAddress}}/api/Host/{{createHost.response.body.$.result.id}}/OpeningHours
+Accept: application/json
+Authorization: Bearer {{createHost.response.body.$.auth.accessToken}}
+
+### HOST - Substituir a semana completa de funcionamento (200)
+# Envie os sete dias, 0=domingo até 6=sábado. Horários locais em HH:mm:ss, sem Z.
+# Dia fechado: periods=[]. A flag closesNextDay indica término no dia seguinte.
+# Exemplo: almoço/jantar na terça e sexta até 02h de sábado.
+# 400: semana/tipo inválido; 401: autenticação; 404: host indisponível/alheio.
+# @name editOpeningHours
+PUT {{Projetos___4_HostAddress}}/api/Host/{{createHost.response.body.$.result.id}}/OpeningHours
+Content-Type: application/json
+Accept: application/json
+Authorization: Bearer {{createHost.response.body.$.auth.accessToken}}
+
+{
+  "days": [
+    { "dayOfWeek": 0, "isClosed": true, "periods": [] },
+    { "dayOfWeek": 1, "isClosed": true, "periods": [] },
+    { "dayOfWeek": 2, "isClosed": false, "periods": [
+      { "openingTime": "11:00:00", "closingTime": "15:00:00", "closesNextDay": false },
+      { "openingTime": "18:00:00", "closingTime": "23:00:00", "closesNextDay": false }
+    ] },
+    { "dayOfWeek": 3, "isClosed": true, "periods": [] },
+    { "dayOfWeek": 4, "isClosed": true, "periods": [] },
+    { "dayOfWeek": 5, "isClosed": false, "periods": [
+      { "openingTime": "18:00:00", "closingTime": "02:00:00", "closesNextDay": true }
+    ] },
+    { "dayOfWeek": 6, "isClosed": true, "periods": [] }
+  ]
+}
 
 ### HOST - Editar host (200)
 # Execute createHost e hostDetails antes. PUT substitui todos os campos editáveis.

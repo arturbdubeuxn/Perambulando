@@ -157,3 +157,10 @@ O appsettings.json local não foi levado na mudança para backend/Projetos - 4, 
 ## Conexão HTTPS do protótipo — 26/10/2026
 
 Proxy do protótipo usa certificados confiáveis padrão e do sistema para HTTPS local, mantendo validação TLS e hostname. Não foi usado rejectUnauthorized=false nem desabilitada a verificação de certificados. O proxy continua sem seguir redirecionamentos de requisições: informa o destino HTTPS somente para promoção HTTP→HTTPS no mesmo host e caminho. A verificação de conexão pode repetir somente GET nesse endereço; chamadas de cadastro/edição não são repetidas automaticamente. JWT e configuração da API permanecem iguais.
+
+
+## Autenticação das rotas de funcionamento — 04/11/2026
+
+GET e PUT /api/Host/{hostId:int}/OpeningHours usam [Authorize]. O usuário vem de UserManager.GetUserId(User), não do corpo ou query. Não há emissão, renovação ou alteração de JWT nestas actions. A conta ativa e o papel ADMIN/propriedade são conferidos no OpeningHoursService; um token válido, isoladamente, não concede edição sobre qualquer host.
+
+O protótipo reutiliza o JWT da sessão, inclusive o retornado pelo cadastro de host. Exemplos .http usam createHost.response.body.$.auth.accessToken. Token ausente, inválido ou vencido retorna 401 pela autenticação; usuário indisponível retorna ProblemDetails 401 pelo fluxo. Host inacessível retorna 404. Realizadas 31 verificações HTTP com tokens assinados e domínio/persistência simulados; a autorização de negócio real foi coberta nos testes de service da etapa anterior. Nenhuma mudança de claims, duração ou chave.

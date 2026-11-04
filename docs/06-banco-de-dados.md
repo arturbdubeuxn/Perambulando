@@ -322,3 +322,51 @@ Consulta paginada de Programmings usa AsNoTracking, Include(Address), filtro de 
 Adicionada a migration 20261026200000_AddAddressCity e seu snapshot/target model, com City obrigatório no armazenamento, character varying(150), default vazio para preservar registros anteriores. O campo é opcional na entrada HTTP. O cadastro de endereço normaliza City e a deduplicação passa a comparar também a cidade.
 
 A migration não foi aplicada ao banco. A implantação exige aplicá-la antes de executar as consultas que leem Address.City. Não houve backfill nem inferência de cidade; endereços antigos continuam com string vazia até preenchimento. Não houve conexão ao PostgreSQL real. A geração do SQL da migration e a correspondência do snapshot com o modelo foram aprovadas nos testes isolados.
+
+
+## Preparação de dias de funcionamento — 04/11/2026
+
+HostOpeningDay e HostOpeningPeriod foram definidos em Domain/Model como futura base de dias/períodos. Ainda não foram adicionados DbSets, configurações, navegação em Hosts ou migration. Relacionamentos, unicidade HostId/DayOfWeek e tipos de coluna serão configurados na etapa de persistência. Não há mudança no schema nem aplicação de migration. Verificação apenas estática do Context e build sem erros/dez avisos anteriores; nenhum acesso ao banco ou PDF.
+
+## Contrato do repository de funcionamento — 04/11/2026
+
+Criada Domain/Interfaces/Repository/IOpeningHoursRepository na branch ARTUR-DESKETOP, seguindo as interfaces existentes, sem novas pastas. Define Task<List<HostOpeningDay>> GetByHostIdAsync(int hostId) e Task<List<HostOpeningDay>> EditAsync(List<HostOpeningDay> days, int hostId). O contrato prevê consulta de dias com seus períodos e substituição integral da semana, retornando os registros atualizados.
+
+Recebe somente hostId e entidades, sem userId, DTO ou CancellationToken. O futuro service será responsável por autorização/propriedade, disponibilidade/tipo do host e chamada de OpeningHoursValidations antes de persistir. A futura implementação Data/Repository deverá carregar os períodos e efetuar a substituição da semana em uma operação atômica. Nenhuma consulta/transação foi implementada nesta etapa; a interface não garante essas regras por si só.
+
+Sem classe concreta, DI do repository, configuração EF, DbSets, migration ou endpoint. Build isolado aprovado com zero erros e dez avisos anteriores. Não houve teste funcional, banco/HTTP, API reiniciada, Expo ou PDF. Próxima etapa: implementar OpeningHoursService utilizando este contrato.
+
+## Mapeamento EF dos dias e períodos preparado — 04/11/2026
+
+Adicionados ao Context os DbSets HostOpeningDays e HostOpeningPeriods. Criadas Data/Configurations/HostOpeningDayConfiguration e HostOpeningPeriodConfiguration, descobertas pelo ApplyConfigurationsFromAssembly já existente. Tabelas definidas como HostOpeningDays e HostOpeningPeriods, com Id como PK e FKs obrigatórias HostId/HostOpeningDayId. Não foi necessário acrescentar coleção inversa em Hosts.
+
+DayOfWeek é convertido para int e IsClosed é obrigatório. Índice único do par HostId/DayOfWeek protege contra duplicação do mesmo dia para um host. OpeningTime/ClosingTime usam TimeOnly com tipo PostgreSQL time without time zone obrigatório; ClosesNextDay é obrigatório. As regras de sete dias, enum válido, duração, fechado/períodos e sobreposição permanecem no domínio; esse índice não substitui essas validações e não garante ausência de sobreposição no banco.
+
+Relacionamentos: HostOpeningDay.Host → Hosts, um host para vários dias, FK HostId, Cascade; HostOpeningPeriod.HostOpeningDay ↔ HostOpeningDay.Periods, um dia para vários períodos, FK HostOpeningDayId, Cascade. Remoção física de um dia remove seus períodos; remoção física de um host remove dias/períodos. Alterar IsActive do host não executa cascata de exclusão e preserva a agenda.
+
+Modelo EF agora possui alterações pendentes de migration. Nenhuma migration foi gerada ou aplicada; snapshot e banco permanecem anteriores. Não houve backfill de agenda para hosts antigos. Prepare/revise a migration na etapa autorizada posterior antes de usar a nova persistência. O repository concreto ainda não foi implementado e a API principal não foi reiniciada.
+
+Verificação: 23 verificações locais do modelo Npgsql/EF, sem abrir conexão ou SaveChanges, aprovaram entidades, PKs/FKs, ausência de propriedades sombra, unicidade, tipos obrigatórios, navegações e cascatas no ChangeTracker. SQL estrutural de criação foi apenas inspecionado em memória para conferir tabelas/índice/colunas; isso não gerou arquivo de migration nem foi executado. Build do backend sem erros/dez avisos preexistentes; builds incrementais finais dos harnesses sem erros/avisos novos. 70 regressões do service aprovadas com Identity/repositories simulados. Harnesses locais tmp/OpeningHoursEfModelCheck.cs e tmp/OpeningHoursServiceCheck.cs no workspace do protótipo, não são testes versionados no backend. Sem banco/HTTP real, Expo ou PDF.
+
+## Repository de funcionamento implementado — 04/11/2026
+
+Criado Data/Repository/OpeningHoursRepository implementando IOpeningHoursRepository, com Context recebido pelo construtor e campo Db conforme HostRepository. GetByHostIdAsync filtra HostId, usa AsNoTracking, inclui Periods ordenados por OpeningTime/Id e ordena os dias por DayOfWeek. Consulta sem agenda retorna lista vazia e não mantém entidades rastreadas.
+
+EditAsync substitui a semana inteira em transação: bloqueia a linha do host ativo com SELECT parametrizado FOR UPDATE; consulta os dias atuais com períodos; remove os dias e salva a remoção; adiciona os novos dias/períodos e salva a inclusão; consulta a semana atualizada ainda dentro da transação; confirma e retorna. Dois SaveChanges dentro da mesma transação evitam conflito transitório com o índice único HostId/DayOfWeek sem expor um estado intermediário confirmado. Cascata remove os períodos antigos. Falha reverte a operação, limpa o ChangeTracker e propaga a exceção original, sem convertê-la genericamente em conflito.
+
+O bloqueio por host serializa substituições concorrentes, inclusive quando a agenda ainda está vazia. A última operação executada prevalece como semana completa; não foi implementado controle otimista por versão nem HTTP 409 para edição desatualizada. A leitura do resultado ocorre antes do commit para retornar a semana gravada por aquela chamada. A existência/atividade do host é novamente conferida sob bloqueio; a autorização, tipos permitidos, sete dias e validação de horários continuam no service. O repository pressupõe dias previamente validados e vinculados ao host da operação.
+
+Registrados IOpeningHoursRepository/OpeningHoursRepository e IOpeningHoursService/OpeningHoursService como scoped no Program.cs. Não foram criados AppService concreto, controller ou endpoint de funcionamento nesta etapa. Nenhum contrato HTTP ou formulário foi alterado.
+
+Verificação: backend compilado com zero erros e dez avisos preexistentes; build incremental final do harness sem erros/avisos novos. 23 verificações reais com EF/Npgsql/PostgreSQL em banco descartável aprovaram resolução DI, criação, carregamento/ordenação, AsNoTracking, substituição, cascata, preservação de outro host, índice único, rollback com preservação de IDs/períodos, reutilização do Context, recusa de host inexistente/inativo, duas edições concorrentes e ausência de períodos órfãos.
+
+Docker Desktop foi iniciado porque estava desligado; container PostgreSQL local ficou disponível. O teste criou banco com nome aleatório e prefixo opening_hours_check_, bloqueou destino remoto e removeu esse banco ao finalizar. Usou EnsureCreated exclusivamente nesse banco vazio; não executou Migrate, não gerou arquivos de migration e não abriu o banco principal. Harness local C:/Users/Artur/Documents/ChatGPT/Perambulando/tmp/OpeningHoursRepositoryCheck.cs, não versionado no backend. Migration principal continua pendente de revisão/autorização. Sem API principal reiniciada, Expo ou PDF.
+
+
+## Cadastro transacional de host e agenda — 04/11/2026
+
+Hosts.OpeningDays foi incluída como navegação inversa da FK HostOpeningDay.HostId. A configuração agora usa WithMany(host => host.OpeningDays), preservando tabelas, colunas, FKs e índice único HostId/DayOfWeek já preparados. A navegação opcional distingue, antes de rastrear o grafo de criação, semana omitida (null) de uma semana explicitamente enviada vazia (inválida). Não há nova coluna para essa propriedade.
+
+Db.Set<Hosts>().Add(host) no HostRepository existente rastreia os novos dias/períodos e propaga o ID gerado do host às FKs. A primeira gravação e a atribuição da role continuam na mesma transação. Não houve gravação adicional em outro service após o commit. Testes comprovaram rollback do host, endereço novo, dias, períodos e role após falha simulada.
+
+33 verificações integradas aprovadas com EnsureCreated exclusivamente em banco de nome aleatório host_opening_check_<guid>, removido ao final. CNPJ/geocodificação simulados; EF/Npgsql/PostgreSQL e Identity reais. Nenhuma migration criada/aplicada, nenhum snapshot alterado, banco principal preservado. Schema principal de funcionamento continua pendente de revisão/migration.

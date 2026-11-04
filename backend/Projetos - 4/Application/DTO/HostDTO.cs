@@ -8,6 +8,8 @@ public class HostDTO
     [Required, EnumDataType(typeof(TypeofHost))]
     public TypeofHost? Typeofhost { get; set; }
 
+    public OpeningWeekDTO? OpeningWeek { get; set; }
+
     [MaxLength(18)]
     [Required]
     [RegularExpression(@"^(?:[A-Za-z0-9]{12}[0-9]{2}|[A-Za-z0-9]{2}\.[A-Za-z0-9]{3}\.[A-Za-z0-9]{3}/[A-Za-z0-9]{4}-[0-9]{2})$", ErrorMessage = "Informe um CNPJ válido, com ou sem máscara.")]

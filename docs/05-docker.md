@@ -95,3 +95,8 @@ Implementação: imagem `perambulando/postgres-postgis:17` construída a partir 
 Validações: PostgreSQL 17.11; PostGIS 3.6.4 disponível e habilitado; autenticação com a configuração local aprovada; 16 migrations existentes aplicadas; 17 tabelas no schema público; API iniciada em `http://localhost:5014`; `GET /openapi/v1.json` respondeu HTTP 200. A API temporária foi encerrada após a validação. Nenhuma migration, model ou contrato HTTP foi alterado. PDFs não foram regenerados.
 
 Pendência: o volume PostgreSQL 16 anterior foi preservado, mas seus dados não foram migrados para o banco novo. O PostGIS 17 contém o schema criado pelas migrations e inicia sem os registros do banco anterior. Qualquer transferência deve ser feita depois, por backup/restauração compatível entre versões, mediante solicitação explícita.
+
+
+## Teste isolado de funcionamento semanal — 04/11/2026
+
+Docker Desktop estava desligado e foi iniciado para validar OpeningHoursRepository. Container perambulando-postgres disponibilizou PostgreSQL em 127.0.0.1:5432. Testes usaram somente banco aleatório opening_hours_check_..., criado com EnsureCreated e removido ao finalizar; conexões ao banco principal não foram usadas pelo harness. Nenhum compose/imagem/volume foi alterado, nem migration gerada/aplicada. 23 verificações de persistência/DI passaram. API principal não reiniciada e PDFs preservados.

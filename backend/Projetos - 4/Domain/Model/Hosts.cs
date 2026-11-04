@@ -1,4 +1,4 @@
-﻿namespace Projetos___4.Domain.Model
+namespace Projetos___4.Domain.Model
 {
     public class Hosts
     {
@@ -21,6 +21,7 @@
         public string Description { get; set; } = string.Empty;
         public Address Address { get; set; } = null!;
         public int AddressId { get; set; }
+        public ICollection<HostOpeningDay>? OpeningDays { get; set; }
         public bool IsActive { get; set; } = true;
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 

@@ -704,3 +704,110 @@ Neighborhood removido de HostFilterDTO, HostFilter, HostFilterMapping e da consu
 Esta verificação substitui as pendências anteriores de binding e validação do filtro. GET /api/Host/HostFilter permanece autenticado (qualquer usuário logado), recebe HostFilterDTO por FromQuery e retorna List<HostResponseDTO> com 200, inclusive []. ArgumentException do service vira ProblemDetails 400. Sem autenticação/token inválido: 401. Name, Types, HasProgrammings, Take e Skip são aplicados; City preenchido retorna 400 por indisponibilidade, pois Address não possui cidade. Bairro permanece opcional e visual no endereço, fora do filtro. Paginação inválida e valores fora do enum são rejeitados no service.
 
 Protótipo reconhece o DTO de query e envia tipos em parâmetros repetidos, booleano opcional com Todos e GET sem corpo. Exemplos adicionados ao arquivo Projetos - 4.http. Resultado: build aprovado; 62 verificações HTTP/EF/PostgreSQL reais em banco descartável e 58 testes simulados do protótipo aprovados. Banco temporário removido, banco principal preservado. Sem migration, commit ou PDFs. Detalhes: [relatório de verificação](validacoes/host-filter-fluxo-2026-10-27.md).
+
+
+## Funcionamento semanal: primeiro contrato — 04/11/2026
+
+Criados somente OpeningDaysDTO e OpeningHoursDTO na Application, branch ARTUR-DESKETOP. Dia/fechamento e abertura/fechamento/virada são obrigatórios por DataAnnotations, com campos anuláveis para detectar omissões. Períodos iniciam vazios, permitindo representar dia fechado. Não foram implementadas ainda as regras de sete dias, dia fechado sem intervalos, sobreposição, duração, fuso e propriedade, nem entidades/persistência. Novos DTOs ainda não conectados ao cadastro/edição do host. Build isolado: zero erros/dez avisos anteriores. Sem teste funcional, banco, migration ou PDF.
+
+
+## Contrato de atualização integral da agenda — 04/11/2026
+
+Criados OpeningWeekDTO e três DTOs de resposta em Application/DTO. Atualização foi definida como substituição da semana inteira; leitura distingue agenda ausente (Days vazio) de semana configurada (sete dias, incluindo os fechados). A validação de sete dias sem repetição e demais regras, a operação de atualização e o mapeamento de leitura ainda não foram implementados. Não foi conectado a actions ou HostDTO. Build isolado aprovado: zero erros/dez avisos anteriores; sem teste funcional, banco, migration ou PDF. Detalhes em 04-dtos.md.
+
+
+## Operações de funcionamento definidas na Application — 04/11/2026
+
+IOpeningHoursAppService declara GetByHostIdAsync e EditAsync, recebendo hostId/userId/cancelamento e usando OpeningWeekDTO/OpeningWeekResponseDTO. Edição significa substituição da semana completa. Somente o contrato foi criado; propriedade, aplicabilidade por tipo, dias/períodos válidos e persistência serão implementados posteriormente. A interface não autoriza operações por si só e não oferece endpoint. Build isolado sem erros/dez avisos anteriores; sem teste funcional, banco, migration ou PDF.
+
+
+## Funcionamento semanal: contratos sem cancelamento e tipos do domínio — 04/11/2026
+
+CancellationToken retirado de IOpeningHoursAppService por solicitação do usuário. IOpeningHoursService criado com consulta/edição por hostId/userId usando List<HostOpeningDay>, sem DTOs. HostOpeningDay/HostOpeningPeriod definidos com FK/navegações e horários locais TimeOnly. Tipos não executam regras por si só: autorização, sete dias distintos, coerência fechado/períodos, duração e sobreposições ainda pendentes. Sem service/repository concreto, EF, migration ou endpoint nesta etapa. Build isolado aprovado: zero erros/dez avisos anteriores; sem teste funcional, banco ou PDF.
+
+## Validação da semana de funcionamento — 04/11/2026
+
+Criadas Domain/Validations/Interface/IOpeningHoursValidations e Domain/Validations/Validations/OpeningHoursValidations, com ValidateWeek(IReadOnlyCollection<HostOpeningDay> days), seguindo ProgrammingValidations e sem pastas novas. Registro scoped no Program.cs. Esta etapa não implementa o service concreto; a validação ainda será chamada no futuro fluxo de edição.
+
+Regras implementadas: coleção não nula com exatamente sete dias; dias não nulos, valores de DayOfWeek definidos e sem repetição; coleção de períodos não nula; dia fechado sem períodos; dia aberto com ao menos um período; períodos não nulos. Duração é ClosingTime - OpeningTime acrescida de um dia quando ClosesNextDay=true. Deve ser maior que zero e de até 24 horas. Assim, horários iguais só são válidos com ClosesNextDay=true, representando 24 horas; fechamento anterior exige a flag; flag com fechamento posterior representaria mais de 24 horas e é rejeitada.
+
+Sobreposições são verificadas em uma linha do tempo semanal derivada dos horários locais, sem converter para UTC ou consultar relógio/provedor. Intervalos são ordenados em uma lista auxiliar; nenhum dado ou ordem de entrada é alterado. Quando um intervalo de sábado ultrapassa o início da semana seguinte, sua parte temporal também é considerada no começo da semana para verificar domingo. Isso cobre tanto domingo-segunda quanto a borda sábado-domingo. Intervalos que apenas se encostam são aceitos, por exemplo 11h–15h seguido de 15h–18h. Interseções, duplicações e intervalos contidos são rejeitados com ArgumentException.
+
+O período pertence ao dia em que abre. IsClosed indica ausência de períodos iniciados naquele dia; uma abertura do dia anterior pode continuar após meia-noite. Exemplo: sexta 18h–sábado 02h é válida sem outro período iniciado no sábado; sábado 01h–04h conflita com ela. Sete dias fechados são uma configuração válida, distinta de ausência de agenda na consulta. Uma atualização vazia continua inválida.
+
+Propriedade/disponibilidade/tipo do host não são consultados nesta validação e continuam pendentes para o service. Regras não foram colocadas na controller/model ou mapping; não existe consulta/persistência nem endpoint de funcionamento nesta etapa.
+
+Verificação: build isolado aprovado com zero erros/dez avisos anteriores; 53 verificações locais aprovadas cobrindo semana completa, nulos, enum, dias abertos/fechados, duração, virada de dia/semana, 24 horas, bordas exatas, conflitos para cada par de dias e preservação de entrada. Harness local C:/Users/Artur/Documents/ChatGPT/Perambulando/tmp/OpeningHoursValidationsCheck.cs, fora da suíte versionada do backend. Sem banco, HTTP, schema/migration, API reiniciada, Expo ou PDF.
+
+## Contrato do repository de funcionamento — 04/11/2026
+
+Criada Domain/Interfaces/Repository/IOpeningHoursRepository na branch ARTUR-DESKETOP, seguindo as interfaces existentes, sem novas pastas. Define Task<List<HostOpeningDay>> GetByHostIdAsync(int hostId) e Task<List<HostOpeningDay>> EditAsync(List<HostOpeningDay> days, int hostId). O contrato prevê consulta de dias com seus períodos e substituição integral da semana, retornando os registros atualizados.
+
+Recebe somente hostId e entidades, sem userId, DTO ou CancellationToken. O futuro service será responsável por autorização/propriedade, disponibilidade/tipo do host e chamada de OpeningHoursValidations antes de persistir. A futura implementação Data/Repository deverá carregar os períodos e efetuar a substituição da semana em uma operação atômica. Nenhuma consulta/transação foi implementada nesta etapa; a interface não garante essas regras por si só.
+
+Sem classe concreta, DI do repository, configuração EF, DbSets, migration ou endpoint. Build isolado aprovado com zero erros e dez avisos anteriores. Não houve teste funcional, banco/HTTP, API reiniciada, Expo ou PDF. Próxima etapa: implementar OpeningHoursService utilizando este contrato.
+
+## Service de funcionamento implementado — 04/11/2026
+
+Criado Domain/Service/OpeningHoursService implementando IOpeningHoursService, branch ARTUR-DESKETOP, nas pastas existentes. Recebe IUserRepository, UserManager<User>, IHostRepository, IOpeningHoursRepository e IOpeningHoursValidations pelo construtor, seguindo o fluxo atual de HostService.HostVerification.
+
+GetByHostIdAsync/EditAsync verificam userId não vazio e hostId positivo, consultam o usuário e exigem conta ativa. Confirmam a role ADMIN no Identity, não em campo enviado pelo cliente. IHostRepository.VerificationbyId filtra host ativo que pertence ao usuário ou autoriza administrador confirmado. Host ausente/inativo/alheio gera KeyNotFoundException; usuário ausente/inativo gera UnauthorizedAccessException; hostId inválido gera ArgumentException. Somente tipos Gastronomy e Business podem consultar/editar o funcionamento; Productor ou tipo indefinido gera ArgumentException, após conferir propriedade para não expor host de terceiros.
+
+Consulta retorna os dias/períodos fornecidos pelo repository, inclusive lista vazia quando não existe agenda. Edição verifica lista não nula, executa ValidateWeek e rejeita qualquer dia cujo HostId difira do host autorizado. Encaminha a mesma semana inteira ao repository e retorna os registros atualizados que ele devolver, sem mapear DTOs, inventar dias ou alterar IDs. Falhas de leitura/escrita são propagadas, sem catch genérico que mascare a causa.
+
+A validação de semana permanece na classe própria; o service coordena autorização e operação e o repository será responsável por leitura com períodos e gravação atômica. Não há ainda implementação de OpeningHoursRepository, configurações EF, DbSets, transação real ou controle concorrente de persistência. Verificações de estado/propriedade refletem as consultas anteriores à futura gravação. O service não foi registrado no Program.cs nesta etapa, pois o repository concreto ainda não existe; isso evita um registro não resolvível na inicialização. AppService concreto/action permanecem pendentes.
+
+Verificação: backend compilado sem erros e com dez avisos anteriores; harness final incremental sem erros/avisos novos. 70 verificações locais aprovadas com repositories e Identity simulados e OpeningHoursValidations real: dono/admin, conta ausente/inativa, host ausente/inativo/alheio, tipos, IDs, semana inválida, vínculos de host, sobreposição, leitura vazia, retorno atualizado e propagação de falhas. Harness local C:/Users/Artur/Documents/ChatGPT/Perambulando/tmp/OpeningHoursServiceCheck.cs, fora da suíte versionada do backend. Sem banco, HTTP real, migration, API reiniciada, Expo ou PDF.
+
+
+## Funcionamento: EF preparado e acesso ADMIN confirmado — 04/11/2026
+
+HostOpeningDay/HostOpeningPeriod agora possuem DbSets e configurações EF com índice único HostId/DayOfWeek e cascata física host → dias → períodos. Migração não gerada/aplicada; repository concreto e fluxo HTTP ainda pendentes. Sobreposição/semana completa continuam no domínio.
+
+Usuário confirmou manter dono ou ADMIN nos horários após retirar isAdmin do contrato de IHostRepository. OpeningHoursService foi alinhado: consulta conta ativa e role ADMIN no Identity; ADMIN usa GetByIdAsync (host ativo), demais usam VerificationbyId(hostId, userId). Retorno nulo interrompe a operação; consulta de propriedade nunca é chamada com resultado ignorado. Regras de tipos e validação de semana preservadas. Assinatura e implementação do HostRepository alteradas pelo usuário foram mantidas, sem reintroduzir parâmetro isAdmin. 70 verificações do service e 23 de modelo EF aprovadas, com build sem erros. Sem banco, migration, endpoint, reinício ou PDF.
+
+## Repository de funcionamento implementado — 04/11/2026
+
+Criado Data/Repository/OpeningHoursRepository implementando IOpeningHoursRepository, com Context recebido pelo construtor e campo Db conforme HostRepository. GetByHostIdAsync filtra HostId, usa AsNoTracking, inclui Periods ordenados por OpeningTime/Id e ordena os dias por DayOfWeek. Consulta sem agenda retorna lista vazia e não mantém entidades rastreadas.
+
+EditAsync substitui a semana inteira em transação: bloqueia a linha do host ativo com SELECT parametrizado FOR UPDATE; consulta os dias atuais com períodos; remove os dias e salva a remoção; adiciona os novos dias/períodos e salva a inclusão; consulta a semana atualizada ainda dentro da transação; confirma e retorna. Dois SaveChanges dentro da mesma transação evitam conflito transitório com o índice único HostId/DayOfWeek sem expor um estado intermediário confirmado. Cascata remove os períodos antigos. Falha reverte a operação, limpa o ChangeTracker e propaga a exceção original, sem convertê-la genericamente em conflito.
+
+O bloqueio por host serializa substituições concorrentes, inclusive quando a agenda ainda está vazia. A última operação executada prevalece como semana completa; não foi implementado controle otimista por versão nem HTTP 409 para edição desatualizada. A leitura do resultado ocorre antes do commit para retornar a semana gravada por aquela chamada. A existência/atividade do host é novamente conferida sob bloqueio; a autorização, tipos permitidos, sete dias e validação de horários continuam no service. O repository pressupõe dias previamente validados e vinculados ao host da operação.
+
+Registrados IOpeningHoursRepository/OpeningHoursRepository e IOpeningHoursService/OpeningHoursService como scoped no Program.cs. Não foram criados AppService concreto, controller ou endpoint de funcionamento nesta etapa. Nenhum contrato HTTP ou formulário foi alterado.
+
+Verificação: backend compilado com zero erros e dez avisos preexistentes; build incremental final do harness sem erros/avisos novos. 23 verificações reais com EF/Npgsql/PostgreSQL em banco descartável aprovaram resolução DI, criação, carregamento/ordenação, AsNoTracking, substituição, cascata, preservação de outro host, índice único, rollback com preservação de IDs/períodos, reutilização do Context, recusa de host inexistente/inativo, duas edições concorrentes e ausência de períodos órfãos.
+
+Docker Desktop foi iniciado porque estava desligado; container PostgreSQL local ficou disponível. O teste criou banco com nome aleatório e prefixo opening_hours_check_, bloqueou destino remoto e removeu esse banco ao finalizar. Usou EnsureCreated exclusivamente nesse banco vazio; não executou Migrate, não gerou arquivos de migration e não abriu o banco principal. Harness local C:/Users/Artur/Documents/ChatGPT/Perambulando/tmp/OpeningHoursRepositoryCheck.cs, não versionado no backend. Migration principal continua pendente de revisão/autorização. Sem API principal reiniciada, Expo ou PDF.
+
+## AppService e validação dos DTOs de funcionamento — 04/11/2026
+
+Criado Application/AppServices/OpeningHoursAppService implementando IOpeningHoursAppService, com IOpeningHoursService, IOpeningHoursMapping e IValidation<OpeningWeekDTO> recebidos pelo construtor. Consulta delega ao service e converte o resultado em OpeningWeekResponseDTO. Edição executa validação do DTO, converte a semana em entidades vinculadas ao host, solicita a edição no service e mapeia os registros retornados. Não consulta repository diretamente, não captura/máscara falhas e não recebe CancellationToken, conforme orientação do usuário.
+
+Criada OpeningWeekValidation na pasta existente Application/Validations/Validations/Host. Implementa IValidation<OpeningWeekDTO> e usa DataAnnotations nos três níveis: semana, dias e períodos. Rejeita dto/listas/itens nulos, campos Required ausentes e enum inválido antes do mapping acessar os valores anuláveis. Não transforma false, domingo=0 ou meia-noite em ausência. As anotações não são duplicadas manualmente em regras de preenchimento; são executadas com TryValidateObject para cada objeto aninhado. A assinatura mantém o DateTime now do contrato IValidation existente, sem regra temporal extra nesta etapa.
+
+Regras de sete dias, fechado/períodos, duração e sobreposição continuam em OpeningHoursValidations no domínio; propriedade e tipos permitidos continuam no service. Dados retornados são obtidos do resultado do service, não reconstruídos como se o pedido tivesse sido gravado. Agenda ausente permanece Days vazio com HostId preenchido. Registros scoped de IOpeningHoursAppService/OpeningHoursAppService e IValidation<OpeningWeekDTO>/OpeningWeekValidation acrescentados ao Program.cs.
+
+Verificação: build isolado aprovado com zero erros e dez avisos anteriores. 45 verificações locais aprovadas com mappings/validações reais e service simulado, cobrindo consultas, edição, campos omitidos em filhos, nulos, enum, virada, meia-noite/false, host/usuário encaminhados, retorno atualizado, preservação do DTO, erro de negócio delegado ao domínio, falhas propagadas e resolução DI. Harness local C:/Users/Artur/Documents/ChatGPT/Perambulando/tmp/OpeningHoursAppServiceCheck.cs, não versionado no backend.
+
+Nenhuma controller/action, rota ou contrato HTTP em uso foi alterado nesta etapa. Migration continua pendente, sem arquivo gerado/aplicado. Não houve teste HTTP, acesso ao banco, API reiniciada, alteração no Expo ou PDF. Próxima etapa: expor consulta/edição na apresentação e revisar o contrato antes da migration.
+
+
+## Funcionamento: fluxo HTTP disponível no código — 04/11/2026
+
+GET/PUT /api/Host/{hostId:int}/OpeningHours delegam ao OpeningHoursAppService. O AppService valida a estrutura do DTO antes de mapear; o OpeningHoursService verifica conta ativa, dono ou ADMIN, host ativo de comércio/gastronomia e regras da semana; o repository consulta ou substitui a agenda completa com transação e bloqueio do host. As controllers apenas extraem o usuário autenticado e traduzem as exceções previstas para HTTP.
+
+A edição exige sete dias distintos e mantém as regras já documentadas de fechamento, duração e sobreposição, inclusive entre dias e na virada da semana. Consulta sem agenda retorna Days=[]; uma semana explicitamente fechada retorna sete dias fechados. A interface não salva automaticamente exemplos ou a proposta inicial de semana fechada.
+
+31 verificações HTTP com JWT assinado e domínio/persistência simulados e 97 testes do protótipo aprovados. A validação de domínio e o repository já haviam sido verificados nas etapas anteriores. Schema principal segue pendente de migration; não houve teste destas actions contra o banco principal nem reinício da API nesta etapa.
+
+
+## Funcionamento incluído no cadastro do host — 04/11/2026
+
+Horários podem ser enviados opcionalmente junto com o cadastro de Gastronomy/Business. Uma semana informada precisa satisfazer todas as regras de OpeningHoursValidations: sete dias distintos, períodos coerentes, duração válida e nenhuma sobreposição, inclusive entre dias. Productor não pode receber agenda. Omissão/null significa agenda ainda não configurada; uma lista vazia enviada explicitamente é rejeitada. Sete dias fechados são uma configuração válida.
+
+Fluxo: HostAppService valida a estrutura de OpeningWeekDTO antes do mapping; HostMapping reutiliza OpeningHoursMapping e vincula os dias ao novo host; HostService chama a validação de negócio antes das consultas externas de CNPJ/endereço e rejeita IDs persistidos em dias/períodos da criação. HostRepository persiste o grafo do host com os horários na transação existente de cadastro/atribuição de role. Assim, falha posterior à primeira gravação reverte host, endereço novo, agenda e role. Não se chama o PUT de horários após confirmar o cadastro.
+
+Edição comum do host preserva agenda e rejeita openingWeek com orientação para o endpoint específico. Seu tratamento não interfere nas regras da substituição integral já implementada.
+
+33 verificações reais de persistência/Identity com APIs externas simuladas aprovadas em banco descartável, incluindo cadastro com/sem agenda, tipos permitidos, semana inválida, falha após atribuição da role e rollback de todas as partes. Banco temporário removido; principal preservado. 99 testes simulados do protótipo aprovados. Migration pendente; PDFs preservados.

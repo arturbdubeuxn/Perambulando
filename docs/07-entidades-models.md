@@ -279,3 +279,44 @@ HostFilter adicionado a Domain/Model como objeto de consulta, com Name, Types, C
 ## Remoção de bairro dos filtros de host — 27/10/2026
 
 Neighborhood removido de HostFilterDTO, HostFilter, HostFilterMapping e da consulta HostRepository.FilterAsync. Bairro continua opcional no endereço e nos formulários de cadastro/edição, para exibição; não participa da seleção de hosts. Proximidade permanece uma implementação futura. Nenhuma alteração no schema ou migration. O catálogo do protótipo lê o DTO atualizado; ajustada descoberta da pasta da API para aceitar a estrutura atual e a estrutura backend/Projetos - 4. PDFs preservados.
+
+## Funcionamento semanal: entidades e contrato do domínio — 04/11/2026
+
+Na branch ARTUR-DESKETOP, removido o CancellationToken de GetByHostIdAsync/EditAsync em IOpeningHoursAppService a pedido do usuário. Nenhum outro serviço teve seu parâmetro de cancelamento alterado. Criada IOpeningHoursService em Domain/Interfaces/Service, sem dependência de DTOs/Application: GetByHostIdAsync(int hostId, string userId) retorna Task<List<HostOpeningDay>>; EditAsync(List<HostOpeningDay> days, int hostId, string userId) retorna o mesmo tipo. A lista representa a semana, sem uma terceira entidade persistida para agrupá-la.
+
+Criadas em Domain/Model as duas entidades aprovadas: HostOpeningDay (Id, HostId, Host, DayOfWeek, IsClosed, ICollection<HostOpeningPeriod> Periods iniciada vazia) e HostOpeningPeriod (Id, HostOpeningDayId, HostOpeningDay, OpeningTime/ClosingTime como TimeOnly e ClosesNextDay). Navegações obrigatórias usam null! como Hosts; campos de valor são não anuláveis no domínio. Não foram adicionados campos de preço/fuso nem regras executáveis de validação nesta etapa.
+
+Somente tipos e interface foram preparados: implementação concreta do AppService/service, mappings, autorização, sobreposições, semana completa e persistência permanecem pendentes. Os modelos ainda não foram incluídos em DbSet, configurações EF ou navegação de Hosts. O Context foi revisado estaticamente: as novas classes não foram conectadas ao modelo persistido nesta etapa. Não houve migration, schema ou acesso ao banco; configuração de relacionamentos/índices será uma etapa posterior.
+
+Verificação executada: build isolado aprovado com zero erros e dez avisos preexistentes. Sem testes funcionais, novas rotas, .http, DI, alteração no protótipo funcional, reinício de API, Expo ou PDFs. Documentação atualizada para refletir as assinaturas sem CancellationToken.
+
+## Mapping de entrada e saída do funcionamento — 04/11/2026
+
+Criados Application/Mapping/OpeningHoursMapping e Application/Mapping/Interfaces/IOpeningHoursMapping, com registro scoped junto aos mappings existentes no Program.cs, branch ARTUR-DESKETOP. ToModel(OpeningWeekDTO dto, int hostId) retorna List<HostOpeningDay>; ToDTO(int hostId, List<HostOpeningDay> days) retorna OpeningWeekResponseDTO.
+
+ToModel usa o hostId recebido do fluxo autorizado, converte os dias e seus períodos e estabelece HostOpeningPeriod.HostOpeningDay para o objeto pai criado. IDs novos permanecem zero até a futura persistência. Não cria entidade para semana. Campos anuláveis do DTO são acessados por Value, seguindo HostMapping: o futuro AppService deve executar a validação antes da conversão. Não inventa valores para campos ausentes nem descarta períodos silenciosamente.
+
+ToDTO copia dias e períodos para novos DTOs, ordenando dias por DayOfWeek (domingo=0 até sábado=6) e períodos por OpeningTime. Preserva IsClosed, horários locais e ClosesNextDay. Lista de dias vazia permanece vazia, indicando agenda não configurada; não completa automaticamente uma semana ausente com dias fechados. A lista de entrada não é reordenada em memória. A futura consulta deverá carregar Periods de cada dia.
+
+Mapping somente converte dados: não consulta repository, não valida propriedade, sete dias/duplicidade, coerência fechado-períodos, duração ou sobreposições. Não foi implementado ainda o AppService/service/repository concreto e não há endpoint que utilize o contrato. Entidades continuam sem DbSet/configuração/migration.
+
+Verificação executada: compilação isolada aprovada com zero erros e dez avisos anteriores. Sem testes funcionais, banco/HTTP, novas rotas, .http, reinício da API, Expo ou PDF. Protótipo funcional preservado por não haver alteração de contrato usado por action.
+
+## Mapeamento EF dos dias e períodos preparado — 04/11/2026
+
+Adicionados ao Context os DbSets HostOpeningDays e HostOpeningPeriods. Criadas Data/Configurations/HostOpeningDayConfiguration e HostOpeningPeriodConfiguration, descobertas pelo ApplyConfigurationsFromAssembly já existente. Tabelas definidas como HostOpeningDays e HostOpeningPeriods, com Id como PK e FKs obrigatórias HostId/HostOpeningDayId. Não foi necessário acrescentar coleção inversa em Hosts.
+
+DayOfWeek é convertido para int e IsClosed é obrigatório. Índice único do par HostId/DayOfWeek protege contra duplicação do mesmo dia para um host. OpeningTime/ClosingTime usam TimeOnly com tipo PostgreSQL time without time zone obrigatório; ClosesNextDay é obrigatório. As regras de sete dias, enum válido, duração, fechado/períodos e sobreposição permanecem no domínio; esse índice não substitui essas validações e não garante ausência de sobreposição no banco.
+
+Relacionamentos: HostOpeningDay.Host → Hosts, um host para vários dias, FK HostId, Cascade; HostOpeningPeriod.HostOpeningDay ↔ HostOpeningDay.Periods, um dia para vários períodos, FK HostOpeningDayId, Cascade. Remoção física de um dia remove seus períodos; remoção física de um host remove dias/períodos. Alterar IsActive do host não executa cascata de exclusão e preserva a agenda.
+
+Modelo EF agora possui alterações pendentes de migration. Nenhuma migration foi gerada ou aplicada; snapshot e banco permanecem anteriores. Não houve backfill de agenda para hosts antigos. Prepare/revise a migration na etapa autorizada posterior antes de usar a nova persistência. O repository concreto ainda não foi implementado e a API principal não foi reiniciada.
+
+Verificação: 23 verificações locais do modelo Npgsql/EF, sem abrir conexão ou SaveChanges, aprovaram entidades, PKs/FKs, ausência de propriedades sombra, unicidade, tipos obrigatórios, navegações e cascatas no ChangeTracker. SQL estrutural de criação foi apenas inspecionado em memória para conferir tabelas/índice/colunas; isso não gerou arquivo de migration nem foi executado. Build do backend sem erros/dez avisos preexistentes; builds incrementais finais dos harnesses sem erros/avisos novos. 70 regressões do service aprovadas com Identity/repositories simulados. Harnesses locais tmp/OpeningHoursEfModelCheck.cs e tmp/OpeningHoursServiceCheck.cs no workspace do protótipo, não são testes versionados no backend. Sem banco/HTTP real, Expo ou PDF.
+
+
+## Hosts.OpeningDays — 04/11/2026
+
+Adicionada ICollection<HostOpeningDay>? OpeningDays em Hosts, como navegação inversa do relacionamento existente HostOpeningDay.Host. No grafo de criação, null representa agenda omitida e uma coleção preenchida representa a semana enviada. HostMapping monta os dias pelo OpeningHoursMapping e aponta Host para o novo objeto; períodos continuam vinculados aos respectivos dias. IDs permanecem novos até a persistência.
+
+A navegação permite salvar host/dias/períodos em uma única transação com propagação dos IDs gerados pelo EF. Não adiciona coluna ao host, nem muda os DTOs de resposta ou expõe o grafo diretamente em JSON. A edição comum não substitui essa coleção. Mapeamento EF e persistência foram exercitados nos 33 testes integrados em PostgreSQL descartável; migration principal continua pendente.

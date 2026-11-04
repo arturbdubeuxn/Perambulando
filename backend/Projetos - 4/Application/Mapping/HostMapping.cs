@@ -6,11 +6,13 @@ namespace Projetos___4.Application.Mapping;
 
 public class HostMapping : IHostMapping
 {
+    private readonly IOpeningHoursMapping _openingHoursMapping;
     private readonly IAddressMapping _addressMapping;
     private readonly IProgrammingMapping _programmingMapping;
 
-    public HostMapping(IAddressMapping addressMapping, IProgrammingMapping programmingMapping)
+    public HostMapping(IAddressMapping addressMapping, IProgrammingMapping programmingMapping, IOpeningHoursMapping openingHoursMapping)
     {
+        _openingHoursMapping = openingHoursMapping;
         _addressMapping = addressMapping;
         _programmingMapping = programmingMapping;
     }
@@ -32,6 +34,14 @@ public class HostMapping : IHostMapping
         if (dto.Address != null)
         {
             host.Address = _addressMapping.ToModel(dto.Address);
+        }
+        if (dto.OpeningWeek != null)
+        {
+            host.OpeningDays = _openingHoursMapping.ToModel(dto.OpeningWeek, host.Id);
+            foreach (var day in host.OpeningDays)
+            {
+                day.Host = host;
+            }
         }
         return host;
     }
