@@ -19,16 +19,17 @@ namespace Projetos___4.Presentation.Controllers
         private readonly IHostAppService _hostAppService;
         private readonly IJwtTokenService _tokenService;
         private readonly IHostStatisticsAppService _hostStatisticsAppService;
-        private readonly JwtTokenService _tokenService;
         private readonly IOpeningHoursAppService _openingHoursAppService;
 
-        public HostController(UserManager<User> userManager, IHostAppService hostAppService, JwtTokenService tokenService,
-            IOpeningHoursAppService openingHoursAppService)
+
+        public HostController(UserManager<User> userManager, IHostAppService hostAppService, IJwtTokenService tokenService,
+            IOpeningHoursAppService openingHoursAppService, IHostStatisticsAppService hostStatisticsAppService)
         {
             _userManager = userManager;
             _hostAppService = hostAppService;
             _tokenService = tokenService;
             _openingHoursAppService = openingHoursAppService;
+            _hostStatisticsAppService = hostStatisticsAppService;
         }
 
         [Authorize]
@@ -75,7 +76,7 @@ namespace Projetos___4.Presentation.Controllers
             {
                 return Problem(statusCode: StatusCodes.Status400BadRequest, title: "Dados de funcionamento inválidos", detail: ex.Message);
             }
-            _hostStatisticsAppService = hostStatisticsAppService;
+            
         }
 
         [Authorize (Roles ="ADMIN,HOST")]
