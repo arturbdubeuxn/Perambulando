@@ -19,13 +19,62 @@ namespace Projetos___4.Presentation.Controllers
         private readonly IHostAppService _hostAppService;
         private readonly IJwtTokenService _tokenService;
         private readonly IHostStatisticsAppService _hostStatisticsAppService;
+        private readonly JwtTokenService _tokenService;
+        private readonly IOpeningHoursAppService _openingHoursAppService;
 
-        public HostController(UserManager<User> userManager, IHostAppService hostAppService, IJwtTokenService tokenService,
-            IHostStatisticsAppService hostStatisticsAppService)
+        public HostController(UserManager<User> userManager, IHostAppService hostAppService, JwtTokenService tokenService,
+            IOpeningHoursAppService openingHoursAppService)
         {
             _userManager = userManager;
             _hostAppService = hostAppService;
             _tokenService = tokenService;
+            _openingHoursAppService = openingHoursAppService;
+        }
+
+        [Authorize]
+        [HttpGet("{hostId:int}/OpeningHours")]
+        public async Task<IActionResult> GetOpeningHours([FromRoute] int hostId)
+        {
+            try
+            {
+                var userId = _userManager.GetUserId(User) ?? string.Empty;
+                return Ok(await _openingHoursAppService.GetByHostIdAsync(hostId, userId));
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Problem(statusCode: StatusCodes.Status401Unauthorized, title: "Usuário não autenticado", detail: ex.Message);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return Problem(statusCode: StatusCodes.Status404NotFound, title: "Host indisponível", detail: ex.Message);
+            }
+            catch (ArgumentException ex)
+            {
+                return Problem(statusCode: StatusCodes.Status400BadRequest, title: "Dados de funcionamento inválidos", detail: ex.Message);
+            }
+        }
+
+        [Authorize]
+        [HttpPut("{hostId:int}/OpeningHours")]
+        public async Task<IActionResult> EditOpeningHours([FromRoute] int hostId, [FromBody] OpeningWeekDTO dto)
+        {
+            try
+            {
+                var userId = _userManager.GetUserId(User) ?? string.Empty;
+                return Ok(await _openingHoursAppService.EditAsync(dto, hostId, userId));
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Problem(statusCode: StatusCodes.Status401Unauthorized, title: "Usuário não autenticado", detail: ex.Message);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return Problem(statusCode: StatusCodes.Status404NotFound, title: "Host indisponível", detail: ex.Message);
+            }
+            catch (ArgumentException ex)
+            {
+                return Problem(statusCode: StatusCodes.Status400BadRequest, title: "Dados de funcionamento inválidos", detail: ex.Message);
+            }
             _hostStatisticsAppService = hostStatisticsAppService;
         }
 

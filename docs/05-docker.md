@@ -100,3 +100,8 @@ Pendência: o volume PostgreSQL 16 anterior foi preservado, mas seus dados não 
 ## Integração antiga de roteiros retirada — 04/11/2026
 
 Cliente n8n, opções e registros HTTP exclusivos da primeira implementação de roteiros foram retirados da master. N8n__WebhookUrl permanece no ambiente do usuário Windows, mas não é lida pelo código atual. Workflow externo, containers, volumes, geocodificação Geoapify e configuração do banco preservados. Nenhuma migration ou reinício da API principal nesta etapa. Build com zero erros/nove avisos anteriores; 91 testes do protótipo com API simulada aprovados. PDFs preservados.
+
+
+## Teste isolado de funcionamento semanal — 04/11/2026
+
+Docker Desktop estava desligado e foi iniciado para validar OpeningHoursRepository. Container perambulando-postgres disponibilizou PostgreSQL em 127.0.0.1:5432. Testes usaram somente banco aleatório opening_hours_check_..., criado com EnsureCreated e removido ao finalizar; conexões ao banco principal não foram usadas pelo harness. Nenhum compose/imagem/volume foi alterado, nem migration gerada/aplicada. 23 verificações de persistência/DI passaram. API principal não reiniciada e PDFs preservados.

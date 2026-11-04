@@ -25,6 +25,10 @@ namespace Projetos___4.Data.Context
 
         public DbSet<Hosts> Hosts => Set<Hosts>();
 
+        public DbSet<HostOpeningDay> HostOpeningDays => Set<HostOpeningDay>();
+
+        public DbSet<HostOpeningPeriod> HostOpeningPeriods => Set<HostOpeningPeriod>();
+
         public DbSet<Programming> Programmings => Set<Programming>();
 
         public DbSet<ProgrammingXCategory> ProgrammingXCategories => Set<ProgrammingXCategory>();

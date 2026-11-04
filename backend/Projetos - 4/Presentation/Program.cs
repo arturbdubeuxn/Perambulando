@@ -101,11 +101,15 @@ builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
 builder.Services.AddScoped<IHostAppService,HostAppService>();
 builder.Services.AddScoped<IHostService,HostService>();
 builder.Services.AddScoped<ICnpjValidations, CnpjValidations>();
+builder.Services.AddScoped<IOpeningHoursValidations, OpeningHoursValidations>();
 builder.Services.AddHttpClient<ICompanyRegistrationService, MinhaReceitaService>(client =>
 {
     client.Timeout = TimeSpan.FromSeconds(10);
 }).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
 builder.Services.AddScoped<IHostRepository,HostRepository>();
+builder.Services.AddScoped<IOpeningHoursRepository, OpeningHoursRepository>();
+builder.Services.AddScoped<IOpeningHoursService, OpeningHoursService>();
+builder.Services.AddScoped<IOpeningHoursAppService, OpeningHoursAppService>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IProgrammingRepository,ProgrammingRepository>();
 builder.Services.AddScoped<IProgrammingService, ProgrammingService>();
@@ -119,6 +123,7 @@ builder.Services.AddScoped<IAddressMapping, AddressMapping>();
 builder.Services.AddScoped<ICategoryMapping, CategoryMapping>();
 builder.Services.AddScoped<IUserMapping, UserMapping>();
 builder.Services.AddScoped<IHostMapping, HostMapping>();
+builder.Services.AddScoped<IOpeningHoursMapping, OpeningHoursMapping>();
 builder.Services.AddScoped<IHostFilterMapping, HostFilterMapping>();
 builder.Services.AddScoped<IFavoriteMapping, FavoriteMapping>();
 builder.Services.AddScoped<IUserXCategoryMapping, UserXCategoryMapping>();
@@ -132,6 +137,7 @@ builder.Services.AddScoped<IUserXCategoryValidations, UserXCategoryValidations>(
 builder.Services.AddScoped<IUserXCategoryAppService, UserXCategoryAppService>();
 builder.Services.AddScoped<IValidation<ProgrammingDTO>, ProgrammingValidation>();
 builder.Services.AddScoped<IValidation<HostDTO>, HostValidation>();
+builder.Services.AddScoped<IValidation<OpeningWeekDTO>, OpeningWeekValidation>();
 builder.Services.AddScoped<IValidation<UserDTO>, UserValidation>();
 builder.Services.AddScoped<IValidation<UserXCategoryDTO>, UserXCategoryValidation>();
 builder.Services.AddScoped<IProgrammingInteractionRepository, ProgrammingInteractionRepository>();

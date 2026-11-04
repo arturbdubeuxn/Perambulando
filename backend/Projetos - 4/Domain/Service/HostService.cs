@@ -10,6 +10,7 @@ namespace Projetos___4.Domain.Service
 {
     public class HostService : IHostService
     {
+        private readonly IOpeningHoursValidations _openingHoursValidations;
         private readonly ICnpjValidations _cnpjValidations;
         private readonly ICompanyRegistrationService _companyRegistrationService;
         private readonly UserManager<User> _userManager;
@@ -17,8 +18,9 @@ namespace Projetos___4.Domain.Service
         private readonly IHostRepository _hostRepository;
         private readonly IAddressService _addressService;
         private readonly RoleManager<IdentityRole> _roleManager;
-        public HostService(UserManager<User> userManager, IUserRepository userRepository, IHostRepository hostRepository, RoleManager<IdentityRole> roleManager, IAddressService addressService, ICnpjValidations cnpjValidations, ICompanyRegistrationService companyRegistrationService)
+        public HostService(UserManager<User> userManager, IUserRepository userRepository, IHostRepository hostRepository, RoleManager<IdentityRole> roleManager, IAddressService addressService, ICnpjValidations cnpjValidations, ICompanyRegistrationService companyRegistrationService, IOpeningHoursValidations openingHoursValidations)
         {
+            _openingHoursValidations = openingHoursValidations;
             _cnpjValidations = cnpjValidations;
             _companyRegistrationService = companyRegistrationService;
             _userManager = userManager;
@@ -80,6 +82,20 @@ namespace Projetos___4.Domain.Service
                 throw new InvalidOperationException("User not found.");
             }
 
+            if (host.OpeningDays != null)
+            {
+                if (host.Typeofhost != Hosts.TypeofHost.Gastronomy && host.Typeofhost != Hosts.TypeofHost.Business)
+                {
+                    throw new ArgumentException("O funcionamento semanal está disponível somente para hosts de gastronomia e comércio.");
+                }
+                _openingHoursValidations.ValidateWeek(host.OpeningDays.ToList());
+                if (host.OpeningDays.Any(day => day.Id != 0 || day.HostId != 0 ||
+                    day.Periods.Any(period => period.Id != 0 || period.HostOpeningDayId != 0)))
+                {
+                    throw new ArgumentException("Informe somente novos dias e períodos para o cadastro do host.");
+                }
+            }
+
             host.CNPJ = await ValidateHostCnpjAsync(host.CNPJ, 0);
             host.Address = await _addressService.AddAddress(host.AddressId, host.Address, userId);
             host.AddressId = host.Address.Id;
@@ -119,8 +135,7 @@ namespace Projetos___4.Domain.Service
                 return null;
             }
 
-            var isAdmin = await _userManager.IsInRoleAsync(user, "ADMIN");
-            return await _hostRepository.VerificationbyId(hostId, userId, isAdmin);
+            return await _hostRepository.VerificationbyId(hostId, userId);
         }
 
         public async Task<Hosts?> EditHostAsync(Hosts host, string userId)

@@ -946,3 +946,77 @@ Validação: build sem erros (9 avisos de nulabilidade preexistentes), 46 verifi
 ## Estado atual: pivot da geração de roteiros — 04/11/2026
 
 A primeira implementação de roteiros IA/n8n foi retirada da master, com seus DTOs, interfaces, serviços, mappings, controller e opção do protótipo. Não há endpoint de geração no código atual. Histórico Git e correções anteriores de segurança/integridade preservados. Catálogo: 37 operações restantes; build zero erros/nove avisos anteriores e 91 testes simulados aprovados. Nova agenda semanal de gastronomia/comércio e gasto estimado por pessoa foram aprovados como modelagem, mas ainda não implementados. Sem banco, migration, API reiniciada ou PDF. Backup local da implementação retirada disponível em tmp/old-itinerary-before-discard-2026-11-04.zip no workspace do protótipo. Detalhes nos documentos 01, 02, 03, 04, 05 e 07.
+
+
+## Funcionamento de hosts: etapa 1 — 04/11/2026
+
+Na branch ARTUR-DESKETOP foram criados OpeningDaysDTO/OpeningHoursDTO em Application/DTO para representar dia semanal e intervalos locais de abertura/fechamento. Não há nova rota nem alteração no HostDTO; entidades, mappings, validações de negócio e persistência permanecem pendentes. Build isolado aprovado com zero erros/dez avisos anteriores. Sem banco, migration, teste funcional ou PDF. Detalhes em 04-dtos.md e 02-regras-de-negocio.md.
+
+
+## Funcionamento de hosts: etapa 2 — 04/11/2026
+
+Criados OpeningWeekDTO para receber Days e OpeningWeekResponseDTO/OpeningDaysResponseDTO/OpeningHoursResponseDTO para leitura. A atualização será integral; Days vazio na leitura significará agenda não configurada. Regras e fluxo de persistência ainda pendentes. Contratos estão isolados, sem rota nova ou alteração de HostDTO. Build isolado: zero erros/dez avisos anteriores. Sem teste funcional, banco, migration ou PDF. Consulte 04-dtos.md e 02-regras-de-negocio.md.
+
+
+## Nomes dos DTOs de funcionamento ajustados — 04/11/2026
+
+Contratos renomeados para OpeningWeekDTO, OpeningDaysDTO e OpeningHoursDTO, com equivalentes ResponseDTO. Referências e documentação alinhadas. Sem mudança de propriedades ou regras; build isolado aprovado com zero erros/dez avisos anteriores. Nenhuma rota nova, banco, migration ou PDF.
+
+
+## Funcionamento de hosts: interface do AppService — 04/11/2026
+
+Criada IOpeningHoursAppService em Application/Interfaces com GetByHostIdAsync e EditAsync, para consulta/substituição da semana completa. Usa DTOs existentes e recebe hostId/userId/CancellationToken. Implementação, DI, domínio, repository e endpoint permanecem pendentes. Build isolado aprovado: zero erros/dez avisos anteriores. Sem teste funcional, banco, migration ou PDF. Detalhes em 04-dtos.md e 02-regras-de-negocio.md.
+
+
+## Funcionamento de hosts: contrato do domínio — 04/11/2026
+
+Retirado CancellationToken de IOpeningHoursAppService. Criados IOpeningHoursService, HostOpeningDay e HostOpeningPeriod nas pastas existentes do domínio. Consulta/edição usam lista de dias e hostId/userId, sem DTOs. Entidades ainda não conectadas ao Context/EF; implementações, mappings e persistência pendentes. Build isolado: zero erros/dez avisos anteriores. Sem teste funcional, banco, migration, endpoint ou PDF. Detalhes em 04-dtos.md, 06-banco-de-dados.md e 07-entidades-models.md.
+
+
+## Funcionamento de hosts: mapping implementado — 04/11/2026
+
+OpeningHoursMapping/IOpeningHoursMapping adicionados com ToModel para semana → dias/períodos e ToDTO para leitura, registrados como scoped. Conversão mantém vínculo dos períodos ao dia; saída ordena por dia e abertura, preservando lista vazia. Sem regras de negócio/consultas no mapping. Implementações de AppService/service/repository e persistência ainda pendentes. Build isolado: zero erros/dez avisos anteriores; sem teste funcional, banco, migration, rota ou PDF. Detalhes em 04-dtos.md e 07-entidades-models.md.
+
+
+## Funcionamento de hosts: validação de negócio — 04/11/2026
+
+Criadas OpeningHoursValidations/IOpeningHoursValidations com ValidateWeek e registro scoped, cobrindo sete dias, períodos/duração e sobreposições na semana cíclica. Toque de intervalos é permitido; duração de 24 horas exige horários iguais e ClosesNextDay=true. Validação ainda sem chamada em service/action; propriedade e persistência pendentes. Build sem erros/dez avisos anteriores e 53 verificações locais aprovadas. Sem banco, HTTP, migration ou PDF. Detalhes em 02-regras-de-negocio.md e 04-dtos.md.
+
+
+## Funcionamento de hosts: interface do repository — 04/11/2026
+
+Criada somente IOpeningHoursRepository, com GetByHostIdAsync(hostId) e EditAsync(days, hostId), retornando List<HostOpeningDay>. Identificação do usuário e validações permanecem no service; consulta/transação ainda não implementadas. Sem DI, EF, migration ou rota. Build isolado: zero erros/dez avisos anteriores. Sem teste funcional, banco, HTTP ou PDF. Detalhes em 02-regras-de-negocio.md e 06-banco-de-dados.md.
+
+
+## Funcionamento de hosts: service implementado — 04/11/2026
+
+OpeningHoursService criado com verificação de conta ativa, proprietário/admin e host ativo de gastronomia/comércio. Usa OpeningHoursValidations antes de delegar a edição e rejeita dias de outro host. Consulta sem agenda retorna lista vazia; falhas de persistência não são mascaradas. Repository concreto, DI do service, AppService e endpoint permanecem pendentes. Build sem erros/dez avisos anteriores; 70 verificações com repositories/Identity simulados e validação real aprovadas. Sem banco, HTTP, migration ou PDF. Detalhes em 02-regras-de-negocio.md e 04-dtos.md.
+
+
+## Funcionamento de hosts: mapeamento EF preparado — 04/11/2026
+
+DbSets e configurações de HostOpeningDay/HostOpeningPeriod adicionados: PKs, FKs obrigatórias, índice único HostId/DayOfWeek, horários TimeOnly/time without time zone e cascatas físicas. Modelo possui mudanças pendentes; nenhuma migration foi criada/aplicada. Acesso de dono ou ADMIN confirmado pelo usuário foi preservado no OpeningHoursService usando o contrato atual de HostRepository. Build sem erros/dez avisos anteriores; 23 verificações EF em memória e 70 regressões simuladas do service aprovadas. Sem banco, endpoint novo, API reiniciada ou PDF. Detalhes em 06-banco-de-dados.md, 07-entidades-models.md e 02-regras-de-negocio.md.
+
+
+## Funcionamento de hosts: repository concreto — 04/11/2026
+
+OpeningHoursRepository implementado com consulta AsNoTracking de dias/períodos ordenados e substituição integral transacional. Bloqueio por host serializa gravações; falha restaura a agenda anterior. Repository e service registrados como scoped. Build sem erros/dez avisos anteriores; 23 verificações EF/PostgreSQL reais aprovadas em banco descartável, já removido. Docker iniciado; banco principal não usado e nenhuma migration gerada/aplicada. AppService concreto/endpoint ainda pendentes; sem Expo, API reiniciada ou PDF. Detalhes em 06-banco-de-dados.md e 02-regras-de-negocio.md.
+
+
+## Funcionamento de hosts: AppService e validação de entrada — 04/11/2026
+
+OpeningHoursAppService implementado para consultar/editar semana via service e mappings. OpeningWeekValidation executa DataAnnotations de semana/dias/períodos antes do mapping; regras de agenda/propriedade continuam no domínio. Ambas as dependências registradas como scoped. Build sem erros/dez avisos anteriores; 45 verificações locais com service simulado e mappings/validações reais aprovadas. Ainda sem action/endpoint de funcionamento; migration pendente. Sem banco, HTTP, API reiniciada, Expo ou PDF. Detalhes em 04-dtos.md e 02-regras-de-negocio.md.
+
+
+## Funcionamento de hosts: controller, exemplos e protótipo — 04/11/2026
+
+Implementados GET e PUT /api/Host/{hostId:int}/OpeningHours, autenticados, para consultar e substituir a semana de funcionamento. Dono ou ADMIN, conta ativa e host ativo de gastronomia/comércio são verificados no service. Retornos previstos: 200, 400, 401 e 404. Exemplos adicionados a Projetos - 4.http; protótipo atualizado com editor por dia, múltiplos intervalos, virada de dia e carregamento da semana existente.
+
+Build isolado aprovado, 31 verificações HTTP com JWT assinado e domínio/persistência simulados e 97 testes do protótipo aprovados; verificações de sintaxe Node aprovadas. Nenhuma migration gerada/aplicada, alteração no banco principal, reinício da API, mudança no Expo ou exportação de PDF. O uso real das novas rotas ainda depende da revisão e atualização do schema. Consulte Controllers, Regras, Tokens e DTOs para os contratos atuais; as seções anteriores descrevem a evolução por etapas.
+
+
+## Funcionamento integrado à criação de host — 04/11/2026
+
+POST /api/Host/Create aceita OpeningWeek opcional para Gastronomy/Business, reaproveitando DTOs, mapping e validação de semana. O grafo Host → OpeningDays → Periods é salvo pela transação existente de cadastro/role, com rollback integral em falhas. Resposta preservada em result/auth. Produtor não aceita agenda; edição de horários continua no PUT específico. Protótipo e exemplo createHost no .http atualizados.
+
+Verificações: build sem erros/dez avisos anteriores; 33 verificações integradas com PostgreSQL/Identity reais e APIs externas simuladas em banco descartável, removido; 99 testes do protótipo e verificações de sintaxe Node aprovados. Nenhuma migration/snapshot criado ou alterado, banco principal preservado, API não reiniciada e PDFs não exportados. O uso real dos horários ainda depende da atualização do schema.

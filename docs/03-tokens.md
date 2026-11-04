@@ -269,3 +269,10 @@ Validação: contrato tipado e DI conferidos entre as 46 verificações da refat
 ## Retirada do endpoint de roteiros — 04/11/2026
 
 A primeira implementação de IA/n8n e POST /api/Itinerary/Generate foram retirados da master a pedido do usuário. Emissão, validação, claims e proteção de conta ativa dos JWTs existentes preservadas. Não houve mudança de token ou permissões de outras actions. Build com zero erros/nove avisos anteriores e 91 testes simulados do protótipo aprovados. Sem banco, API reiniciada ou PDF.
+
+
+## Autenticação das rotas de funcionamento — 04/11/2026
+
+GET e PUT /api/Host/{hostId:int}/OpeningHours usam [Authorize]. O usuário vem de UserManager.GetUserId(User), não do corpo ou query. Não há emissão, renovação ou alteração de JWT nestas actions. A conta ativa e o papel ADMIN/propriedade são conferidos no OpeningHoursService; um token válido, isoladamente, não concede edição sobre qualquer host.
+
+O protótipo reutiliza o JWT da sessão, inclusive o retornado pelo cadastro de host. Exemplos .http usam createHost.response.body.$.auth.accessToken. Token ausente, inválido ou vencido retorna 401 pela autenticação; usuário indisponível retorna ProblemDetails 401 pelo fluxo. Host inacessível retorna 404. Realizadas 31 verificações HTTP com tokens assinados e domínio/persistência simulados; a autorização de negócio real foi coberta nos testes de service da etapa anterior. Nenhuma mudança de claims, duração ou chave.

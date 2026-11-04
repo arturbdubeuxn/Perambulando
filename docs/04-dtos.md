@@ -914,3 +914,102 @@ Protótipo atualizado: removidos grupo/formulário/resultados de roteiros, exemp
 Próxima modelagem aprovada, ainda não implementada: agenda semanal de hosts de gastronomia/comércio por HostOpeningDay/HostOpeningPeriod e valores estimados mínimo/máximo por pessoa. A nova geração de roteiros será redesenhada após essa base. Sem modelos/colunas novos de funcionamento nesta etapa.
 
 Verificações executadas: build isolado do backend com zero erros/nove avisos preexistentes; node --check nos três scripts do protótipo; 91 testes Node aprovados com API simulada e sem mutação de dados reais; busca de referências ativas aos contratos removidos sem ocorrências. Sem banco, migration, alteração de CORS, Expo ou exportação de PDFs. Cópia de segurança local anterior à retirada: C:/Users/Artur/Documents/ChatGPT/Perambulando/tmp/old-itinerary-before-discard-2026-11-04.zip.
+
+## Funcionamento semanal: DTOs de entrada — 04/11/2026
+
+Primeira etapa implementada na branch ARTUR-DESKETOP, nas pastas existentes: OpeningDaysDTO e OpeningHoursDTO em Application/DTO. Contratos independentes do cadastro de host atual, ainda sem utilização por controller, AppService ou mapping.
+
+OpeningDaysDTO: DayOfWeek (System.DayOfWeek?, Required/EnumDataType, 0=domingo até 6=sábado), IsClosed (bool?, Required) e Periods (List<OpeningHoursDTO>, Required, iniciada vazia). OpeningHoursDTO: OpeningTime/ClosingTime (TimeOnly?, Required) e ClosesNextDay (bool?, Required). Campos de valor anuláveis permitem distinguir ausência de false, domingo ou meia-noite. Periods vazia é representável para dia fechado; null será rejeitado quando o contrato entrar no fluxo de validação. Horários representam hora local, sem data nem conversão para UTC nesta etapa. Não há IDs de host/dia recebidos nesses DTOs: o vínculo será definido pelo fluxo autorizado de atualização do host.
+
+As anotações cobrem obrigatoriedade e validade do dia da semana. Dia aberto com período, dia fechado sem período, duração, sobreposição, virada de dia, sete dias sem duplicidade e aplicabilidade por tipo de host serão regras da etapa de domínio. Não foram criadas validações de negócio na controller ou DTO. Campos de fuso/gasto estimado e DTOs de resposta ainda não foram implementados; HostDTO permanece com o contrato atual.
+
+Verificação: build isolado aprovado com zero erros e dez avisos preexistentes, localizados em arquivos anteriores não alterados. Não houve teste funcional nem endpoint novo; catálogo/formulários e .http preservados por não haver rota consumindo os DTOs. Sem model EF, banco, migration, DI, API reiniciada, Expo ou PDF nesta etapa.
+
+## Funcionamento semanal: contratos da semana e de leitura — 04/11/2026
+
+Segunda etapa implementada na branch ARTUR-DESKETOP, em Application/DTO, sem pastas novas. OpeningWeekDTO recebe Days (List<OpeningDaysDTO>, Required, iniciada vazia), reutilizando os DTOs de dia e período já criados. O contrato foi definido para uma atualização integral da semana, não uma alteração parcial; a implementação dessa operação ainda está pendente. A exigência de exatamente sete dias distintos permanece para a validação de negócio, conforme a etapa anterior. Required na lista rejeita null quando validado, mas não impõe tamanho sete nem impede a lista vazia por si só.
+
+OpeningWeekResponseDTO contém HostId (int) e Days (List<OpeningDaysResponseDTO>, iniciada vazia). OpeningDaysResponseDTO contém DayOfWeek (System.DayOfWeek), IsClosed (bool) e Periods (List<OpeningHoursResponseDTO>, iniciada vazia). OpeningHoursResponseDTO contém OpeningTime/ClosingTime (TimeOnly) e ClosesNextDay (bool). Campos de resposta usam tipos não anuláveis e seguem o padrão de ResponseDTOs existentes; campos de entrada continuam anuláveis com Required para detectar omissões.
+
+Semântica acordada de leitura: Days vazio representa agenda não configurada; agenda configurada terá sete dias, incluindo dias fechados sem períodos. A futura consulta/mapping deverá respeitar essa distinção, sem completar agenda ausente com dias fechados automaticamente. O HostId da resposta será obtido do host consultado; o DTO de entrada não permite definir usuário, host ou IDs dos períodos. Não foram adicionados IDs internos de dia/período ao contrato, pois a atualização será por semana completa.
+
+Nenhum desses DTOs está conectado a uma action, AppService, mapping ou entidade persistida. HostDTO e retornos atuais continuam preservados. Não há implementação de regras de sobreposição, propriedade, fuso, gasto estimado ou salvamento nesta etapa.
+
+Verificação executada: compilação isolada aprovada com zero erros e dez avisos preexistentes em arquivos anteriores não alterados. Sem testes funcionais, HTTP/banco, DI, schema/migration, .http novo, reinício da API, Expo ou PDF. Protótipo preservado por não haver alteração em rotas/DTOs efetivamente usados por actions.
+
+
+## Nomenclatura dos DTOs de funcionamento — 04/11/2026
+
+Por solicitação do usuário, os nomes agora expressam os três níveis: OpeningWeekDTO (semana, Days), OpeningDaysDTO (um dia, Periods) e OpeningHoursDTO (um período de abertura/fechamento). Respostas seguem OpeningWeekResponseDTO, OpeningDaysResponseDTO e OpeningHoursResponseDTO. Arquivos/classes e referências internas renomeados. Propriedades, tipos, anotações e semântica preservados. Ainda sem action/service/repository que os utilize. Build isolado aprovado: zero erros/dez avisos anteriores; sem teste funcional, banco, migration, protótipo funcional alterado ou PDF.
+
+## Interface do AppService de funcionamento — 04/11/2026
+
+Criada Application/Interfaces/IOpeningHoursAppService, na branch ARTUR-DESKETOP, seguindo as interfaces atuais e sem novas pastas. Define Task<OpeningWeekResponseDTO> GetByHostIdAsync(int hostId, string userId) e Task<OpeningWeekResponseDTO> EditAsync(OpeningWeekDTO dto, int hostId, string userId).
+
+GetByHostIdAsync representa a consulta da semana do host; EditAsync representa a substituição da semana inteira. Ambos recebem hostId e identificação do usuário autenticado pela futura camada de apresentação. UserId não é acrescentado ao DTO do cliente. Respostas usam OpeningWeekResponseDTO já criado; o significado de Days vazio como agenda não configurada continua definido no contrato anterior.
+
+Esta etapa contém somente as assinaturas: não aplica propriedade/autorização, não valida semana, não consulta nem salva dados e não traduz falhas em HTTP. As regras e exceções serão implementadas no domínio e a coordenação na classe concreta do AppService em etapas posteriores. Não há implementação, DI, controller/endpoint, alteração em HostDTO ou repository nesta etapa.
+
+Verificação: compilação isolada aprovada com zero erros e dez avisos preexistentes em arquivos anteriores. Sem teste funcional, HTTP/banco, schema/migration, .http novo, API reiniciada, Expo ou PDF. Protótipo preservado por não haver mudança de rota/contrato em uso.
+
+## Funcionamento semanal: entidades e contrato do domínio — 04/11/2026
+
+Na branch ARTUR-DESKETOP, removido o CancellationToken de GetByHostIdAsync/EditAsync em IOpeningHoursAppService a pedido do usuário. Nenhum outro serviço teve seu parâmetro de cancelamento alterado. Criada IOpeningHoursService em Domain/Interfaces/Service, sem dependência de DTOs/Application: GetByHostIdAsync(int hostId, string userId) retorna Task<List<HostOpeningDay>>; EditAsync(List<HostOpeningDay> days, int hostId, string userId) retorna o mesmo tipo. A lista representa a semana, sem uma terceira entidade persistida para agrupá-la.
+
+Criadas em Domain/Model as duas entidades aprovadas: HostOpeningDay (Id, HostId, Host, DayOfWeek, IsClosed, ICollection<HostOpeningPeriod> Periods iniciada vazia) e HostOpeningPeriod (Id, HostOpeningDayId, HostOpeningDay, OpeningTime/ClosingTime como TimeOnly e ClosesNextDay). Navegações obrigatórias usam null! como Hosts; campos de valor são não anuláveis no domínio. Não foram adicionados campos de preço/fuso nem regras executáveis de validação nesta etapa.
+
+Somente tipos e interface foram preparados: implementação concreta do AppService/service, mappings, autorização, sobreposições, semana completa e persistência permanecem pendentes. Os modelos ainda não foram incluídos em DbSet, configurações EF ou navegação de Hosts. O Context foi revisado estaticamente: as novas classes não foram conectadas ao modelo persistido nesta etapa. Não houve migration, schema ou acesso ao banco; configuração de relacionamentos/índices será uma etapa posterior.
+
+Verificação executada: build isolado aprovado com zero erros e dez avisos preexistentes. Sem testes funcionais, novas rotas, .http, DI, alteração no protótipo funcional, reinício de API, Expo ou PDFs. Documentação atualizada para refletir as assinaturas sem CancellationToken.
+
+## Mapping de entrada e saída do funcionamento — 04/11/2026
+
+Criados Application/Mapping/OpeningHoursMapping e Application/Mapping/Interfaces/IOpeningHoursMapping, com registro scoped junto aos mappings existentes no Program.cs, branch ARTUR-DESKETOP. ToModel(OpeningWeekDTO dto, int hostId) retorna List<HostOpeningDay>; ToDTO(int hostId, List<HostOpeningDay> days) retorna OpeningWeekResponseDTO.
+
+ToModel usa o hostId recebido do fluxo autorizado, converte os dias e seus períodos e estabelece HostOpeningPeriod.HostOpeningDay para o objeto pai criado. IDs novos permanecem zero até a futura persistência. Não cria entidade para semana. Campos anuláveis do DTO são acessados por Value, seguindo HostMapping: o futuro AppService deve executar a validação antes da conversão. Não inventa valores para campos ausentes nem descarta períodos silenciosamente.
+
+ToDTO copia dias e períodos para novos DTOs, ordenando dias por DayOfWeek (domingo=0 até sábado=6) e períodos por OpeningTime. Preserva IsClosed, horários locais e ClosesNextDay. Lista de dias vazia permanece vazia, indicando agenda não configurada; não completa automaticamente uma semana ausente com dias fechados. A lista de entrada não é reordenada em memória. A futura consulta deverá carregar Periods de cada dia.
+
+Mapping somente converte dados: não consulta repository, não valida propriedade, sete dias/duplicidade, coerência fechado-períodos, duração ou sobreposições. Não foi implementado ainda o AppService/service/repository concreto e não há endpoint que utilize o contrato. Entidades continuam sem DbSet/configuração/migration.
+
+Verificação executada: compilação isolada aprovada com zero erros e dez avisos anteriores. Sem testes funcionais, banco/HTTP, novas rotas, .http, reinício da API, Expo ou PDF. Protótipo funcional preservado por não haver alteração de contrato usado por action.
+
+
+## Validação de negócio da semana preparada — 04/11/2026
+
+IOpeningHoursValidations/OpeningHoursValidations agora validam os modelos HostOpeningDay/HostOpeningPeriod: sete dias distintos válidos, coerência fechado/períodos, duração até 24h e sobreposições cíclicas. DTOs e mappings preservados; a conferência de obrigatoriedade do DTO continua sendo anterior ao mapping no fluxo futuro. A validação de domínio ainda não está conectada a um service/action concreto. Dias fechados podem receber a continuação de um período iniciado na véspera, mas não iniciar seus próprios períodos. Build sem erros/dez avisos anteriores e 53 verificações locais aprovadas. Sem banco, HTTP, migration ou PDF. Detalhes em 02-regras-de-negocio.md.
+
+
+## Service pronto para os contratos de funcionamento — 04/11/2026
+
+OpeningHoursService implementa o contrato de domínio sem receber DTOs. Consulta/edição exigem conta ativa e host ativo do dono ou de administrador confirmado pelo Identity; tipos permitidos são gastronomia e comércio. Edição valida semana e HostId de cada dia antes de encaminhar ao repository. O futuro AppService continuará responsável por validar DTOs e usar OpeningHoursMapping. Nenhum DTO ou endpoint foi alterado nesta etapa; service sem registro DI até existir repository concreto. Build sem erros/dez avisos anteriores e 70 verificações simuladas aprovadas. Sem banco/HTTP, migration ou PDF.
+
+## AppService e validação dos DTOs de funcionamento — 04/11/2026
+
+Criado Application/AppServices/OpeningHoursAppService implementando IOpeningHoursAppService, com IOpeningHoursService, IOpeningHoursMapping e IValidation<OpeningWeekDTO> recebidos pelo construtor. Consulta delega ao service e converte o resultado em OpeningWeekResponseDTO. Edição executa validação do DTO, converte a semana em entidades vinculadas ao host, solicita a edição no service e mapeia os registros retornados. Não consulta repository diretamente, não captura/máscara falhas e não recebe CancellationToken, conforme orientação do usuário.
+
+Criada OpeningWeekValidation na pasta existente Application/Validations/Validations/Host. Implementa IValidation<OpeningWeekDTO> e usa DataAnnotations nos três níveis: semana, dias e períodos. Rejeita dto/listas/itens nulos, campos Required ausentes e enum inválido antes do mapping acessar os valores anuláveis. Não transforma false, domingo=0 ou meia-noite em ausência. As anotações não são duplicadas manualmente em regras de preenchimento; são executadas com TryValidateObject para cada objeto aninhado. A assinatura mantém o DateTime now do contrato IValidation existente, sem regra temporal extra nesta etapa.
+
+Regras de sete dias, fechado/períodos, duração e sobreposição continuam em OpeningHoursValidations no domínio; propriedade e tipos permitidos continuam no service. Dados retornados são obtidos do resultado do service, não reconstruídos como se o pedido tivesse sido gravado. Agenda ausente permanece Days vazio com HostId preenchido. Registros scoped de IOpeningHoursAppService/OpeningHoursAppService e IValidation<OpeningWeekDTO>/OpeningWeekValidation acrescentados ao Program.cs.
+
+Verificação: build isolado aprovado com zero erros e dez avisos anteriores. 45 verificações locais aprovadas com mappings/validações reais e service simulado, cobrindo consultas, edição, campos omitidos em filhos, nulos, enum, virada, meia-noite/false, host/usuário encaminhados, retorno atualizado, preservação do DTO, erro de negócio delegado ao domínio, falhas propagadas e resolução DI. Harness local C:/Users/Artur/Documents/ChatGPT/Perambulando/tmp/OpeningHoursAppServiceCheck.cs, não versionado no backend.
+
+Nenhuma controller/action, rota ou contrato HTTP em uso foi alterado nesta etapa. Migration continua pendente, sem arquivo gerado/aplicado. Não houve teste HTTP, acesso ao banco, API reiniciada, alteração no Expo ou PDF. Próxima etapa: expor consulta/edição na apresentação e revisar o contrato antes da migration.
+
+
+## DTOs de funcionamento conectados às actions — 04/11/2026
+
+OpeningWeekDTO é o corpo do PUT /api/Host/{hostId:int}/OpeningHours. GET e PUT retornam OpeningWeekResponseDTO (HostId e Days). Os DTOs existentes mantêm os campos já descritos: DayOfWeek, IsClosed e Periods; cada período contém OpeningTime, ClosingTime e ClosesNextDay. Horários são strings locais HH:mm:ss, sem data ou Z.
+
+HostId e usuário não fazem parte do DTO de entrada: vêm da rota e do JWT. O protótipo monta Days em um editor de sete dias, preserva a edição manual de JSON e permite carregar a resposta atual antes de editar. Days=[] recebido no GET é mostrado como agenda não configurada; não é convertido em gravação automática. Entrada inválida retorna 400 antes ou durante o fluxo de validação; saída de sucesso é 200, não 204.
+
+31 verificações HTTP do contrato com JWT e domínio simulado e 97 testes do protótipo aprovados. Migration continua pendente; PDFs não regenerados.
+
+
+## HostDTO: OpeningWeek opcional no cadastro — 04/11/2026
+
+Adicionado OpeningWeekDTO? OpeningWeek ao HostDTO. Na criação de comércio/gastronomia, pode receber {"days":[...]}, sem IDs de host/dia/período. Omitido/null mantém agenda ausente; explicitamente vazio é inválido. Os DTOs de dia/período e as validações existentes são reaproveitados. Horários locais HH:mm:ss, sem Z. Produtor deve omitir a semana.
+
+HostMapping recebe IOpeningHoursMapping e converte a semana para Hosts.OpeningDays, vinculando cada dia ao host novo. HostAppService recebe IValidation<OpeningWeekDTO> e valida o objeto opcional antes do mapping. HostService valida a semana no domínio antes da persistência. A edição comum rejeita OpeningWeek, orientando PUT /api/Host/{hostId}/OpeningHours; a agenda não é apagada quando o campo é omitido. Respostas de criação continuam result/auth, sem novos campos; a agenda pode ser consultada pelo GET de horários.
+
+Protótipo usa opção explícita para incluir a semana no único POST de criação. Exemplo .http inclui semana válida. 33 verificações integradas em PostgreSQL descartável e 99 testes do protótipo aprovados; migration ainda pendente.

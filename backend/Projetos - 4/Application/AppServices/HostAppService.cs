@@ -10,14 +10,16 @@ namespace Projetos___4.Application.AppServices
 {
     public class HostAppService : IHostAppService
     {
+        private readonly IValidation<OpeningWeekDTO> _openingWeekValidation;
         private readonly IValidation<HostDTO> _hostValidation;
         private readonly IHostService _hostService;
         private readonly IProgrammingService _programmingService;
         private readonly IAddressAppService _addressAppService;
         private readonly IHostMapping _hostMapping;
         private readonly IHostFilterMapping _hostFilterMapping;
-        public HostAppService(IHostService hostService, IProgrammingService programmingService, IAddressAppService addressAppService, IValidation<HostDTO> hostValidation, IHostMapping hostMapping, IHostFilterMapping hostFilterMapping)
+        public HostAppService(IHostService hostService, IProgrammingService programmingService, IAddressAppService addressAppService, IValidation<HostDTO> hostValidation, IHostMapping hostMapping, IHostFilterMapping hostFilterMapping, IValidation<OpeningWeekDTO> openingWeekValidation)
         {
+            _openingWeekValidation = openingWeekValidation;
             _hostMapping = hostMapping;
             _hostValidation = hostValidation;
             _hostService = hostService;
@@ -47,6 +49,10 @@ namespace Projetos___4.Application.AppServices
         public async Task<HostCreatedDTO?> Create(HostDTO dto, string userId)
         {
             _hostValidation.Validate(dto, DateTime.UtcNow);
+            if (dto.OpeningWeek != null)
+            {
+                _openingWeekValidation.Validate(dto.OpeningWeek, DateTime.UtcNow);
+            }
             var host = _hostMapping.ToModel(dto);
             var result = await _hostService.Create(host, userId);
             if (result == null)
@@ -60,6 +66,10 @@ namespace Projetos___4.Application.AppServices
         public async Task<HostResponseDTO?> EditHostAsync(HostDTO dto, int hostId, string userId)
         {
             _hostValidation.Validate(dto, DateTime.UtcNow);
+            if (dto.OpeningWeek != null)
+            {
+                throw new ArgumentException("Utilize o endpoint de funcionamento para editar os horários do host.");
+            }
             var host = _hostMapping.ToModel(dto);
             host.Id = hostId;
             var result = await _hostService.EditHostAsync(host, userId);

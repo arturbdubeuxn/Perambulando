@@ -1147,3 +1147,32 @@ Protótipo atualizado: removidos grupo/formulário/resultados de roteiros, exemp
 Próxima modelagem aprovada, ainda não implementada: agenda semanal de hosts de gastronomia/comércio por HostOpeningDay/HostOpeningPeriod e valores estimados mínimo/máximo por pessoa. A nova geração de roteiros será redesenhada após essa base. Sem modelos/colunas novos de funcionamento nesta etapa.
 
 Verificações executadas: build isolado do backend com zero erros/nove avisos preexistentes; node --check nos três scripts do protótipo; 91 testes Node aprovados com API simulada e sem mutação de dados reais; busca de referências ativas aos contratos removidos sem ocorrências. Sem banco, migration, alteração de CORS, Expo ou exportação de PDFs. Cópia de segurança local anterior à retirada: C:/Users/Artur/Documents/ChatGPT/Perambulando/tmp/old-itinerary-before-discard-2026-11-04.zip.
+
+
+## Horários de funcionamento: endpoints implementados — 04/11/2026
+
+HostController recebe IOpeningHoursAppService por injeção e acrescenta duas actions autenticadas:
+
+| Método e rota | Entrada | Resposta |
+|---|---|---|
+| GET /api/Host/{hostId:int}/OpeningHours | HostId na rota; JWT; sem corpo | 200 OpeningWeekResponseDTO, inclusive Days=[] para agenda não configurada |
+| PUT /api/Host/{hostId:int}/OpeningHours | HostId na rota; JWT; OpeningWeekDTO no corpo | 200 OpeningWeekResponseDTO com a semana completa salva |
+
+Ambas permitem apenas dono ou ADMIN, com conta ativa e host ativo de Gastronomy/Business, conforme o service. As actions extraem o usuário do JWT, delegam e traduzem exceções: 400 para argumentos/regras inválidas, 401 para usuário indisponível e 404 para host ausente/inativo ou fora do acesso do solicitante. Token ausente/inválido/expirado é recusado pela autenticação com 401. Binding/DataAnnotations inválidos retornam 400. Exceções inesperadas não são mascaradas.
+
+O PUT substitui integralmente a semana: exatamente sete dias distintos, domingo=0 até sábado=6, horários locais HH:mm:ss sem Z, períodos e ClosesNextDay. Não aceita identificação do usuário no contrato; HostId vem da rota. Exemplos nomeados getOpeningHours/editOpeningHours foram adicionados a Projetos - 4.http, usando o ID e JWT retornados por createHost; o host precisa ser de comércio/gastronomia.
+
+Protótipo atualizado com consulta, edição visual por dia, intervalos, virada de dia e carregamento da semana atual. Nenhuma gravação é feita ao preencher exemplos/carregar o formulário. Agenda vazia é exibida como não configurada; os sete dias fechados no editor são apenas uma proposta até enviar o PUT.
+
+Verificação: build isolado aprovado; 31 verificações HTTP com JWT real assinado, AppService/mapping/validação reais e domínio/persistência simulados; 97 testes do protótipo com API simulada aprovados; node --check aprovado. O banco principal não foi usado nestes testes. Migration ainda não gerada/aplicada: as rotas estão implementadas, mas dependem da atualização do schema para uso real. PDFs preservados.
+
+
+## Criação de host com funcionamento — 04/11/2026
+
+POST /api/Host/Create passa a aceitar o campo opcional openingWeek no HostDTO, com a mesma estrutura do PUT de horários: {"days":[...]}, sete dias completos e períodos locais HH:mm:ss. Somente Gastronomy (1) e Business (2) podem enviar a semana; Productor (0) deve omitir o campo ou enviar null. Omitir a semana mantém o cadastro sem agenda; enviar days=[] é inválido. As validações de estrutura e negócio retornam 400 pelo tratamento já existente na action.
+
+Resposta preservada: 201 com result (id/addressId/name) e auth (JWT atualizado). Host, endereço novo, dias/períodos e atribuição da role HOST são salvos na transação existente do HostRepository. Nenhuma action nova. GET/PUT /api/Host/{hostId}/OpeningHours continuam disponíveis para ler/configurar posteriormente. PUT /api/Host/{hostId}/Edit não recebe atualizações de agenda: se openingWeek for enviado, retorna 400 orientando a rota própria; omitir mantém os horários existentes.
+
+Exemplo createHost no .http e protótipo atualizados. No protótipo, comércio/gastronomia possuem a opção Informar funcionamento na criação do host; marcar exibe o editor semanal, sem fazer requisições. Desmarcar ou selecionar produtor omite openingWeek. JWT e ID retornados continuam reaproveitados.
+
+Verificação desta etapa: build sem erros (dez avisos anteriores); 33 verificações com AppService/service/mapping/repository/Identity reais e APIs externas simuladas em PostgreSQL descartável, removido ao final; 99 testes do protótipo e node --check aprovados. Nenhuma migration gerada/aplicada e nenhum dado do banco principal alterado. O uso real continua dependendo do schema de funcionamento pendente. PDFs preservados.
