@@ -95,3 +95,8 @@ Implementação: imagem `perambulando/postgres-postgis:17` construída a partir 
 Validações: PostgreSQL 17.11; PostGIS 3.6.4 disponível e habilitado; autenticação com a configuração local aprovada; 16 migrations existentes aplicadas; 17 tabelas no schema público; API iniciada em `http://localhost:5014`; `GET /openapi/v1.json` respondeu HTTP 200. A API temporária foi encerrada após a validação. Nenhuma migration, model ou contrato HTTP foi alterado. PDFs não foram regenerados.
 
 Pendência: o volume PostgreSQL 16 anterior foi preservado, mas seus dados não foram migrados para o banco novo. O PostGIS 17 contém o schema criado pelas migrations e inicia sem os registros do banco anterior. Qualquer transferência deve ser feita depois, por backup/restauração compatível entre versões, mediante solicitação explícita.
+
+
+## Integração antiga de roteiros retirada — 04/11/2026
+
+Cliente n8n, opções e registros HTTP exclusivos da primeira implementação de roteiros foram retirados da master. N8n__WebhookUrl permanece no ambiente do usuário Windows, mas não é lida pelo código atual. Workflow externo, containers, volumes, geocodificação Geoapify e configuração do banco preservados. Nenhuma migration ou reinício da API principal nesta etapa. Build com zero erros/nove avisos anteriores; 91 testes do protótipo com API simulada aprovados. PDFs preservados.

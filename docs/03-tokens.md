@@ -264,3 +264,8 @@ A implementação JwtTokenService foi movida de Domain/Service para Data/Service
 AuthenticationToken possui AccessToken, TokenType (Bearer) e ExpiresAt. Com a serialização web existente, o JSON mantém exatamente accessToken, tokenType e expiresAt; o cadastro de host continua usando auth.accessToken. Sem alterações de chave, algoritmo, issuer/audience, duração, claims sub/jti/name/typeofuser/role, atualização de roles ou validação de conta ativa. Não foi criada entidade persistida de token nem nova tabela.
 
 Validação: contrato tipado e DI conferidos entre as 46 verificações da refatoração. Login real e uso do JWT conferidos nas 37 regressões HTTP/Identity/PostgreSQL; protótipo aprovado em 91 testes simulados. Banco/API principais preservados. Reinicie a API normalmente para carregar o novo registro de DI. Sem migration ou exportação de PDF.
+
+
+## Retirada do endpoint de roteiros — 04/11/2026
+
+A primeira implementação de IA/n8n e POST /api/Itinerary/Generate foram retirados da master a pedido do usuário. Emissão, validação, claims e proteção de conta ativa dos JWTs existentes preservadas. Não houve mudança de token ou permissões de outras actions. Build com zero erros/nove avisos anteriores e 91 testes simulados do protótipo aprovados. Sem banco, API reiniciada ou PDF.

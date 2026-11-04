@@ -20,7 +20,6 @@ using System.Text;
 using static System.Net.Mime.MediaTypeNames;
 
 using Projetos___4.Application.DTO;
-using Projetos___4.Application.Validations.Validations;
 using Projetos___4.Application.Validations.Validations.User;
 using Projetos___4.Application.Validations.Validations.Host;
 using Projetos___4.Domain.Validations.Interface;
@@ -132,7 +131,6 @@ builder.Services.AddScoped<IUserXCategoryService, UserXCategoryService>();
 builder.Services.AddScoped<IUserXCategoryValidations, UserXCategoryValidations>();
 builder.Services.AddScoped<IUserXCategoryAppService, UserXCategoryAppService>();
 builder.Services.AddScoped<IValidation<ProgrammingDTO>, ProgrammingValidation>();
-builder.Services.AddScoped<IValidation<ItineraryRequestDTO>, ItineraryValidation>();
 builder.Services.AddScoped<IValidation<HostDTO>, HostValidation>();
 builder.Services.AddScoped<IValidation<UserDTO>, UserValidation>();
 builder.Services.AddScoped<IValidation<UserXCategoryDTO>, UserXCategoryValidation>();

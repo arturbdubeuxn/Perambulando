@@ -902,3 +902,15 @@ UserDeleteDTO continua contendo somente Email, com Required, EmailAddress e MaxL
 ## Contrato de autenticação tipado — 01/11/2026
 
 Os DTOs de entrada/saída existentes não mudaram nesta refatoração. IJwtTokenService.CreateAsync retorna agora AuthenticationToken (Domain/Model), substituindo object anônimo somente no contrato interno. O resultado contém AccessToken, TokenType e ExpiresAt; a serialização web preserva accessToken/tokenType/expiresAt. Login continua com esse objeto na raiz; cadastro de host continua com result e auth. Campos, mapeamentos e fluxos do protótipo foram preservados. Verificados em 46 testes específicos, 37 regressões de autenticação e 91 testes simulados.
+
+## Retirada da primeira implementação de roteiros IA — 04/11/2026
+
+Por solicitação do usuário, a implementação anterior de roteiros por IA/n8n foi descartada na master para permitir a revisão dos requisitos. Retirados os arquivos de controller, AppService, services/interfaces, mappings, DTOs, modelos de integração, validações e cliente n8n, além do adaptador Geoapify de rotas que havia sido criado exclusivamente para esse fluxo. Removidos registros/imports correspondentes do Program.cs e a requisição de geração do .http. O endpoint POST /api/Itinerary/Generate não faz mais parte do código atual.
+
+Foram retirados também os DTOs e a validação inicial de Itinerary que já estavam versionados no último commit. O histórico Git e o commit b66df5a, com correções de segurança/integridade, foram preservados; não houve reset de branch ou alteração de funcionalidades não relacionadas. Os registros de implementação da IA adicionados nesta sequência foram removidos da documentação para não apresentá-la como disponível.
+
+Protótipo atualizado: removidos grupo/formulário/resultados de roteiros, exemplos, três testes específicos e timeout especial da antiga rota; catálogos e espera padrão preservados para as demais operações. Catálogo conferido com 37 operações restantes e sem Itinerary. O workflow externo do n8n e a variável N8n__WebhookUrl do Windows não foram alterados por esta retirada do código; a variável não é consumida pela versão atual. Processos antigos da API precisam ser recompilados/reiniciados para refletir a remoção; a API principal não foi reiniciada nesta etapa.
+
+Próxima modelagem aprovada, ainda não implementada: agenda semanal de hosts de gastronomia/comércio por HostOpeningDay/HostOpeningPeriod e valores estimados mínimo/máximo por pessoa. A nova geração de roteiros será redesenhada após essa base. Sem modelos/colunas novos de funcionamento nesta etapa.
+
+Verificações executadas: build isolado do backend com zero erros/nove avisos preexistentes; node --check nos três scripts do protótipo; 91 testes Node aprovados com API simulada e sem mutação de dados reais; busca de referências ativas aos contratos removidos sem ocorrências. Sem banco, migration, alteração de CORS, Expo ou exportação de PDFs. Cópia de segurança local anterior à retirada: C:/Users/Artur/Documents/ChatGPT/Perambulando/tmp/old-itinerary-before-discard-2026-11-04.zip.
