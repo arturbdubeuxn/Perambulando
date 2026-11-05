@@ -23,6 +23,8 @@ public class HostMapping : IHostMapping
         var host = new Hosts
         {
             Typeofhost = dto.Typeofhost!.Value,
+            MinPrice = dto.MinPrice,
+            MaxPrice = dto.MaxPrice,
             CNPJ = dto.CNPJ,
             LogoUrl = dto.LogoUrl,
             InstagranUrl = dto.InstagranUrl,
@@ -53,6 +55,8 @@ public class HostMapping : IHostMapping
         {
             Id = host.Id,
             Typeofhost = host.Typeofhost,
+            MinPrice = host.MinPrice,
+            MaxPrice = host.MaxPrice,
             CNPJ = host.CNPJ,
             LogoUrl = host.LogoUrl,
             InstagranUrl = host.InstagranUrl,
@@ -83,12 +87,15 @@ public class HostMapping : IHostMapping
             Name = host.Name,
             Description = host.Description,
             Typeofhost = host.Typeofhost,
+            MinPrice = host.MinPrice,
+            MaxPrice = host.MaxPrice,
             CNPJ = host.CNPJ,
             LogoUrl = host.LogoUrl,
             InstagranUrl = host.InstagranUrl,
             AddressId = host.AddressId,
             Address = _addressMapping.ToDTO(host.Address),
             Phone = host.Phone,
+            OpeningWeek = _openingHoursMapping.ToDTO(host.Id, host.OpeningDays?.ToList() ?? new List<HostOpeningDay>()),
             Programmings = programmings.Select(programming => _programmingMapping.ToDetailsDTO(programming, host)).ToList()
         };
     }

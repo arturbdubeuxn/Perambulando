@@ -5,6 +5,9 @@ namespace Projetos___4.Application.DTO;
 public class HostResponseDTO
 {
     public int Id { get; set; }
+
+    public decimal? MinPrice { get; set; }
+    public decimal? MaxPrice { get; set; }
     public Hosts.TypeofHost Typeofhost { get; set; }
     public string CNPJ { get; set; } = string.Empty;
     public string LogoUrl { get; set; } = string.Empty;

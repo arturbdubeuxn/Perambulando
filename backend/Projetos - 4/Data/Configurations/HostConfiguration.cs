@@ -11,6 +11,9 @@ public class HostConfiguration : IEntityTypeConfiguration<Hosts>
         builder.ToTable("Hosts", table => table.HasCheckConstraint(
             "CK_Hosts_CNPJ_Normalized", "\"CNPJ\" ~ '^[A-Z0-9]{12}[0-9]{2}$'"));
 
+        builder.Property(host => host.MinPrice).HasPrecision(12, 2);
+        builder.Property(host => host.MaxPrice).HasPrecision(12, 2);
+
         builder.Property(host => host.Name).HasMaxLength(150).IsRequired();
 
         builder.Property(host => host.Description).HasMaxLength(2000).IsRequired();

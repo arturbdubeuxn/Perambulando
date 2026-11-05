@@ -1020,3 +1020,15 @@ Build isolado aprovado, 31 verificações HTTP com JWT assinado e domínio/persi
 POST /api/Host/Create aceita OpeningWeek opcional para Gastronomy/Business, reaproveitando DTOs, mapping e validação de semana. O grafo Host → OpeningDays → Periods é salvo pela transação existente de cadastro/role, com rollback integral em falhas. Resposta preservada em result/auth. Produtor não aceita agenda; edição de horários continua no PUT específico. Protótipo e exemplo createHost no .http atualizados.
 
 Verificações: build sem erros/dez avisos anteriores; 33 verificações integradas com PostgreSQL/Identity reais e APIs externas simuladas em banco descartável, removido; 99 testes do protótipo e verificações de sintaxe Node aprovados. Nenhuma migration/snapshot criado ou alterado, banco principal preservado, API não reiniciada e PDFs não exportados. O uso real dos horários ainda depende da atualização do schema.
+
+
+## Faixa de gasto dos hosts e grade no perfil — 05/11/2026
+
+Preparados MinPrice/MaxPrice em decimal? numeric(12,2), com obrigatoriedade para gastronomia/comércio no cadastro/edição e valores nulos preservados para legado. Faixa estimada por pessoa, não negativa, até duas casas e mínimo <= máximo; produtores não recebem preços. DTOs, mapping, service, configuração EF, exemplos .http e protótipo atualizados. Perfil do host agora inclui OpeningWeek, carregado com dias/períodos pelo repository, além dos valores e programações.
+
+Build isolado aprovado sem erros/nove avisos anteriores; 77 verificações integradas PostgreSQL/Identity reais com APIs externas simuladas e 101 testes do protótipo aprovados. Banco descartável removido; principal preservado. Nenhuma migration criada/aplicada e nenhum PDF exportado. Migration anterior de horários foi informada como aplicada pelo usuário; as novas colunas monetárias ainda exigem outra migration antes de executar esta versão da API contra o banco principal.
+
+
+## Validação de valores movida para Application — 05/11/2026
+
+Por orientação do usuário, ValidatePrices foi transferido do HostService para HostValidation (IValidation<HostDTO>) na Application. Validate chama esse auxiliar antes do mapping; HostAppService já utiliza a mesma validação no cadastro e na edição. Removidos o método e suas chamadas do HostService. Regras, mensagens, DTOs, rotas e persistência preservados; sem alteração funcional no protótipo. Build sem erros/nove avisos anteriores e 77 verificações integradas aprovadas em PostgreSQL descartável, removido; APIs externas simuladas e banco principal preservado. Sem migration ou PDF.

@@ -1013,3 +1013,17 @@ Adicionado OpeningWeekDTO? OpeningWeek ao HostDTO. Na criação de comércio/gas
 HostMapping recebe IOpeningHoursMapping e converte a semana para Hosts.OpeningDays, vinculando cada dia ao host novo. HostAppService recebe IValidation<OpeningWeekDTO> e valida o objeto opcional antes do mapping. HostService valida a semana no domínio antes da persistência. A edição comum rejeita OpeningWeek, orientando PUT /api/Host/{hostId}/OpeningHours; a agenda não é apagada quando o campo é omitido. Respostas de criação continuam result/auth, sem novos campos; a agenda pode ser consultada pelo GET de horários.
 
 Protótipo usa opção explícita para incluir a semana no único POST de criação. Exemplo .http inclui semana válida. 33 verificações integradas em PostgreSQL descartável e 99 testes do protótipo aprovados; migration ainda pendente.
+
+
+## Valores estimados e horários no perfil de host — 05/11/2026
+
+HostDTO recebe decimal? MinPrice e MaxPrice com Range de 0 a 9999999999.99 (limites em cultura invariável). São obrigatórios por regra do HostValidation da Application para Typeofhost 1/2; tipo 0 deve omitir/null. O HostValidation também recusa ordem invertida e mais de duas casas decimais. Campos opcionais no CLR preservam a distinção entre zero enviado e ausência.
+
+HostResponseDTO e HostDetailsDTO passam a devolver decimal? MinPrice/MaxPrice. HostDetailsDTO acrescenta OpeningWeekResponseDTO OpeningWeek, preenchido por OpeningHoursMapping com HostId e dias/períodos ordenados. Ausência de agenda gera Days=[], sem fabricar sete dias fechados; ausência de valores legados gera null. HostCreatedDTO e envelope result/auth preservados. HostMapping faz o transporte nos dois sentidos; consulta do repository inclui as navegações necessárias à grade.
+
+Protótipo mostra campos monetários para comércio/gastronomia e grade/gasto por pessoa no perfil. Mudanças de host limpam valores nulos para não reaproveitar preço de outra seleção. Exemplos create/edit de host no .http atualizados. 77 verificações integradas e 101 testes do protótipo aprovados. Migration das novas colunas pendente; nenhum PDF exportado.
+
+
+## Validação de valores movida para Application — 05/11/2026
+
+Por orientação do usuário, ValidatePrices foi transferido do HostService para HostValidation (IValidation<HostDTO>) na Application. Validate chama esse auxiliar antes do mapping; HostAppService já utiliza a mesma validação no cadastro e na edição. Removidos o método e suas chamadas do HostService. Regras, mensagens, DTOs, rotas e persistência preservados; sem alteração funcional no protótipo. Build sem erros/nove avisos anteriores e 77 verificações integradas aprovadas em PostgreSQL descartável, removido; APIs externas simuladas e banco principal preservado. Sem migration ou PDF.

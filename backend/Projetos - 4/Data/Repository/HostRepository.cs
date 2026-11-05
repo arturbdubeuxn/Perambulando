@@ -69,7 +69,8 @@ namespace Projetos___4.Data.Repository
 
         public Task<Hosts?> GetByIdAsync(int hostId)
         {
-            return Db.Hosts.Include(host => host.Address).AsNoTracking()
+            return Db.Hosts.Include(host => host.Address)
+                .Include(host => host.OpeningDays!).ThenInclude(day => day.Periods).AsNoTracking()
                 .FirstOrDefaultAsync(host => host.Id == hostId && host.IsActive);
         }
 

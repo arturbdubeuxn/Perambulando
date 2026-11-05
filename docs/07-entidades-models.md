@@ -443,3 +443,10 @@ Verificação: 23 verificações locais do modelo Npgsql/EF, sem abrir conexão 
 Adicionada ICollection<HostOpeningDay>? OpeningDays em Hosts, como navegação inversa do relacionamento existente HostOpeningDay.Host. No grafo de criação, null representa agenda omitida e uma coleção preenchida representa a semana enviada. HostMapping monta os dias pelo OpeningHoursMapping e aponta Host para o novo objeto; períodos continuam vinculados aos respectivos dias. IDs permanecem novos até a persistência.
 
 A navegação permite salvar host/dias/períodos em uma única transação com propagação dos IDs gerados pelo EF. Não adiciona coluna ao host, nem muda os DTOs de resposta ou expõe o grafo diretamente em JSON. A edição comum não substitui essa coleção. Mapeamento EF e persistência foram exercitados nos 33 testes integrados em PostgreSQL descartável; migration principal continua pendente.
+
+
+## Hosts: faixa estimada de gasto — 05/11/2026
+
+Adicionados decimal? MinPrice e MaxPrice a Hosts, referentes ao gasto estimado por pessoa em gastronomia/comércio. Armazenamento preparado como numeric(12,2) nullable. Null significa valor desconhecido, especialmente em registros legados; zero é um valor informado. Regras condicionais por tipo, ordem, faixa e escala ficam no HostValidation da Application; o mapping apenas copia os campos.
+
+A navegação OpeningDays existente passou a ser carregada por GetByIdAsync e convertida para OpeningWeekResponseDTO no perfil, com dias/períodos ordenados. Não foram acrescentadas novas entidades, navegações ou tabelas nesta etapa. Testes integrados em banco descartável aprovados; migration monetária pendente, sem alterações no banco principal.

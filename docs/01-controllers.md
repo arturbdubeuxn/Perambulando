@@ -1176,3 +1176,14 @@ Resposta preservada: 201 com result (id/addressId/name) e auth (JWT atualizado).
 Exemplo createHost no .http e protótipo atualizados. No protótipo, comércio/gastronomia possuem a opção Informar funcionamento na criação do host; marcar exibe o editor semanal, sem fazer requisições. Desmarcar ou selecionar produtor omite openingWeek. JWT e ID retornados continuam reaproveitados.
 
 Verificação desta etapa: build sem erros (dez avisos anteriores); 33 verificações com AppService/service/mapping/repository/Identity reais e APIs externas simuladas em PostgreSQL descartável, removido ao final; 99 testes do protótipo e node --check aprovados. Nenhuma migration gerada/aplicada e nenhum dado do banco principal alterado. O uso real continua dependendo do schema de funcionamento pendente. PDFs preservados.
+
+
+## Valores estimados do host e grade no perfil — 05/11/2026
+
+POST /api/Host/Create e PUT /api/Host/{hostId}/Edit recebem minPrice/maxPrice no HostDTO. Representam gasto estimado por pessoa no estabelecimento, não preço de ingresso da programação. Gastronomy (1) e Business (2) exigem ambos; Productor (0) deve omitir/enviar null. Valores não negativos, até 9999999999,99, com no máximo duas casas decimais e mínimo <= máximo; zero e limites iguais são aceitos. Erros retornam 400 pelos tratamentos de ArgumentException/DataAnnotations existentes. Rotas e autenticação preservadas.
+
+GET /api/Host/Details/{hostId} agora devolve minPrice, maxPrice e openingWeek (hostId e days) junto com as informações/programações do perfil. Days é ordenado e inclui períodos; lista vazia significa agenda não configurada. A autorização do perfil permanece a já existente: exige autenticação. A consulta não passa pela verificação de dono da edição de horários. Não foram criadas novas actions.
+
+HostResponseDTO também devolve os preços (listagem, filtro e edição). Resposta de criação continua 201 com result/auth, sem expansão de HostCreatedDTO; valores/grade podem ser consultados no perfil. Hosts legados sem valores retornam null, não zero. Exemplos .http e protótipo atualizados: campos monetários para comércio/gastronomia, grade e gasto por pessoa no perfil, limpeza de valores nulos ao trocar de host.
+
+Validações: build isolado sem erros/nove avisos anteriores; 77 verificações integradas em PostgreSQL descartável com AppService/service/mapping/repository/Identity reais e APIs externas simuladas; 101 testes do protótipo com API simulada aprovados. Banco descartável removido. Nenhuma migration criada/aplicada, nenhum dado principal alterado, nenhuma API reiniciada e nenhum PDF regenerado. Estas novas colunas ainda precisam de migration, independentemente da migration anterior de horários informada pelo usuário.

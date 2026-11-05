@@ -135,6 +135,8 @@ Authorization: Bearer {{login.response.body.$.accessToken}}
 
 {
   "typeofhost": 2,
+  "minPrice": 25.50,
+  "maxPrice": 100.00,
   "cnpj": "{{CNPJHost}}",
   "logoUrl": "https://example.com/logo.png",
   "instagranUrl": "https://www.instagram.com/host_teste",
@@ -258,6 +260,8 @@ Authorization: Bearer {{createHost.response.body.$.auth.accessToken}}
 
 {
   "typeofhost": 2,
+  "minPrice": 25.50,
+  "maxPrice": 100.00,
   "cnpj": "{{CNPJHost}}",
   "logoUrl": "https://example.com/logo-atualizado.png",
   "instagranUrl": "https://www.instagram.com/host_teste",
@@ -280,6 +284,8 @@ Authorization: Bearer {{login.response.body.$.accessToken}}
   "name": "Host com endereço existente",
   "description": "Reutiliza um endereço selecionado.",
   "typeofhost": 2,
+  "minPrice": 25.50,
+  "maxPrice": 100.00,
   "addressId": {{searchAddress.response.body.$[0].id}}
 }
 
@@ -806,6 +812,8 @@ Authorization: Bearer {{createHost.response.body.$.auth.accessToken}}
 
 {
   "typeofhost": 2,
+  "minPrice": 25.50,
+  "maxPrice": 100.00,
   "cnpj": "{{CNPJHost}}",
   "name": "Tentativa de CNPJ duplicado",
   "description": "Deve retornar 409 sem criar outro host.",

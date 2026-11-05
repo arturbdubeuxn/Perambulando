@@ -156,6 +156,8 @@ namespace Projetos___4.Domain.Service
             var address = await _addressService.AddAddress(host.AddressId, host.Address, userId);
 
             existing.Typeofhost = host.Typeofhost;
+            existing.MinPrice = host.MinPrice;
+            existing.MaxPrice = host.MaxPrice;
             existing.CNPJ = host.CNPJ;
             existing.LogoUrl = host.LogoUrl;
             existing.InstagranUrl = host.InstagranUrl;

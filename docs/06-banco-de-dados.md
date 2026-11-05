@@ -515,3 +515,12 @@ Hosts.OpeningDays foi incluída como navegação inversa da FK HostOpeningDay.Ho
 Db.Set<Hosts>().Add(host) no HostRepository existente rastreia os novos dias/períodos e propaga o ID gerado do host às FKs. A primeira gravação e a atribuição da role continuam na mesma transação. Não houve gravação adicional em outro service após o commit. Testes comprovaram rollback do host, endereço novo, dias, períodos e role após falha simulada.
 
 33 verificações integradas aprovadas com EnsureCreated exclusivamente em banco de nome aleatório host_opening_check_<guid>, removido ao final. CNPJ/geocodificação simulados; EF/Npgsql/PostgreSQL e Identity reais. Nenhuma migration criada/aplicada, nenhum snapshot alterado, banco principal preservado. Schema principal de funcionamento continua pendente de revisão/migration.
+
+
+## MinPrice/MaxPrice em Hosts — 05/11/2026
+
+Preparadas duas propriedades decimal? MinPrice e MaxPrice em Hosts, configuradas por HasPrecision(12,2), nullable. Isso permite preservar hosts antigos sem estimativa conhecida, evitando preencher zeros fictícios. Valores efetivamente enviados são validados no HostValidation da Application antes do mapping e da chamada ao service, incluindo escala e limite numérico. Não foram criados CHECKs nem backfill nesta etapa.
+
+HostRepository.GetByIdAsync inclui OpeningDays e Periods além de Address, com AsNoTracking, para o perfil retornar a grade real. Não muda tabelas de horários ou suas FKs. Cadastro/edição continuam com as transações existentes.
+
+77 verificações integradas aprovadas com EnsureCreated somente em banco aleatório host_prices_check_<guid>, removido ao final; persistência e Identity reais, CNPJ/geocodificação simulados. Foram verificadas escala/precisão/nullability do modelo, centavos após cadastro/edição, legado nulo, consulta da grade e preservação da agenda ao editar preços. Nenhuma migration/snapshot foi gerada/alterada/aplicada; banco principal preservado. Usuário informou que a migration anterior de horários rodou: as duas colunas monetárias são uma alteração nova e ainda dependem de outra migration. API não reiniciada por essa pendência.

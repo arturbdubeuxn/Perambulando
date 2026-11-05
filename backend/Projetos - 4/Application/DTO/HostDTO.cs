@@ -10,6 +10,11 @@ public class HostDTO
 
     public OpeningWeekDTO? OpeningWeek { get; set; }
 
+    [Range(typeof(decimal), "0", "9999999999.99", ParseLimitsInInvariantCulture = true)]
+    public decimal? MinPrice { get; set; }
+    [Range(typeof(decimal), "0", "9999999999.99", ParseLimitsInInvariantCulture = true)]
+    public decimal? MaxPrice { get; set; }
+
     [MaxLength(18)]
     [Required]
     [RegularExpression(@"^(?:[A-Za-z0-9]{12}[0-9]{2}|[A-Za-z0-9]{2}\.[A-Za-z0-9]{3}\.[A-Za-z0-9]{3}/[A-Za-z0-9]{4}-[0-9]{2})$", ErrorMessage = "Informe um CNPJ válido, com ou sem máscara.")]

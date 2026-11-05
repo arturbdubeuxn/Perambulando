@@ -5,6 +5,10 @@ namespace Projetos___4.Application.DTO;
 public class HostDetailsDTO
 {
     public int Id { get; set; }
+
+    public decimal? MinPrice { get; set; }
+    public decimal? MaxPrice { get; set; }
+    public OpeningWeekResponseDTO OpeningWeek { get; set; } = new();
     public string Name { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
     public Hosts.TypeofHost Typeofhost { get; set; }

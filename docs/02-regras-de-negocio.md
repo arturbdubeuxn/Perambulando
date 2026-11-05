@@ -1096,3 +1096,19 @@ Fluxo: HostAppService valida a estrutura de OpeningWeekDTO antes do mapping; Hos
 Edição comum do host preserva agenda e rejeita openingWeek com orientação para o endpoint específico. Seu tratamento não interfere nas regras da substituição integral já implementada.
 
 33 verificações reais de persistência/Identity com APIs externas simuladas aprovadas em banco descartável, incluindo cadastro com/sem agenda, tipos permitidos, semana inválida, falha após atribuição da role e rollback de todas as partes. Banco temporário removido; principal preservado. 99 testes simulados do protótipo aprovados. Migration pendente; PDFs preservados.
+
+
+## Estimativa de gasto por pessoa no host — 05/11/2026
+
+MinPrice/MaxPrice são uma faixa estimada por pessoa para gastronomia e comércio. Cadastro e edição desses tipos exigem os dois valores; produtores não aceitam faixa. Zero é permitido e não equivale a ausência de informação. Mínimo deve ser <= máximo, ambos não negativos, até 9999999999,99 e com no máximo duas casas decimais. Hosts existentes podem manter null no banco para não inventar dados; ao editar um host de gastronomia/comércio é necessário informar a faixa. Converter para produtor exige omitir os valores e os remove na atualização.
+
+HostDTO usa decimal? e Range; HostMapping transporta os valores sem cálculos. HostValidation.ValidatePrices, na Application, verifica obrigatoriedade por tipo e a consistência monetária antes das chamadas externas de CNPJ/endereço tanto no create como no edit; o HostService no edit copia os valores para a entidade carregada após verificar propriedade. HostRepository mantém a persistência/transação existente. O banco mapeia numeric(12,2) nullable; não foram introduzidas restrições CHECK para estas regras nesta etapa, que ficam no HostValidation da Application. A validação anterior ao SaveChanges evita arredondamento silencioso de entradas com mais de duas casas.
+
+Perfil de host carrega dias/períodos pelo repository e converte por OpeningHoursMapping. HostDetailsDTO inclui a semana, ordenada, com Days=[] se não configurada. Edição de valores não altera a agenda; programações continuam no perfil. Permissões existentes preservadas.
+
+77 verificações integradas em banco descartável aprovadas, cobrindo cadastro/edição, valores ausentes/negativos/invertidos/excedentes, escala, zero, conversão para produtor, legado, grade preservada/carregada e rollback do cadastro. 101 testes do protótipo aprovados. Sem alteração no banco principal, migration ou PDF.
+
+
+## Validação de valores movida para Application — 05/11/2026
+
+Por orientação do usuário, ValidatePrices foi transferido do HostService para HostValidation (IValidation<HostDTO>) na Application. Validate chama esse auxiliar antes do mapping; HostAppService já utiliza a mesma validação no cadastro e na edição. Removidos o método e suas chamadas do HostService. Regras, mensagens, DTOs, rotas e persistência preservados; sem alteração funcional no protótipo. Build sem erros/nove avisos anteriores e 77 verificações integradas aprovadas em PostgreSQL descartável, removido; APIs externas simuladas e banco principal preservado. Sem migration ou PDF.

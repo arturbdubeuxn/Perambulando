@@ -15,6 +15,9 @@ namespace Projetos___4.Domain.Model
 
         public string InstagranUrl { get; set; } = string.Empty;
 
+        public decimal? MinPrice { get; set; }
+        public decimal? MaxPrice { get; set; }
+
         public string Phone { get; set; } = string.Empty;
 
         public string Name { get; set; } = string.Empty;
