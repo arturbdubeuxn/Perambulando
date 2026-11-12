@@ -450,3 +450,262 @@ A navegação permite salvar host/dias/períodos em uma única transação com p
 Adicionados decimal? MinPrice e MaxPrice a Hosts, referentes ao gasto estimado por pessoa em gastronomia/comércio. Armazenamento preparado como numeric(12,2) nullable. Null significa valor desconhecido, especialmente em registros legados; zero é um valor informado. Regras condicionais por tipo, ordem, faixa e escala ficam no HostValidation da Application; o mapping apenas copia os campos.
 
 A navegação OpeningDays existente passou a ser carregada por GetByIdAsync e convertida para OpeningWeekResponseDTO no perfil, com dias/períodos ordenados. Não foram acrescentadas novas entidades, navegações ou tabelas nesta etapa. Testes integrados em banco descartável aprovados; migration monetária pendente, sem alterações no banco principal.
+
+## Chat: mapping e delegação do AppService — 05/11/2026
+
+Criados ITravelChatMapping e TravelChatMapping, com ToModel(TravelChatMessageDTO) e ToDTO(TravelChatResponse). Entrada preserva ConversationId, Text e localização opcional (latitude, longitude, captura e precisão). ToModel pressupõe validação prévia dos campos obrigatórios, conforme padrão de OpeningHoursMapping. Não consulta endereço, geocodifica, infere origem ou normaliza texto. Saída preserva conversa/mensagem/perguntas, copia a lista de perguntas e reaproveita IProgrammingMapping.ToDTO/IHostMapping.ToDTO nas listas de sugestões.
+
+Criados somente os tipos necessários no domínio: TravelChatMessage, TravelChatLocation e TravelChatResponse, sem dependência de DTO/Application. São objetos de transferência entre Application e Domain, não entidades persistidas. Criada ITravelChatService com SendMessageAsync(message, userId, cancellationToken), ainda sem implementação concreta.
+
+TravelChatAppService recebe validação, mapping e interface do service no construtor. SendMessageAsync agora executa: Validate(dto, DateTime.UtcNow) → ToModel(dto) → await service.SendMessageAsync(message, userId, cancellationToken) → ToDTO(response). Removido o NotImplementedException do AppService. UserId continua separado da mensagem, vindo da identidade da action; cancelamento é encaminhado sem substituição. A implementação concreta do service, regras de propriedade e registro de todas as novas dependências na DI continuam pendentes. Portanto a action ainda não funciona em execução. Próximo baby step: estruturar o service de domínio da mesma action.
+
+Sem alteração de contratos HTTP/DTO, Program.cs, DbSets, configuração EF, migration, banco, n8n ou PDFs. Protótipo preservado: aviso de implementação/registro pendentes continua aplicável.
+
+Validações do mapping: build --no-restore com saída isolada aprovado, zero erros e nove avisos anteriores de nulabilidade. TravelChatMappingCheck.cs/.csproj no tmp do workspace do protótipo executou 17 verificações aprovadas com mapping/validação/AppService reais e ITravelChatService simulado: localização opcional/completa, dados de resposta, cópia das perguntas, mapeamento de sugestões, encaminhamento de usuário/token de cancelamento e rejeição de entrada inválida antes do service. Sem teste HTTP, banco ou n8n. git diff --check sem erros.
+
+## Chat: coordenadas como Point no domínio — 05/11/2026
+
+TravelChatLocation agora contém Point? Location (NetTopologySuite), substituindo os doubles Latitude/Longitude do objeto de domínio. CapturedAt e AccuracyMeters foram preservados. TravelChatMessage mantém o objeto opcional TravelChatLocation para agrupar posição e metadados; acesso espacial no domínio será message.Location?.Location. Não se trata de uma coluna ou entidade EF.
+
+DTOs HTTP permanecem iguais: TravelChatLocationDTO recebe latitude, longitude, capturedAt e accuracyMeters. TravelChatMapping.ToModel, chamado após a validação no AppService, cria Point(longitude, latitude) com SRID 4326. Longitude corresponde a X e latitude a Y. Ausência do DTO de localização mantém o objeto de domínio nulo, sem inventar posição. O mapping de resposta não expõe Point.
+
+Esta alteração prepara a representação espacial; não implementa busca por distância nem cálculo em metros, que dependerão da consulta espacial na Data. Nenhuma alteração em Address, DbSets, configurações EF, migrations, DI, n8n ou banco. A action permanece indisponível até a implementação concreta do service e os registros necessários. Como os contratos HTTP foram preservados, protótipo e exemplos não exigem mudanças. PDFs preservados.
+
+Validação do Point: dotnet run --no-restore do harness TravelChatMappingCheck compilou o backend e aprovou 18 verificações, incluindo X=longitude, Y=latitude, SRID=4326, preservação de metadados, localização ausente, resposta e fluxo do AppService com service simulado. Compilação sem erros, nove avisos anteriores de nulabilidade. git diff --check sem erros. Sem HTTP, consulta espacial, banco ou n8n.
+
+## Chat: model da conversa — 05/11/2026
+
+Criado Domain/Model/TravelChatConversation.cs após conferir ausência de model equivalente e comparar Favorite/Subscription. Contém Id (int), User (navegação), UserId (string), IsActive (true inicialmente), CreatedAt e UpdatedAt (inicializados com DateTime.UtcNow), seguindo o padrão existente de Favorite. UserId permitirá associar a conversa ao usuário autenticado; o model não verifica propriedade por si só.
+
+Não foram adicionadas coleção de mensagens, preferências extraídas ou estado do workflow neste passo. TravelChatMessage continua sendo o objeto de entrada do service, não uma mensagem persistida de histórico. Model User e DTOs preservados. Sem DbSet, configuração EF, migration, tabela, repository ou utilização do novo model pelo service; criação/consulta de conversas e verificação de propriedade continuam pendentes. O UserId da conversa deverá ser preenchido pelo fluxo servidor, nunca pelo DTO do aplicativo.
+
+Próximo baby step: definir a interface do repository para criar/consultar uma conversa pertencente ao usuário, antes de implementar acesso a dados. Action SendMessage permanece sem funcionamento completo e sem registros de DI da feature. Sem alterações no protótipo, n8n, banco ou PDFs.
+
+Validação do model: build --no-restore com saída isolada aprovado, zero erros e nove avisos de nulabilidade anteriores; git diff --check sem erros. Não foram criados testes para propriedades sem lógica. Sem teste HTTP, persistência, banco ou n8n.
+
+## Chat: model da mensagem do histórico — 05/11/2026
+
+Criado Domain/Model/TravelChatHistoryMessage.cs após conferir os models existentes e ausência de equivalente. Segue o padrão de navegação/chave de HostOpeningPeriod e enum no mesmo arquivo de ProgrammingInteraction.
+
+Campos: Id (int), Conversation (TravelChatConversation), ConversationId (int), Role (TravelChatMessageRole), Text (string inicializada vazia) e CreatedAt (DateTime.UtcNow). TravelChatMessageRole define User=0 e Assistant=1. O papel deverá ser atribuído pelo servidor conforme a origem da mensagem, não recebido do aplicativo para autorizar mensagens de assistente. O usuário proprietário será obtido pela conversa, sem duplicar UserId em cada mensagem.
+
+TravelChatMessage continua como entrada do service, com localização opcional; não foi transformado na entidade do histórico. O novo model não contém coordenadas, precisão, JWT ou instrução de sistema. Text permite armazenar perguntas do assistente e respostas do usuário; persistência estruturada de perguntas, sugestões e preferências será tratada em passos posteriores, não está implementada por este model.
+
+Estado: somente estrutura de domínio, sem coleção acrescentada à conversa, repository de mensagens, DbSet, configuração EF, limites de coluna, índice, migration ou tabela. Nenhum histórico está sendo salvo ou consultado; service e DI permanecem incompletos. Próximo baby step: definir a interface do repository de mensagens do histórico, para adicionar mensagem e recuperar contexto da conversa, preservando a verificação de propriedade no fluxo.
+
+Sem alteração de DTO, mapping, rota, protótipo, banco, workflow ou PDFs. Nenhum teste funcional ou de persistência foi realizado nesta etapa de propriedades sem lógica.
+
+Validação do model de histórico: build --no-restore com saída isolada aprovado, zero erros e nove avisos anteriores de nulabilidade; git diff --check sem erros. Sem testes automatizados para propriedades sem lógica, HTTP, banco ou n8n.
+
+
+## Chat: uso do model de histórico — 05/11/2026
+
+TravelChatService prepara TravelChatHistoryMessage com ConversationId validado, Role=User e Text e o envia à interface de repository; CreatedAt é inicializado em UTC pelo model. Location não integra o histórico. Sem EF/persistência concreta; resposta de assistente e restante do fluxo continuam pendentes.
+
+## Chat: entrada da interpretação no domínio — 05/11/2026
+
+Criado Domain/Model/TravelChatInterpretationRequest.cs após pesquisar contratos equivalentes, sem encontrar um objeto de interpretação existente. Contém Text (mensagem atual), History (List<TravelChatHistoryMessage>, reutilizando o model existente), ReferenceTime (DateTimeOffset), TimeZone (string) e HasLocation (bool). Strings/lista inicializadas conforme o padrão do projeto. Não possui coordenadas, JWT ou UserId como campos próprios.
+
+ReferenceTime e TimeZone deverão ser preenchidos pelo servidor para interpretar expressões relativas como “sábado”; ainda não há preenchimento, fuso escolhido ou validação implementados. HasLocation informa apenas disponibilidade de uma origem, não autorização para aplicar um raio silenciosamente nem garantia de captura atual/precisa. Point e metadados da localização continuam disponíveis ao fluxo interno de busca, sem necessidade de enviá-los ao modelo.
+
+Este é um contrato interno do domínio, ainda não um payload HTTP serializável para envio direto. History reaproveita uma entidade com navegação Conversation/User; a futura implementação na Data deverá projetar explicitamente somente papel/texto necessários ao contexto, sem serializar a entidade/navegações, perfil ou credenciais. Configuração de histórico/retensão do n8n será tratada ao montar o workflow. A mensagem atual deve aparecer em Text e não duplicada em History.
+
+Preferências confirmadas persistidas, catálogo permitido e resposta estruturada da interpretação continuam pendentes; não considerar que apenas as 20 mensagens recentes cobrem todo o estado da conversa. O próximo baby step é definir o objeto de saída da interpretação, incluindo perguntas e preferências extraídas; depois será definida a interface do serviço, sem implementar HTTP nesta fase.
+
+Sem alteração de TravelChatService, DTOs da API, mapping, rota, DI, EF, banco, protótipo ou PDF. Nenhuma chamada ao n8n foi criada. Este objeto ainda não é construído/consumido pelo fluxo.
+
+Validação da entrada de interpretação: build --no-restore com saída isolada aprovado, zero erros e nove avisos anteriores de nulabilidade; git diff --check sem erros. Sem testes automatizados para propriedades sem lógica, HTTP, banco ou n8n.
+
+## Chat: saída da interpretação e preferências — 05/11/2026
+
+Criados somente objetos de domínio, após conferir ProgrammingFilter/HostFilter e ausência de tipos de preferências equivalentes:
+
+- TravelChatInterpretationResponse: Message, Questions (List<string>) e Preferences (TravelChatPreferences). A interpretação não retorna registros de hosts/programações; sugestões reais continuam responsabilidade da API.
+- TravelChatPreferences: City, VisitDate (DateOnly?), HasTimeRestriction, StartTime/EndTime (TimeOnly?), EndsNextDay, Participants, HasBudgetLimit, Budget (decimal?), BudgetBasis, BudgetScope, IsFree, SearchNearby, RadiusMeters e Intents.
+- TravelChatIntent: Description, IncludeProgrammings, CategoriesId e HostTypes, reutilizando Hosts.TypeofHost e IDs de categorias existentes. Intenções separam por exemplo turismo e café, sem forçar ambas em um único filtro.
+
+Semântica inicial do contrato (não são validações implementadas): null representa informação desconhecida. HasTimeRestriction=false representa indiferença explícita de horário; true exige período coerente. HasBudgetLimit=false representa ausência explícita de teto; true exige valor, base e escopo coerentes. Enum TravelChatBudgetBasis distingue PerPerson/Group; TravelChatBudgetScope distingue Itinerary/Stop. Valores monetários desta primeira versão são BRL. Não interpretar Budget automaticamente como teto de cada evento. SearchNearby=null significa preferência desconhecida, false ausência de exigência de proximidade e true exige origem e raio confirmados. Ausência de origem exige pergunta, não uso silencioso da localização cadastral. HasLocation da entrada indica disponibilidade, não confirmação de um raio.
+
+DateOnly/TimeOnly representam data e horários locais da visita; o fuso vem do contrato de entrada e conversões serão responsabilidade da API. EndsNextDay permite representar madrugada sem inferir virada automaticamente. Participants ausente não significa uma pessoa. IsFree permanece preferência opcional, não deriva de preço ausente. Intents vazia não implica autorização para sugerir qualquer atividade. IncludeProgrammings=false e HostTypes vazio representam intenção ainda sem destino de busca definido, exigindo validação/esclarecimento.
+
+Restrições pendentes: apenas gastronomia/comércio como HostTypes de paradas, categorias existentes/ativas do catálogo permitido, limites numéricos, conflitos, datas/horários, semântica de orçamento e resposta inválida do workflow. A API deverá validar tudo antes de buscar. Questions não vazia representa esclarecimentos, mas nem Questions vazia nem a presença de Preferences garantem informações suficientes. Não foi adicionado ReadyToSearch como decisão soberana do modelo.
+
+Ainda não há persistência/mesclagem de preferências confirmadas, sinalização de alterações/remoções, contrato de snapshot validado entre turnos ou inclusão de preferências na entrada. Isso precisa ser implementado antes de depender somente do histórico recente: campo ausente da saída não poderá apagar preferência anterior silenciosamente. Nenhum desses objetos está mapeado no EF, serializado para n8n ou conectado ao TravelChatService. JSON externo e validações serão definidos em passos próprios ao montar o workflow com o usuário.
+
+DTOs públicos e TravelChatMapping preservados: TravelChatResponse continua representando a resposta final da API, distinta da interpretação. Sem endpoint novo, DI, banco, protótipo alterado ou PDF. Próximo baby step: definir ITravelChatInterpretationService com entrada e saída já preparadas, antes do transporte na Data.
+
+Validação dos contratos de saída: build --no-restore com saída isolada aprovado, zero erros e nove avisos de nulabilidade anteriores; git diff --check sem erros. Sem testes automatizados para propriedades sem lógica, teste HTTP, banco ou n8n.
+
+## Escopo vigente da IA: prompt único — 05/11/2026
+
+Por solicitação do usuário, esta primeira versão passa a ser: prompt único → n8n interpreta preferências → API filtra cadastros reais → listas de programações e hosts de gastronomia/comércio para o usuário montar roteiro. Sem localização, proximidade, perguntas/respostas, conversa ou histórico. Esta seção substitui as propostas anteriores para a entrega inicial.
+
+Implementado neste baby step:
+
+- TravelChatMessageDTO e TravelChatMessage contêm somente Text, obrigatório e até 4.000 caracteres na validação Application.
+- TravelChatResponseDTO e TravelChatResponse contêm somente Programmings e Hosts; removidos ConversationId, Message e Questions.
+- TravelChatMapping converte apenas texto e listas com mappings existentes. AppService mantém Validate → ToModel → service → ToDTO, userId separado e cancelamento.
+- TravelChatService mantém IUserService.GetProfileAsync e cancelamento; removidos repositories e chamadas de conversa/histórico. Ainda termina em NotImplementedException, aguardando interpretação e filtros.
+- TravelChatInterpretationRequest contém Text, ReferenceTime e TimeZone, sem History ou HasLocation. TravelChatInterpretationResponse contém apenas Preferences. Removidos SearchNearby e RadiusMeters das preferências.
+- A mesma action POST /api/TravelChat/Messages mantém autenticação e identificação pelo JWT. Retirado catch específico de conversa indisponível; preservados 400/401. Sem outra action.
+
+Entrada atual planejada:
+
+```json
+{ "text": "Quero passear no Recife no sábado e tomar um café" }
+```
+
+Saída planejada (listas vazias ilustrativas, não resposta funcional implementada):
+
+```json
+{ "programmings": [], "hosts": [] }
+```
+
+Dados ausentes não gerarão perguntas: filtros devem usar somente restrições claras/suportadas, sem inventar pessoas, horário, orçamento ou origem. Cidade escrita no prompt pode ser um filtro, sem geolocalização. A política exata para ambiguidades e limites de busca será definida na interpretação/validação, ainda pendentes. Não há cálculo de rota, persistência ou montagem automática de roteiro nesta fase.
+
+Preservados como preparação inativa de evolução: models de conversa/histórico/localização e interfaces de repositories. Não são consumidos pelo fluxo atual e não possuem EF/DI. As verificações temporárias anteriores que dependem dos campos removidos documentam a versão anterior; o harness TravelChatMappingCheck foi atualizado ao escopo vigente.
+
+Protótipo: catálogo real conferido com somente Text obrigatório até 4.000 caracteres e JWT; aviso de implementação pendente atualizado. Exemplo .http também simplificado. Sem formulário de localização, ConversationId ou chat neste fluxo.
+
+Estado: contratos simplificados, sem integração funcional com n8n, filtros coordenados ou DI. Nenhuma alteração em Program.cs, banco, migrations ou PDFs. Próximo baby step: ITravelChatInterpretationService com entrada e saída já preparadas. A montagem do workflow terá assistência quando chegar à integração, em passos pequenos.
+
+Validações executadas: backend compilado sem erros/nove avisos existentes por dotnet run --no-restore de TravelChatMappingCheck; 15 verificações aprovadas de contrato público/domínio, mapping, serialização, validação e AppService com service simulado. node --check em app.js/catalog.mjs, catálogo real e 101 testes do protótipo aprovados com API simulada. Sem teste HTTP da nova action, banco real ou chamada n8n.
+
+## Limpeza da IA simplificada — 05/11/2026
+
+Removidos do código os seis arquivos fora do escopo vigente: TravelChatLocationDTO, TravelChatLocation, TravelChatConversation, TravelChatHistoryMessage (incluindo TravelChatMessageRole), ITravelChatConversationRepository e ITravelChatHistoryMessageRepository. A conferência de referências mostrou apenas dependências entre os próprios arquivos removidos; o fluxo do prompt já estava desacoplado deles.
+
+As menções anteriores a esses tipos como preparação inativa são históricas e estão substituídas por esta remoção. Não há mais models/interfaces de conversa, histórico ou localização específicos da IA. Address.Location e o restante da localização já existente do sistema foram preservados. Mantidos os contratos de interpretação/preferências/intenções necessários à próxima etapa do prompt único, além de controller, DTOs, validação, mapping, AppService e service atuais.
+
+Sem mudança de contrato público, lógica de busca ou registros de DI. A integração n8n e os filtros continuam pendentes. Sem migração, banco, protótipo ou PDF alterados.
+
+Validação da limpeza: build --no-restore com saída isolada aprovado, zero erros e nove avisos anteriores. Busca C# no backend sem referências aos tipos removidos; git diff --check sem erros. Não foram repetidos testes funcionais: remoção apenas de tipos já desacoplados. Sem HTTP, banco ou n8n.
+
+## IA: unificação da mensagem e entrada de interpretação — 05/11/2026
+
+Por solicitação do usuário, unificados TravelChatMessage e TravelChatInterpretationRequest. Mantido Domain/Model/TravelChatMessage.cs, agora com Text, ReferenceTime (DateTimeOffset) e TimeZone (string), e removido TravelChatInterpretationRequest.cs. Esse único objeto representará tanto a entrada do service quanto a solicitação interna de interpretação do prompt. Conferência de referências antes da remoção: o request anterior não tinha consumidores C#.
+
+TravelChatMessageDTO continua contendo somente Text; data/fuso não passam a ser responsabilidade do aplicativo. TravelChatMapping preserva a conversão do prompt e o AppService continua chamando o mapping normalmente. O preenchimento pelo servidor de ReferenceTime/TimeZone ainda está pendente da integração com a interpretação, como já estava no objeto removido; não foi escolhido fuso fixo nem inserida configuração implícita neste passo.
+
+Os próximos contratos de interpretação devem receber TravelChatMessage, sem recriar outro request com os mesmos campos. Restam cinco classes de model da IA: TravelChatMessage, TravelChatInterpretationResponse, TravelChatPreferences, TravelChatIntent e TravelChatResponse, além dos dois enums de orçamento. Menções anteriores ao objeto de entrada separado são históricas e substituídas por esta unificação.
+
+Sem alteração de DTO público, rota, autenticação, DI, banco, protótipo ou PDF. A interpretação, filtros e integração n8n continuam pendentes; action ainda não funcional em execução.
+
+Validação da unificação: dotnet run --no-restore de TravelChatMappingCheck compilou o backend sem erros (nove avisos anteriores) e aprovou 15 verificações do fluxo simplificado com service simulado, ajustadas ao model unificado. Busca sem referências C# ao request removido; git diff --check sem erros. Sem HTTP, banco ou n8n.
+
+## IA: preferências como retorno direto da interpretação — 05/11/2026
+
+Por solicitação do usuário, unificados TravelChatInterpretationResponse e TravelChatPreferences. Mantido TravelChatPreferences com todos os campos existentes e removido TravelChatInterpretationResponse, que possuía somente a propriedade Preferences. O contrato futuro de interpretação deverá retornar Task<TravelChatPreferences> diretamente; não será necessário acessar response.Preferences.
+
+Antes da remoção, a busca C# confirmou ausência de consumidores do wrapper. Nenhum campo de preferência foi removido/renomeado, nem foram alterados enums, TravelChatIntent ou mapping da resposta final. Restam quatro classes de model da IA: TravelChatMessage, TravelChatPreferences, TravelChatIntent e TravelChatResponse, além dos dois enums de orçamento. O fluxo planejado passa a ser TravelChatMessage → interpretação → TravelChatPreferences → filtros da API → TravelChatResponse.
+
+TravelChatResponse permanece separado: contém os registros reais encontrados pela API; TravelChatPreferences contém apenas atributos extraídos do prompt. A futura resposta JSON do n8n deverá corresponder diretamente às preferências, sem envelope preferences. Como ainda não existe workflow/cliente HTTP/contrato externo implementado, não houve mudança de integração publicada.
+
+Sem alteração de DTO público, rota, autenticação, AppService, DI, banco, protótipo ou PDF. As menções anteriores ao wrapper são históricas e substituídas por esta decisão. Interpretação n8n/filtros continuam pendentes.
+
+Validação da unificação do retorno: build --no-restore com saída isolada aprovado, zero erros e nove avisos anteriores de nulabilidade; busca C# sem referências ao wrapper removido; git diff --check sem erros. Sem testes adicionais para remoção de wrapper não consumido, HTTP, banco ou n8n.
+
+## IA: chamada da interpretação no service — 05/11/2026
+
+TravelChatService agora injeta ITravelChatInterpretationService e IConfiguration, usando o padrão de configuração por construtor já presente em SubscriptionService. Após mensagem não nula, cancelamento e conta disponível por IUserService.GetProfileAsync, chama InterpretAsync com um novo TravelChatMessage: Text preservado, ReferenceTime=DateTimeOffset.UtcNow e TimeZone definido pelo servidor. Datas/fuso recebidos em chamadas internas não são confiados nem alterados no objeto original. CancellationToken é encaminhado e verificado também após a interpretação; erros do intérprete não são mascarados.
+
+Fuso: configuração TravelChat:TimeZone, equivalente à variável TravelChat__TimeZone. Ausência da chave usa America/Recife como padrão inicial explícito do projeto; valor informado é conferido por TimeZoneInfo.FindSystemTimeZoneById no construtor. Não há inferência pelo fuso da máquina ou pela cidade do prompt. O fuso representa a referência temporal usada pelo assistente nesta primeira versão; cenários de outros fusos exigem configuração/definição futura, não localização automática. Nenhum appsettings ou Program.cs foi alterado.
+
+O retorno TravelChatPreferences é recebido, mas sua validação e uso nos filtros continuam pendentes. O fluxo ainda termina em NotImplementedException após a interpretação; não retorna lista vazia como sucesso provisório. Sem implementação n8n na Data/DI, a action permanece indisponível em execução. Nenhuma chamada externa ocorreu.
+
+DTO público continua somente Text, resposta pública continua Programmings/Hosts, e AppService mantém as chamadas de validação/mapping. Sem perguntas, localização ou histórico. Próximo baby step proposto: validar as preferências retornadas antes de convertê-las em filtros, respeitando ausência/ambiguidade de dados sem inventar valores. Transporte HTTP e montagem do workflow serão tratados após as regras de domínio.
+
+Sem alteração de banco, migrations, protótipo ou PDF.
+
+Validação da chamada de interpretação: dotnet run --no-restore de TravelChatInterpretationCheck.cs/.csproj compilou o backend sem erros (nove avisos anteriores) e aprovou 16 verificações com IUserService/intérprete simulados: prompt, UTC gerado no servidor, padrão/configuração de fuso, entrada original preservada, cancelamento, usuário indisponível, mensagem nula, erro do intérprete e fuso inválido. Fluxo válido conferido até o trecho de filtros ainda pendente. git diff --check sem erros. Sem HTTP real, banco ou n8n.
+
+## IA: remoção do fuso nomeado e configuração — 05/11/2026
+
+Por solicitação do usuário, removidos TimeZone de TravelChatMessage, o campo _timeZone, a leitura TravelChat:TimeZone com padrão America/Recife e a chamada TimeZoneInfo.FindSystemTimeZoneById. TravelChatService não recebe mais IConfiguration no construtor. Dependências atuais: IUserService, ITravelChatInterpretationService e ITravelChatPreferencesValidations.
+
+TravelChatMessage contém somente Text e ReferenceTime (DateTimeOffset). O service continua preenchendo ReferenceTime com DateTimeOffset.UtcNow no servidor, portanto o instante enviado usa deslocamento +00:00, sem configuração adicional. DateTimeOffset representa instante/deslocamento; não representa um fuso nomeado nem regras regionais. Não inferir automaticamente o horário local de Recife a partir deste valor UTC. Interpretação de datas relativas deve usar a referência explícita e o contrato que será montado no workflow, sem prometer conversão regional não implementada.
+
+O DTO público permanece somente Text. Mapping, AppService, verificação de usuário por GetProfileAsync e validação de preferências preservados. Não foram modificados appsettings, Program.cs ou configuração de outros serviços. A variável TravelChat__TimeZone não é mais lida nem necessária; instruções anteriores sobre ela são históricas, substituídas por esta remoção.
+
+Sem alteração de rota, resposta pública, banco, protótipo ou PDF. Interpretação concreta, filtros e DI ainda pendentes; o service continua terminando em NotImplementedException após validar preferências. Harnesses temporários de interpretação e mapping foram ajustados ao contrato sem TimeZone.
+
+## Compatibilidade com o model atual de intenção — 05/11/2026
+
+Durante a validação da remoção de TimeZone, a compilação detectou referência a IncludeProgrammings que já não existe no TravelChatIntent atual. Preservada a edição do model; removida somente a regra da validação que dependia desse campo, sem recriá-lo. Intenção agora contém Description, CategoriesId e HostTypes. Conferência de categorias/tipos e demais regras continuam preservadas; decisão de como a intenção seleciona programações deverá ser definida na conversão para filtros. Não marcar como implementada a antiga exigência de IncludeProgrammings ou destino explícito de cada intenção. A primeira tentativa de compilação falhou por essa referência e foi corrigida antes de repetir a validação.
+
+Validação final da simplificação temporal: backend compilado sem erros (nove avisos anteriores) pelos harnesses --no-restore. TravelChatInterpretationCheck aprovou 15 verificações com dependências simuladas, cobrindo referência UTC do servidor sem alterar entrada, cancelamento, identidade e validação; TravelChatPreferencesCheck aprovou 42 verificações com catálogo simulado após compatibilização do model sem IncludeProgrammings. Busca confirmou ausência de TimeZone/IConfiguration nos tipos alterados; git diff --check sem erros. Primeira compilação falhou pela referência ao campo já ausente, corrigida antes destes resultados. Sem HTTP, banco ou n8n.
+
+## Hosts: filtros de preço/funcionamento e validação separada — 05/11/2026
+
+GET /api/Host/HostFilter mantém autenticação, paginação e resposta List<HostResponseDTO>. HostFilterDTO, HostFilter e HostFilterMapping agora incluem:
+
+| Campo | Tipo/uso |
+|---|---|
+| MinPrice / MaxPrice | decimal?; limites opcionais de faixa estimada de gasto por pessoa |
+| DayOfWeek | DayOfWeek?; 0=domingo até 6=sábado |
+| StartTime / EndTime | TimeOnly?; intervalo opcional em horário semanal do estabelecimento |
+| EndsNextDay | bool, padrão false; término do intervalo solicitado no dia seguinte |
+
+Preço usa interseção inclusiva: host.MaxPrice >= MinPrice solicitado e host.MinPrice <= MaxPrice solicitado. Limite ausente não restringe; faixa desconhecida não é tratada como zero/gratuidade e não satisfaz comparação com limite conhecido. Trata-se de estimativa por pessoa, não garantia de valor exato ou de toda a faixa caber no orçamento.
+
+Funcionamento usa qualquer sobreposição positiva, conforme escolha explícita do usuário. Apenas DayOfWeek busca qualquer abertura no dia, incluindo cauda de intervalo iniciado no dia anterior. Com período, dia/início/término são exigidos; deve durar mais de zero e até 24 horas. Horários iguais exigem EndsNextDay=true (24h). Tocar exatamente na abertura/fechamento sem tempo em comum não conta. A consulta considera dias/períodos ativos da agenda (IsClosed=false), múltiplos intervalos, madrugada e semana cíclica (sábado/domingo e domingo/segunda). Agenda ausente não significa aberto. Dia marcado fechado não elimina a cauda de um intervalo válido iniciado no dia anterior. Sem filtro de agenda, hosts sem agenda continuam elegíveis.
+
+Repository aplica preços e Any de dias/períodos diretamente no IQueryable, antes de OrderBy/Skip/Take. Não há carregamento de toda a tabela ou filtro após paginação. Busca preserva nome, cidade, tipos, HasProgrammings e atividade do host. Não altera entities Hosts/HostOpeningDay/HostOpeningPeriod, schema ou migrações: usa campos já existentes.
+
+Por solicitação do usuário, todas as validações do filtro (nulo, Take/Skip, Types, preços não negativos/duas casas/ordem dos limites, dia da semana, campos necessários e duração) foram extraídas para Domain/Validations/Validations/HostFilterValidations, com IHostFilterValidations. HostService recebe a interface pelo construtor e executa Validate(filter) antes do repository. Mensagens/exceções preservadas. Registro scoped acrescentado em Presentation/Program.cs ao lado das validações existentes; alteração necessária à injeção desta funcionalidade, não para suportar o protótipo. Controller continua traduzindo ArgumentException para ProblemDetails 400; DataAnnotations continuam as restrições estruturais no DTO.
+
+Integração com IA: quando VisitDate existir, TravelChatService passa seu DayOfWeek; com período completo confirmado, passa início/fim/virada. Orçamento confirmado por pessoa/por parada vira MaxPrice; não inventa MinPrice, que não existe nas preferências atuais. Orçamento total/grupo permanece sem conversão. Sem data, não aplica horário semanal isolado. Os horários do filtro são horários da agenda, sem novo fuso nomeado ou conversão automática de localização. Client n8n/DI da IA ainda pendentes; a busca pública de hosts reutiliza os services existentes. Especialidade como cafeteria ainda não é distinguida por tipo de host.
+
+Protótipo: catálogo reconhece preços numéricos, horários e seleção de dia da semana com domingo=0; formulários/query mantêm JWT e filtros opcionais, sem herdar preços de um host selecionado. Ajuda explica sobreposição e preços estimados. Exemplo .http atualizado com período normal, madrugada, dia inteiro e entrada inválida. Mudanças de catálogo também tipam DayOfWeek em DTOs já existentes; testes de regressão preservados.
+
+Sem alteração de banco principal, entidades persistidas, configurações EF, migrations, CORS, emissão JWT ou PDF. A API não foi reiniciada.
+
+Validação concluída dos filtros e extração: build do backend aprovado sem erros/nove avisos anteriores; HostFilterHoursCheck executou 197 verificações com EF/PostgreSQL reais em banco local descartável (intervalos/limites, múltiplos períodos, virada de dia/semana, agenda ausente/fechada, faixa monetária, legado nulo, paginação posterior aos filtros, mapping e rejeições de validação). Inclui 147 comparações de intervalos semanais contra um oráculo independente e sete consultas por dia sem período. Banco descartável removido em finally; banco principal preservado. A primeira conexão tentou porta 5434 do Development e foi recusada; teste passou com configuração base da porta 5432 já ativa, sem alteração de config/container/volume. Harness emitiu um aviso CS8602 próprio, separado dos nove avisos do backend.
+
+TravelChatResultsCheck executou 29 verificações simuladas do fluxo combinado, incluindo transferência de dia/período/virada/MaxPrice para HostFilter. node --check de app.js/catalog.mjs e arquivos de teste aprovado; catálogo real conferido; 105 testes do protótipo aprovados com API simulada. Primeira execução da nova fixture de UI falhou por aguardar incorretamente a sincronização inicial; fixture corrigida antes do resultado final. Sem teste HTTP real, API reiniciada, n8n ou PDF. Os exemplos .http foram atualizados, mas não executados contra dados reais. git diff --check sem erros.
+
+## IA: catálogo real de categorias na interpretação — 05/11/2026
+
+TravelChatMessage agora possui Categories (List<Category>) além de Text/ReferenceTime. Reaproveita Category já existente, sem novo model/envelope. TravelChatService injeta ICategoryService e, após verificar conta ativa por GetProfileAsync, chama GetallCategories. Monta o objeto enviado a InterpretAsync com somente categorias IsActive=true, ordenadas por Id, preservando IDs e nomes reais. Não confia em catálogo informado no objeto de entrada; o DTO público continua apenas Text e o catálogo é obtido pelo servidor.
+
+Objetivo: permitir que o workflow associe interesses do prompt a IDs existentes, pois o filtro de programações desta versão depende de CategoriesId e não usa Description como busca textual. Nomes de categoria são contexto de classificação, não instruções. O cliente n8n deverá receber o catálogo no JSON da mensagem sem JWT, UserId, localização ou histórico.
+
+Validação de preferências continua reutilizando GetallCategories para conferir existência/atividade dos IDs retornados, inclusive eventual mudança após a interpretação. Não foi criada função de consulta duplicada ou mecanismo de cache. Como o contrato existente não recebe CancellationToken, cancelamento é verificado antes/depois da consulta; uma falha no catálogo impede interpretação/filtros e é propagada.
+
+Catálogo vazio será enviado como lista vazia; a IA não deverá inventar IDs. Busca de programações sem categorias continuará sem consulta irrestrita; hosts continuam orientados por tipos existentes. Regras exatas do JSON/prompt e classificação do n8n serão definidas no próximo baby step, antes de criar o transporte na Data. Ainda não há cliente n8n nem DI da feature, portanto o endpoint não está funcional em execução.
+
+Sem alteração de DTO público, rota, mapping de prompt/resultados, entidades Category, schema, banco, protótipo ou PDF.
+
+Validação do catálogo: TravelChatResultsCheck --no-restore compilou o backend sem erros/nove avisos anteriores e aprovou 37 verificações com validação/mappings/AppService/service reais e dependências simuladas. Incluem categorias ativas ordenadas com IDs/nomes preservados, exclusão de inativas, nenhuma consulta para usuário indisponível, falha/cancelamento do catálogo impedindo interpretação e filtros, além das regressões de resultados/agenda/preço. git diff --check sem erros. Sem HTTP, banco ou n8n; protótipo não alterado pois contrato público permaneceu igual.
+
+## Roteiros personalizados — 12/11/2026
+
+Implementação preparada; migration `20261112194651_AddRoadmaps` criada, **não aplicada**. Não reinicie em Development antes de revisar: o Program.cs existente executa MigrateAsync na inicialização. Nenhuma mudança de schema foi executada nesta etapa.
+
+### Contrato e acesso
+- `POST /api/Roadmap`: público, JWT opcional; retorna 201 e Location para a consulta compartilhada. UserId vem exclusivamente da identidade autenticada, nunca do corpo. Sem token cria roteiro anônimo, que não pode ser editado ou desativado depois.
+- `GET /api/Roadmap/Shared/{shareId}`: público, somente leitura; identificador UUID aleatório. Compartilha nome e paradas, nunca UserId/e-mail. Roteiros inativos ou de contas desativadas retornam 404. SharePath é uma rota relativa da API que retorna JSON; o frontend deve compor sua página pública a partir de ShareId, sem colocar JWT no link.
+- `GET /api/Roadmap/GetAllRoadmapbyUserId?take=10&skip=0`: JWT obrigatório; somente roteiros ativos do usuário autenticado. Não recebe userId externo; take de 1 a 100 e skip não negativo. Lista vazia retorna 200 com [].
+- `PUT /api/Roadmap/{id}`: JWT do dono, substitui nome e lista completa de paradas; exige Version da última leitura. Anônimo/outro dono não obtêm acesso por ShareId; 404 para roteiro indisponível e 409 para versão desatualizada/concorrência.
+- `PATCH /api/Roadmap/{id}/Deactivate?version={uuid}`: dono autenticado e versão atual; soft delete, retorna 204 e torna o compartilhamento indisponível.
+- `POST /api/TravelChat/Messages` passou a permitir anônimos. Com JWT válido, continua verificando usuário ativo pelo IUserService.GetProfileAsync. Authorization inválido/expirado não é aceito silenciosamente como anônimo. Sem header, não consulta perfil. Não envia identidade ao n8n.
+- Criação de roteiro e TravelChat usam o limitador local por IP já existente, ProgrammingInteractions (120/minuto); excesso retorna 429. Não substitui política de quotas distribuídas de produção.
+
+### DTOs, entidades e regras
+RoadmapDTO: Name obrigatório até 150 caracteres, Version opcional na criação/obrigatória na edição e Stops de 1 a 30. Cada RoadmapStopDTO recebe somente ProgrammingId OU HostId, mais StartDate/EndDate UTC. A ordem da lista define Position. IDs positivos, início anterior ao fim, período entre 2000 e 2100, sem sobreposição; intervalos adjacentes são permitidos. Não exige participação integral: a visita deve caber no evento. Não calcula tempo de deslocamento, vagas ou reservas e não exige que os IDs pertençam a uma resposta específica da IA: opções ativas de qualquer página são novamente conferidas no banco.
+
+Hosts elegíveis são Gastronomia/Comércio com grade cadastrada. A visita inteira deve caber em um intervalo aberto, incluindo viradas de dia e períodos do dia anterior; não atravessa intervalo fechado. Grade local interpretada em America/Recife, enquanto entrada e persistência usam UTC. O modelo atual não possui timezone por estabelecimento; ampliação a outros fusos fica pendente. Cada programação/host pode aparecer uma vez por roteiro. Validações ocorrem ao criar/editar; alterações posteriores no catálogo não reservam nem garantem disponibilidade. IsAvailable no retorno indica somente o estado ativo da opção/host.
+
+RoadmapResponseDTO: Id, Name, ShareId, SharePath, Version, CreatedAt, CanEdit e Stops ordenadas com nome, IDs, período e IsAvailable. Consulta compartilhada sempre retorna CanEdit=false; criação autenticada/listagem privada/edição retornam true. Não é possível apropriar-se de um roteiro anônimo depois do login.
+
+Persistência: Roadmaps (UserId nullable, ShareId único, Version como token de concorrência), RoadmapStops (FKs, posição única por roteiro, alvo exclusivo e período positivo com checks), RoadmapProgrammingUsages (histórico, par RoadmapId/ProgrammingId único). FKs de catálogo e usuário restritivas preservam referências; a desativação de usuário já é lógica. Criação usa um SaveChanges atômico. Edição usa transação: troca versão, remove paradas antigas, adiciona as novas e registra somente inclusões inéditas. Conflitos de versão são 409; outras falhas de banco não são mascaradas como conflito.
+
+### Estatísticas
+Summary, Daily e Ranking retornam RoadmapInclusions. Ranking aceita sortBy=roadmapInclusions. A métrica conta a primeira inclusão de uma programação em cada roteiro, na data UTC dessa inclusão; retirar/recolocar a mesma programação no mesmo roteiro não conta outra vez. A desativação do roteiro preserva esse histórico. Exclusão de autointeração compara dono do host ao usuário autenticado; não é possível identificar o dono quando navega anonimamente. Conta inclusões, não pessoas únicas, reservas ou comparecimento. Roteiros com somente hosts não aumentam a métrica de programações.
+
+Agregações de favoritos, interações e inclusões são independentes, evitando produto cartesiano. Ranking faz left joins e mantém zeros; Daily reúne os grupos por data e o service mantém dias sem dados com zero. Autorização Pro e propriedade das estatísticas permanecem.
+
+### Testes e operação
+Harness em docs/validacoes/RoadmapChecks.csproj valida regras sem conexão ao banco. Exemplos de todas as rotas no arquivo Projetos - 4.http. Painel prototipo-api sincroniza os contratos e permite selecionar hosts/programações entre páginas, informar horários, ordenar e preparar o POST. Dados só são enviados ao clicar Enviar requisição; JWT é opcional nas duas operações públicas. Compartilhamento de rota da API é JSON, sem nova página pública no Expo. PDFs não foram regenerados.
+
+Limites da verificação: não foram aplicadas migrations nem executadas gravações HTTP/integração PostgreSQL. Testes de transação, concorrência real e execução das agregações no PostgreSQL devem ocorrer após a revisão/aplicação autorizada da migration. Não confundir compilação/testes com banco atualizado.

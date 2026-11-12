@@ -1,0 +1,285 @@
+{
+  "note": "IDs 101/102 e catálogo são fictícios para teste de contrato, não valores do banco. Exemplos esperados, não respostas executadas por uma IA.",
+  "cases": [
+    {
+      "name": "turismo e café com data, horário e teto explícitos",
+      "input": {
+        "text": "Quero visitar pontos turísticos no Recife e tomar um café no dia 7 de novembro de 2026, das 9h às 12h. Somos duas pessoas. Até R$ 50 por pessoa por parada.",
+        "referenceTime": "2026-11-05T15:00:00+00:00",
+        "categories": [
+          {
+            "id": 101,
+            "name": "Turismo",
+            "isActive": true
+          },
+          {
+            "id": 102,
+            "name": "Cultura",
+            "isActive": true
+          }
+        ]
+      },
+      "output": {
+        "city": "Recife",
+        "visitDate": "2026-11-07",
+        "hasTimeRestriction": true,
+        "startTime": "09:00:00",
+        "endTime": "12:00:00",
+        "endsNextDay": false,
+        "participants": 2,
+        "hasBudgetLimit": true,
+        "budget": 50,
+        "budgetBasis": 0,
+        "budgetScope": 1,
+        "isFree": null,
+        "intents": [
+          {
+            "description": "Visitar pontos turísticos",
+            "categoriesId": [
+              101
+            ],
+            "hostTypes": []
+          },
+          {
+            "description": "Tomar um café",
+            "categoriesId": [],
+            "hostTypes": [
+              1
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "informação insuficiente não gera perguntas ou busca genérica",
+      "input": {
+        "text": "Quero sair um pouco.",
+        "referenceTime": "2026-11-05T15:00:00+00:00",
+        "categories": [
+          {
+            "id": 101,
+            "name": "Turismo",
+            "isActive": true
+          },
+          {
+            "id": 102,
+            "name": "Cultura",
+            "isActive": true
+          }
+        ]
+      },
+      "output": {
+        "city": null,
+        "visitDate": null,
+        "hasTimeRestriction": null,
+        "startTime": null,
+        "endTime": null,
+        "endsNextDay": null,
+        "participants": null,
+        "hasBudgetLimit": null,
+        "budget": null,
+        "budgetBasis": null,
+        "budgetScope": null,
+        "isFree": null,
+        "intents": []
+      }
+    },
+    {
+      "name": "orçamento sem unidade ou escopo não vira teto por parada",
+      "input": {
+        "text": "Quero tomar café no Recife. Tenho até R$ 100.",
+        "referenceTime": "2026-11-05T15:00:00+00:00",
+        "categories": [
+          {
+            "id": 101,
+            "name": "Turismo",
+            "isActive": true
+          },
+          {
+            "id": 102,
+            "name": "Cultura",
+            "isActive": true
+          }
+        ]
+      },
+      "output": {
+        "city": "Recife",
+        "visitDate": null,
+        "hasTimeRestriction": null,
+        "startTime": null,
+        "endTime": null,
+        "endsNextDay": null,
+        "participants": null,
+        "hasBudgetLimit": true,
+        "budget": 100,
+        "budgetBasis": null,
+        "budgetScope": null,
+        "isFree": null,
+        "intents": [
+          {
+            "description": "Tomar café",
+            "categoriesId": [],
+            "hostTypes": [
+              1
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "sábado relativo com referência quinta-feira UTC",
+      "input": {
+        "text": "Quero visitar pontos turísticos do Recife neste sábado.",
+        "referenceTime": "2026-11-05T15:00:00+00:00",
+        "categories": [
+          {
+            "id": 101,
+            "name": "Turismo",
+            "isActive": true
+          },
+          {
+            "id": 102,
+            "name": "Cultura",
+            "isActive": true
+          }
+        ]
+      },
+      "output": {
+        "city": "Recife",
+        "visitDate": "2026-11-07",
+        "hasTimeRestriction": null,
+        "startTime": null,
+        "endTime": null,
+        "endsNextDay": null,
+        "participants": null,
+        "hasBudgetLimit": null,
+        "budget": null,
+        "budgetBasis": null,
+        "budgetScope": null,
+        "isFree": null,
+        "intents": [
+          {
+            "description": "Visitar pontos turísticos",
+            "categoriesId": [
+              101
+            ],
+            "hostTypes": []
+          }
+        ]
+      }
+    },
+    {
+      "name": "comércio sem horário e sem limite de gasto",
+      "input": {
+        "text": "Quero visitar lojas no Recife. Pode ser qualquer horário, sem limite de gasto.",
+        "referenceTime": "2026-11-05T15:00:00+00:00",
+        "categories": [
+          {
+            "id": 101,
+            "name": "Turismo",
+            "isActive": true
+          },
+          {
+            "id": 102,
+            "name": "Cultura",
+            "isActive": true
+          }
+        ]
+      },
+      "output": {
+        "city": "Recife",
+        "visitDate": null,
+        "hasTimeRestriction": false,
+        "startTime": null,
+        "endTime": null,
+        "endsNextDay": null,
+        "participants": null,
+        "hasBudgetLimit": false,
+        "budget": null,
+        "budgetBasis": null,
+        "budgetScope": null,
+        "isFree": null,
+        "intents": [
+          {
+            "description": "Visitar lojas",
+            "categoriesId": [],
+            "hostTypes": [
+              2
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "não inventar categoria quando catálogo não identifica turismo",
+      "input": {
+        "text": "Quero visitar pontos turísticos do Recife.",
+        "referenceTime": "2026-11-05T15:00:00+00:00",
+        "categories": []
+      },
+      "output": {
+        "city": "Recife",
+        "visitDate": null,
+        "hasTimeRestriction": null,
+        "startTime": null,
+        "endTime": null,
+        "endsNextDay": null,
+        "participants": null,
+        "hasBudgetLimit": null,
+        "budget": null,
+        "budgetBasis": null,
+        "budgetScope": null,
+        "isFree": null,
+        "intents": [
+          {
+            "description": "Visitar pontos turísticos",
+            "categoriesId": [],
+            "hostTypes": []
+          }
+        ]
+      }
+    },
+    {
+      "name": "madrugada explicitamente no dia seguinte",
+      "input": {
+        "text": "Quero visitar lojas no Recife no dia 7 de novembro de 2026, das 22h até 2h do dia seguinte.",
+        "referenceTime": "2026-11-05T15:00:00+00:00",
+        "categories": [
+          {
+            "id": 101,
+            "name": "Turismo",
+            "isActive": true
+          },
+          {
+            "id": 102,
+            "name": "Cultura",
+            "isActive": true
+          }
+        ]
+      },
+      "output": {
+        "city": "Recife",
+        "visitDate": "2026-11-07",
+        "hasTimeRestriction": true,
+        "startTime": "22:00:00",
+        "endTime": "02:00:00",
+        "endsNextDay": true,
+        "participants": null,
+        "hasBudgetLimit": null,
+        "budget": null,
+        "budgetBasis": null,
+        "budgetScope": null,
+        "isFree": null,
+        "intents": [
+          {
+            "description": "Visitar lojas",
+            "categoriesId": [],
+            "hostTypes": [
+              2
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

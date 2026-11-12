@@ -276,3 +276,88 @@ A primeira implementação de IA/n8n e POST /api/Itinerary/Generate foram retira
 GET e PUT /api/Host/{hostId:int}/OpeningHours usam [Authorize]. O usuário vem de UserManager.GetUserId(User), não do corpo ou query. Não há emissão, renovação ou alteração de JWT nestas actions. A conta ativa e o papel ADMIN/propriedade são conferidos no OpeningHoursService; um token válido, isoladamente, não concede edição sobre qualquer host.
 
 O protótipo reutiliza o JWT da sessão, inclusive o retornado pelo cadastro de host. Exemplos .http usam createHost.response.body.$.auth.accessToken. Token ausente, inválido ou vencido retorna 401 pela autenticação; usuário indisponível retorna ProblemDetails 401 pelo fluxo. Host inacessível retorna 404. Realizadas 31 verificações HTTP com tokens assinados e domínio/persistência simulados; a autorização de negócio real foi coberta nos testes de service da etapa anterior. Nenhuma mudança de claims, duração ou chave.
+
+
+## TravelChat: identidade na action — 05/11/2026
+
+TravelChatController.SendMessage exige [Authorize], obtém userId via UserManager<User>.GetUserId(User) e o passa separado do DTO à Application. ID ausente gera 401. Nenhuma emissão/claim/renovação de token foi alterada. AppService concreto e DI ainda pendentes: rota não está funcional em execução. Verificação de conta ativa e propriedade ainda não implementadas. Build aprovado; sem teste HTTP desta action.
+
+## Chat: identificação e conta ativa no service — 05/11/2026
+
+TravelChatService agora recebe IUserRepository no construtor, seguindo FavoriteService. SendMessageAsync rejeita mensagem nula e executa ValidateUserAsync antes do trecho ainda pendente. ID nulo/vazio/somente espaços gera UnauthorizedAccessException("Usuário não autenticado.") sem consultar o repository. GetbyId(userId) é usado para verificar existência e IsActive; conta inexistente/inativa gera UnauthorizedAccessException("Usuário indisponível."). A action já traduz essa exceção para ProblemDetails 401. Falhas do repository não são mascaradas como falhas de autenticação.
+
+A verificação usa o ID fornecido pela action a partir do JWT, não um UserId no DTO. Não verifica propriedade da conversa ainda: não existe persistência de conversa. Para usuário ativo e entrada válida, o método continua lançando NotImplementedException no trecho não implementado. DI permanece sem registros da feature, e a rota continua indisponível em execução.
+
+Não houve alteração de DTOs, mappings, emissão/validação de JWT, contratos HTTP, Program.cs, models, EF, migration ou banco. IUserRepository.GetbyId não recebe CancellationToken no contrato existente; esse contrato foi preservado. A implementação futura deverá tratar o cancelamento das etapas seguintes. Sem protótipo alterado ou PDF exportado.
+
+Próximo baby step proposto: definir o objeto de conversa no domínio, com seu UserId, para depois estabelecer a consulta e verificação de propriedade antes de enviar contexto ao n8n.
+
+Validações deste passo: dotnet run --no-restore do harness TravelChatUserCheck.cs/.csproj compilou o backend sem erros (nove avisos de nulabilidade existentes) e aprovou 13 verificações com IUserRepository simulado: IDs ausentes, conta inexistente/inativa, conta ativa chegando ao trecho pendente, mensagem nula e propagação de falha do repository. git diff --check sem erros. Sem teste HTTP, banco real ou n8n.
+
+## Chat: reutilização da verificação de usuário — 05/11/2026
+
+Correção da etapa anterior: TravelChatService agora injeta IUserService e chama GetProfileAsync(userId), função existente que retorna null para identificação ausente, usuário inexistente ou inativo. Removidos IUserRepository e o auxiliar duplicado ValidateUserAsync deste service. Retorno nulo gera UnauthorizedAccessException("Usuário indisponível."), traduzida pela action para 401. A verificação inicial da identidade na controller permanece. GetProfileAsync não foi alterado, nem foram refatorados outros services.
+
+Mantidos mapping, validação de DTO, assinatura e trecho ainda pendente (NotImplementedException após usuário válido). DI e restante da feature continuam pendentes; endpoint indisponível em execução. Sem alteração de banco, contrato HTTP, protótipo, workflow ou PDF. Orientação permanente registrada nos AGENTS.md dos dois workspaces: pesquisar e reutilizar funções equivalentes antes de criar novas, usando GetProfileAsync para conta existente/ativa.
+
+Validação da correção: compilação do backend pelo harness --no-restore aprovada sem erros, com nove avisos existentes; 13 verificações de delegação/retorno nulo/conta disponível/mensagem nula/propagação de erro aprovadas com IUserService simulado. GetProfileAsync real revisado estaticamente; não executado teste de integração dele nesta etapa. Sem HTTP ou banco. git diff --check sem erros.
+
+
+## Chat: propriedade preparada no domínio — 05/11/2026
+
+O service passa userId autenticado ao GetByIdAsync e rejeita retorno nulo, inativo ou pertencente a outro usuário com 404 uniforme via action. Nova conversa recebe UserId do servidor. Repository/DI continuam pendentes: comportamento validável apenas com dependências simuladas, sem teste HTTP ou banco.
+
+
+## IA simplificada: identidade preservada — 05/11/2026
+
+POST /api/TravelChat/Messages mantém JWT, userId da action e conta ativa por GetProfileAsync. Removida dependência de conversa/propriedade no prompt independente. Sem UserId no DTO; integração/DI pendentes.
+
+## IA: token do usuário não é enviado ao n8n — 06/11/2026
+
+Cliente N8nTravelChatInterpretationService recebe somente HttpClient e TravelChatMessage, sem HttpContext ou JWT. Envia prompt, referência temporal e categorias; identidade permanece na API por JWT/GetProfileAsync. Credencial Gemini permanece no n8n. Autenticação entre API/n8n e registro do cliente serão definidos no próximo passo; não há segredo fixo no novo código. Emissão, claims, renovação e middleware JWT preservados. Verificações simuladas conferiram ausência de Authorization no request do cliente não configurado; nenhum token real foi utilizado nesta etapa.
+
+## IA: configuração de transporte sem encaminhar JWT — 06/11/2026
+
+DI do cliente n8n agora configurada, sem Authorization de usuário nos DefaultRequestHeaders. JWT continua somente na API. URL vem de N8n:TravelChatWebhookUrl; endereços com usuário/senha embutidos são rejeitados como configuração inválida. Não foram alteradas credenciais Gemini, autenticação do Webhook, claims, login ou middleware JWT. O teste da DI confirmou ausência de JWT no transporte simulado; não foi usado token real. Webhook de teste deve estar ouvindo para teste manual da API.
+
+## TravelChat: preparação de Header Auth — 06/11/2026
+
+O HttpClient da interpretação lê N8n:TravelChatWebhookKey (variável de ambiente N8n__TravelChatWebhookKey) e, quando preenchida, envia X-Perambulando-Key ao webhook. Sem a configuração, mantém temporariamente o fluxo local sem esse cabeçalho, para permitir configuração em baby steps. Isso não torna o webhook autenticado por si só: a credencial Header Auth do n8n deve usar Name=X-Perambulando-Key e o mesmo Value, e ser vinculada ao Webhook depois da configuração da API.
+
+Chave exclusiva de servidor, independente do JWT do usuário e da credencial Gemini. Não colocar em DTO, frontend/protótipo, launchSettings versionado ou appsettings versionado. Para desenvolvimento, pode ser configurada pelo recurso Manage User Secrets do projeto da API com a propriedade N8n:TravelChatWebhookKey. Em produção, usar o mecanismo de segredos do ambiente e HTTPS quando o tráfego sair do loopback local. A URL de produção e a ativação da autenticação no workflow continuam pendentes. O assistente não recebeu nem gravou a chave.
+
+Rotas, autenticação JWT da API, DTOs e respostas permanecem iguais. Ajuda do protótipo atualizada para deixar explícito que a chave é configurada somente no servidor. Sem migração, alteração de banco, chamada à IA, edição do workflow ou exportação de PDFs.
+
+Validação desta preparação: build --no-restore aprovado com zero erros e nove avisos de nulabilidade preexistentes; node --check public/app.js aprovado; 107 testes do protótipo aprovados com API simulada (reexecução fora da sandbox após bloqueio de loopback EACCES). git diff --check sem erros. O envio autenticado ao n8n real ainda não foi testado.
+
+## Roteiros personalizados — 12/11/2026
+
+Implementação preparada; migration `20261112194651_AddRoadmaps` criada, **não aplicada**. Não reinicie em Development antes de revisar: o Program.cs existente executa MigrateAsync na inicialização. Nenhuma mudança de schema foi executada nesta etapa.
+
+### Contrato e acesso
+- `POST /api/Roadmap`: público, JWT opcional; retorna 201 e Location para a consulta compartilhada. UserId vem exclusivamente da identidade autenticada, nunca do corpo. Sem token cria roteiro anônimo, que não pode ser editado ou desativado depois.
+- `GET /api/Roadmap/Shared/{shareId}`: público, somente leitura; identificador UUID aleatório. Compartilha nome e paradas, nunca UserId/e-mail. Roteiros inativos ou de contas desativadas retornam 404. SharePath é uma rota relativa da API que retorna JSON; o frontend deve compor sua página pública a partir de ShareId, sem colocar JWT no link.
+- `GET /api/Roadmap/GetAllRoadmapbyUserId?take=10&skip=0`: JWT obrigatório; somente roteiros ativos do usuário autenticado. Não recebe userId externo; take de 1 a 100 e skip não negativo. Lista vazia retorna 200 com [].
+- `PUT /api/Roadmap/{id}`: JWT do dono, substitui nome e lista completa de paradas; exige Version da última leitura. Anônimo/outro dono não obtêm acesso por ShareId; 404 para roteiro indisponível e 409 para versão desatualizada/concorrência.
+- `PATCH /api/Roadmap/{id}/Deactivate?version={uuid}`: dono autenticado e versão atual; soft delete, retorna 204 e torna o compartilhamento indisponível.
+- `POST /api/TravelChat/Messages` passou a permitir anônimos. Com JWT válido, continua verificando usuário ativo pelo IUserService.GetProfileAsync. Authorization inválido/expirado não é aceito silenciosamente como anônimo. Sem header, não consulta perfil. Não envia identidade ao n8n.
+- Criação de roteiro e TravelChat usam o limitador local por IP já existente, ProgrammingInteractions (120/minuto); excesso retorna 429. Não substitui política de quotas distribuídas de produção.
+
+### DTOs, entidades e regras
+RoadmapDTO: Name obrigatório até 150 caracteres, Version opcional na criação/obrigatória na edição e Stops de 1 a 30. Cada RoadmapStopDTO recebe somente ProgrammingId OU HostId, mais StartDate/EndDate UTC. A ordem da lista define Position. IDs positivos, início anterior ao fim, período entre 2000 e 2100, sem sobreposição; intervalos adjacentes são permitidos. Não exige participação integral: a visita deve caber no evento. Não calcula tempo de deslocamento, vagas ou reservas e não exige que os IDs pertençam a uma resposta específica da IA: opções ativas de qualquer página são novamente conferidas no banco.
+
+Hosts elegíveis são Gastronomia/Comércio com grade cadastrada. A visita inteira deve caber em um intervalo aberto, incluindo viradas de dia e períodos do dia anterior; não atravessa intervalo fechado. Grade local interpretada em America/Recife, enquanto entrada e persistência usam UTC. O modelo atual não possui timezone por estabelecimento; ampliação a outros fusos fica pendente. Cada programação/host pode aparecer uma vez por roteiro. Validações ocorrem ao criar/editar; alterações posteriores no catálogo não reservam nem garantem disponibilidade. IsAvailable no retorno indica somente o estado ativo da opção/host.
+
+RoadmapResponseDTO: Id, Name, ShareId, SharePath, Version, CreatedAt, CanEdit e Stops ordenadas com nome, IDs, período e IsAvailable. Consulta compartilhada sempre retorna CanEdit=false; criação autenticada/listagem privada/edição retornam true. Não é possível apropriar-se de um roteiro anônimo depois do login.
+
+Persistência: Roadmaps (UserId nullable, ShareId único, Version como token de concorrência), RoadmapStops (FKs, posição única por roteiro, alvo exclusivo e período positivo com checks), RoadmapProgrammingUsages (histórico, par RoadmapId/ProgrammingId único). FKs de catálogo e usuário restritivas preservam referências; a desativação de usuário já é lógica. Criação usa um SaveChanges atômico. Edição usa transação: troca versão, remove paradas antigas, adiciona as novas e registra somente inclusões inéditas. Conflitos de versão são 409; outras falhas de banco não são mascaradas como conflito.
+
+### Estatísticas
+Summary, Daily e Ranking retornam RoadmapInclusions. Ranking aceita sortBy=roadmapInclusions. A métrica conta a primeira inclusão de uma programação em cada roteiro, na data UTC dessa inclusão; retirar/recolocar a mesma programação no mesmo roteiro não conta outra vez. A desativação do roteiro preserva esse histórico. Exclusão de autointeração compara dono do host ao usuário autenticado; não é possível identificar o dono quando navega anonimamente. Conta inclusões, não pessoas únicas, reservas ou comparecimento. Roteiros com somente hosts não aumentam a métrica de programações.
+
+Agregações de favoritos, interações e inclusões são independentes, evitando produto cartesiano. Ranking faz left joins e mantém zeros; Daily reúne os grupos por data e o service mantém dias sem dados com zero. Autorização Pro e propriedade das estatísticas permanecem.
+
+### Testes e operação
+Harness em docs/validacoes/RoadmapChecks.csproj valida regras sem conexão ao banco. Exemplos de todas as rotas no arquivo Projetos - 4.http. Painel prototipo-api sincroniza os contratos e permite selecionar hosts/programações entre páginas, informar horários, ordenar e preparar o POST. Dados só são enviados ao clicar Enviar requisição; JWT é opcional nas duas operações públicas. Compartilhamento de rota da API é JSON, sem nova página pública no Expo. PDFs não foram regenerados.
+
+Limites da verificação: não foram aplicadas migrations nem executadas gravações HTTP/integração PostgreSQL. Testes de transação, concorrência real e execução das agregações no PostgreSQL devem ocorrer após a revisão/aplicação autorizada da migration. Não confundir compilação/testes com banco atualizado.

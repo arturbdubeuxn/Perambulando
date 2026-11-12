@@ -7,6 +7,7 @@ using Projetos___4.Application.Mapping;
 using Projetos___4.Application.Mapping.Interfaces;
 using Projetos___4.Application.Interfaces;
 using Projetos___4.Application.Validations.Interfaces;
+using Projetos___4.Application.Validations.Validations;
 using Projetos___4.Application.Validations.Validations.Programming;
 using Projetos___4.Data.Context;
 using Projetos___4.Data.Repository;
@@ -102,6 +103,7 @@ builder.Services.AddScoped<IHostAppService,HostAppService>();
 builder.Services.AddScoped<IHostService,HostService>();
 builder.Services.AddScoped<ICnpjValidations, CnpjValidations>();
 builder.Services.AddScoped<IOpeningHoursValidations, OpeningHoursValidations>();
+builder.Services.AddScoped<IHostFilterValidations, HostFilterValidations>();
 builder.Services.AddHttpClient<ICompanyRegistrationService, MinhaReceitaService>(client =>
 {
     client.Timeout = TimeSpan.FromSeconds(10);
@@ -125,6 +127,36 @@ builder.Services.AddScoped<IUserMapping, UserMapping>();
 builder.Services.AddScoped<IHostMapping, HostMapping>();
 builder.Services.AddScoped<IOpeningHoursMapping, OpeningHoursMapping>();
 builder.Services.AddScoped<IHostFilterMapping, HostFilterMapping>();
+builder.Services.AddScoped<IRoadmapRepository, RoadmapRepository>();
+builder.Services.AddScoped<IRoadmapService, RoadmapService>();
+builder.Services.AddScoped<IRoadmapAppService, RoadmapAppService>();
+builder.Services.AddScoped<IRoadmapMapping, RoadmapMapping>();
+builder.Services.AddScoped<IRoadmapValidations, RoadmapValidations>();
+builder.Services.AddScoped<IValidation<RoadmapDTO>, RoadmapValidation>();
+// TravelChat
+builder.Services.AddScoped<ITravelChatAppService, TravelChatAppService>();
+builder.Services.AddScoped<ITravelChatService, TravelChatService>();
+builder.Services.AddScoped<ITravelChatMapping, TravelChatMapping>();
+builder.Services.AddScoped<IValidation<TravelChatMessageDTO>, TravelChatMessageValidation>();
+builder.Services.AddScoped<ITravelChatPreferencesValidations, TravelChatPreferencesValidations>();
+builder.Services.AddHttpClient<ITravelChatInterpretationService, N8nTravelChatInterpretationService>((services, client) =>
+{
+    var configuration = services.GetRequiredService<IConfiguration>();
+    if (Uri.TryCreate(configuration["N8n:TravelChatWebhookUrl"], UriKind.Absolute, out var webhookUri) &&
+        (webhookUri.Scheme == Uri.UriSchemeHttp || webhookUri.Scheme == Uri.UriSchemeHttps) &&
+        string.IsNullOrEmpty(webhookUri.UserInfo) && string.IsNullOrEmpty(webhookUri.Fragment))
+    {
+        client.BaseAddress = webhookUri;
+    }
+    var webhookKey = configuration["N8n:TravelChatWebhookKey"];
+    if (!string.IsNullOrWhiteSpace(webhookKey))
+    {
+        client.DefaultRequestHeaders.Add("X-Perambulando-Key", webhookKey);
+    }
+    client.Timeout = TimeSpan.FromSeconds(30);
+}).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false })
+  .RemoveAllLoggers();
+// Fim TravelChat
 builder.Services.AddScoped<IFavoriteMapping, FavoriteMapping>();
 builder.Services.AddScoped<IUserXCategoryMapping, UserXCategoryMapping>();
 builder.Services.AddScoped<IProgrammingXCategoryMapping, ProgrammingXCategoryMapping>();

@@ -1187,3 +1187,163 @@ GET /api/Host/Details/{hostId} agora devolve minPrice, maxPrice e openingWeek (h
 HostResponseDTO também devolve os preços (listagem, filtro e edição). Resposta de criação continua 201 com result/auth, sem expansão de HostCreatedDTO; valores/grade podem ser consultados no perfil. Hosts legados sem valores retornam null, não zero. Exemplos .http e protótipo atualizados: campos monetários para comércio/gastronomia, grade e gasto por pessoa no perfil, limpeza de valores nulos ao trocar de host.
 
 Validações: build isolado sem erros/nove avisos anteriores; 77 verificações integradas em PostgreSQL descartável com AppService/service/mapping/repository/Identity reais e APIs externas simuladas; 101 testes do protótipo com API simulada aprovados. Banco descartável removido. Nenhuma migration criada/aplicada, nenhum dado principal alterado, nenhuma API reiniciada e nenhum PDF regenerado. Estas novas colunas ainda precisam de migration, independentemente da migration anterior de horários informada pelo usuário.
+
+## TravelChatController: estrutura inicial — 05/11/2026
+
+Criada Presentation/Controllers/TravelChatController.cs, herdando de ControllerBase, com [Authorize], [ApiController] e [Route("api/[controller]")], conforme o padrão existente. A classe ainda não possui actions, dependências ou construtor explícito. O prefixo planejado é /api/TravelChat, mas não existe endpoint acessível desta controller enquanto não houver action. Application, Domain, Data, Program.cs e banco não foram alterados.
+
+Validação: dotnet build do projeto com --no-restore e saída isolada aprovado com zero erros e nove avisos de nulabilidade em arquivos existentes. Sem testes HTTP, execução da API, n8n ou banco. Protótipo preservado porque não houve mudança funcional nem contrato HTTP disponível; PDFs não exportados.
+
+## Chat: action SendMessage preparada — 05/11/2026
+
+Implementada na Presentation a única action POST /api/TravelChat/Messages, em TravelChatController. Recebe TravelChatMessageDTO por [FromBody], exige [Authorize], obtém userId com UserManager<User>.GetUserId(User), rejeita ID ausente com ProblemDetails 401 e delega à ITravelChatAppService.SendMessageAsync(dto, userId, HttpContext.RequestAborted). O UserId não é aceito no corpo. Retorno previsto 200 com TravelChatResponseDTO; UnauthorizedAccessException, ArgumentException e KeyNotFoundException são traduzidas para 401, 400 e 404. DataAnnotations/[ApiController] validam a estrutura de entrada.
+
+Limitação atual: não existe TravelChatAppService concreto nem registro de ITravelChatAppService na DI. A rota está declarada, mas requisições autenticadas válidas ainda falham na ativação da controller por dependência não resolvida. Os retornos acima descrevem o código da action, não um fluxo funcional já disponível. Não há n8n, persistência, verificação de propriedade ou conta ativa implementados. Program.cs e banco preservados. Próximo passo: estrutura do AppService da mesma action, sem outra action.
+
+Protótipo: catálogo real reconhece POST /api/TravelChat/Messages como autenticado, com conversationId opcional numérico, text obrigatório até 4.000 caracteres e location JSON opcional. Acrescentado aviso de implementação pendente no formulário automático; sem captura de geolocalização ou editor de chat nesta etapa. Reaproveitamento automático do ID da conversa fica pendente até o fluxo funcional; o campo pode ser informado manualmente. Exemplo .http identificado como ainda indisponível.
+
+Validações executadas: build --no-restore com saída isolada, zero erros e nove avisos de nulabilidade em arquivos existentes; node --check em public/app.js e catalog.mjs; catálogo real lido; 101 testes do protótipo aprovados com API simulada. Primeira execução dos testes bloqueada por EACCES de localhost no sandbox; repetição autorizada fora dele aprovada. Sem teste HTTP da nova action, API reiniciada, banco real alterado, workflow ou PDF exportado.
+
+
+Atualização TravelChat — 05/11/2026: criado o esqueleto de TravelChatAppService, cujo SendMessageAsync ainda lança NotImplementedException. DI permanece sem registro; a action ainda não funciona em execução. Rota, DTOs e autenticação preservados. Build aprovado com zero erros/nove avisos existentes; sem testes HTTP.
+
+
+Atualização TravelChat — 05/11/2026: AppService agora valida, mapeia entrada, delega à ITravelChatService e mapeia resposta. Sem mudança de rota/DTO/status. Service concreto e DI ainda pendentes; action continua indisponível em execução.
+
+
+TravelChat — 05/11/2026: criado TravelChatService concreto apenas como estrutura, com SendMessageAsync lançando NotImplementedException. DI e implementação funcional continuam pendentes; rota permanece indisponível. Sem alteração de contrato HTTP. Build aprovado; nenhum teste HTTP nesta etapa.
+
+
+TravelChat — 05/11/2026: service agora rejeita usuário sem identificação, inexistente ou inativo com UnauthorizedAccessException, tratada pela action como 401. Regra verificada apenas de forma isolada com repository simulado; sem HTTP. Propriedade e restante do fluxo ainda pendentes. DI ausente e action indisponível em execução.
+
+
+TravelChat — 05/11/2026: service conectado à interface do repository para iniciar/consultar conversa, com rejeição de ID inválido (400) ou conversa indisponível/alheia (404). Ainda termina em NotImplementedException após essa etapa, sem DI nem persistência concreta; endpoint permanece indisponível. Nenhuma alteração de contrato HTTP.
+
+## Escopo vigente da IA: prompt único — 05/11/2026
+
+Por solicitação do usuário, esta primeira versão passa a ser: prompt único → n8n interpreta preferências → API filtra cadastros reais → listas de programações e hosts de gastronomia/comércio para o usuário montar roteiro. Sem localização, proximidade, perguntas/respostas, conversa ou histórico. Esta seção substitui as propostas anteriores para a entrega inicial.
+
+Implementado neste baby step:
+
+- TravelChatMessageDTO e TravelChatMessage contêm somente Text, obrigatório e até 4.000 caracteres na validação Application.
+- TravelChatResponseDTO e TravelChatResponse contêm somente Programmings e Hosts; removidos ConversationId, Message e Questions.
+- TravelChatMapping converte apenas texto e listas com mappings existentes. AppService mantém Validate → ToModel → service → ToDTO, userId separado e cancelamento.
+- TravelChatService mantém IUserService.GetProfileAsync e cancelamento; removidos repositories e chamadas de conversa/histórico. Ainda termina em NotImplementedException, aguardando interpretação e filtros.
+- TravelChatInterpretationRequest contém Text, ReferenceTime e TimeZone, sem History ou HasLocation. TravelChatInterpretationResponse contém apenas Preferences. Removidos SearchNearby e RadiusMeters das preferências.
+- A mesma action POST /api/TravelChat/Messages mantém autenticação e identificação pelo JWT. Retirado catch específico de conversa indisponível; preservados 400/401. Sem outra action.
+
+Entrada atual planejada:
+
+```json
+{ "text": "Quero passear no Recife no sábado e tomar um café" }
+```
+
+Saída planejada (listas vazias ilustrativas, não resposta funcional implementada):
+
+```json
+{ "programmings": [], "hosts": [] }
+```
+
+Dados ausentes não gerarão perguntas: filtros devem usar somente restrições claras/suportadas, sem inventar pessoas, horário, orçamento ou origem. Cidade escrita no prompt pode ser um filtro, sem geolocalização. A política exata para ambiguidades e limites de busca será definida na interpretação/validação, ainda pendentes. Não há cálculo de rota, persistência ou montagem automática de roteiro nesta fase.
+
+Preservados como preparação inativa de evolução: models de conversa/histórico/localização e interfaces de repositories. Não são consumidos pelo fluxo atual e não possuem EF/DI. As verificações temporárias anteriores que dependem dos campos removidos documentam a versão anterior; o harness TravelChatMappingCheck foi atualizado ao escopo vigente.
+
+Protótipo: catálogo real conferido com somente Text obrigatório até 4.000 caracteres e JWT; aviso de implementação pendente atualizado. Exemplo .http também simplificado. Sem formulário de localização, ConversationId ou chat neste fluxo.
+
+Estado: contratos simplificados, sem integração funcional com n8n, filtros coordenados ou DI. Nenhuma alteração em Program.cs, banco, migrations ou PDFs. Próximo baby step: ITravelChatInterpretationService com entrada e saída já preparadas. A montagem do workflow terá assistência quando chegar à integração, em passos pequenos.
+
+Validações executadas: backend compilado sem erros/nove avisos existentes por dotnet run --no-restore de TravelChatMappingCheck; 15 verificações aprovadas de contrato público/domínio, mapping, serialização, validação e AppService com service simulado. node --check em app.js/catalog.mjs, catálogo real e 101 testes do protótipo aprovados com API simulada. Sem teste HTTP da nova action, banco real ou chamada n8n.
+
+
+TravelChat — 05/11/2026: service passou a consultar o filtro existente de programações após interpretação/validação. A action não mudou e continua indisponível como fluxo completo: hosts, retorno combinado, n8n concreto e DI pendentes; SendMessageAsync ainda termina em NotImplementedException. Sem novo endpoint.
+
+Validação do passo de programações: TravelChatProgrammingCheck.cs/.csproj compilou o backend sem erros (nove avisos existentes) e aprovou 43 verificações com usuário, intérprete, catálogo e IProgrammingService simulados. Cobrem escolha de intenções por categorias, ausência de busca genérica/textual, cidade/gratuidade, UTC/dia/período completo/madrugada/período incompleto, orçamento por pessoa/parada e não conversão de grupo/roteiro, validação antes da consulta, erro de consulta e cancelamento entre intenções. Não foi testado retorno final da action: o fluxo válido ainda termina em NotImplementedException após a etapa de programações. Primeira execução do harness apontou expectativa textual incompatível com a versão salva; ajustados o critério sem categorias e a verificação para preservar essa edição. Sem HTTP real, banco ou n8n.
+
+## IA: busca de hosts e resposta combinada — 05/11/2026
+
+TravelChatService agora injeta IHostService e chama FilterHostsAsync após o filtro de programações. Reutiliza IHostService.FilterAsync(HostFilter) existente: consulta somente intenções com HostTypes informados, transfere City e tipos distintos, mantendo Take=10/Skip=0. Não impõe HasProgrammings: host pode ser sugerido sem evento. Não transforma Description em Name, pois uma intenção como “tomar café” não é nome de estabelecimento. Sem tipos de host extraídos, não faz busca genérica de hosts.
+
+Validação de preferências continua restringindo tipos a Gastronomy/Business. HostFilter existente já consulta hosts ativos. O helper remove duplicados por Id, ordena por Name/Id e limita o conjunto a dez hosts. Programações continuam com categorias, deduplicação, StartDate/Id e limite dez. Não houve mudança de query/repository/filtro público.
+
+Retirado NotImplementedException de SendMessageAsync: após conta ativa, interpretação, validação e ambas as buscas, retorna TravelChatResponse com Programmings e Hosts. AppService usa TravelChatMapping.ToDTO para converter ambas as listas pelos mappings existentes. Nenhuma montagem/persistência automática de roteiro é executada; são opções para seleção posterior.
+
+Limites desta entrega: HostFilter não contém gasto nem agenda, então preço, data/horário de funcionamento e especialidade gastronômica (por exemplo cafeteria) não são garantidos na lista de hosts. Não foi feita filtragem depois da paginação para simular suporte inexistente. Pedido de café mapeado para Gastronomy pode incluir outros estabelecimentos desse tipo. Categorias de programação não são atribuídas a hosts. Nome/cidade/tipo são campos existentes; nesta feature somente cidade/tipo são usados. Orçamento total/grupo e custo combinado continuam sem garantia. Sem localização, perguntas ou histórico.
+
+Cancelamento conferido antes/depois das consultas e entre as etapas; contratos existentes de FilterAsync permanecem sem token, portanto não cancelam o SQL em andamento. Falha de uma busca é propagada, não convertida em resposta parcial de sucesso. As duas listas vazias são resultado válido quando não houver registros ou intenções aplicáveis.
+
+Estado: fluxo de domínio/Application verificado com interpretação/filtros simulados; ainda não há implementação HTTP do n8n nem registros da feature na DI. Por isso a rota real continua indisponível em execução. Não afirmar que a API foi executada ou que houve integração real do workflow.
+
+Protótipo: resposta combinada agora tem duas seções, com cartões existentes de programação/host, preservando seleção/reuso de IDs dos cartões e JSON bruto. Mensagens separadas para listas vazias; aviso do formulário explica integração pendente e limites do filtro de hosts. Exemplo .http atualizado para retirar filtros da lista de etapas ainda ausentes.
+
+Próximo baby step: fechar o JSON de entrada/saída do workflow com os models atuais antes de implementar o cliente n8n na Data. Nenhuma alteração em Program.cs, banco, migrations ou PDFs.
+
+Validações executadas: TravelChatResultsCheck.cs/.csproj compilou backend sem erros/nove avisos anteriores e aprovou 27 verificações com service/AppService/mappings/validações reais e intérprete/filtros/catálogo simulados: listas combinadas, cidade/tipos, intenções sem busca genérica, deduplicação/ordem/limites, retorno via mapping, rejeição de produtor, usuário indisponível, falhas sem resposta parcial e cancelamento. node --check em app.js/catalog.mjs aprovados; 103 testes do protótipo aprovados com API simulada, incluindo duas novas verificações da exibição combinada e listas vazias. Sem HTTP real da action, banco ou n8n.
+
+## Hosts: filtros de preço/funcionamento e validação separada — 05/11/2026
+
+GET /api/Host/HostFilter mantém autenticação, paginação e resposta List<HostResponseDTO>. HostFilterDTO, HostFilter e HostFilterMapping agora incluem:
+
+| Campo | Tipo/uso |
+|---|---|
+| MinPrice / MaxPrice | decimal?; limites opcionais de faixa estimada de gasto por pessoa |
+| DayOfWeek | DayOfWeek?; 0=domingo até 6=sábado |
+| StartTime / EndTime | TimeOnly?; intervalo opcional em horário semanal do estabelecimento |
+| EndsNextDay | bool, padrão false; término do intervalo solicitado no dia seguinte |
+
+Preço usa interseção inclusiva: host.MaxPrice >= MinPrice solicitado e host.MinPrice <= MaxPrice solicitado. Limite ausente não restringe; faixa desconhecida não é tratada como zero/gratuidade e não satisfaz comparação com limite conhecido. Trata-se de estimativa por pessoa, não garantia de valor exato ou de toda a faixa caber no orçamento.
+
+Funcionamento usa qualquer sobreposição positiva, conforme escolha explícita do usuário. Apenas DayOfWeek busca qualquer abertura no dia, incluindo cauda de intervalo iniciado no dia anterior. Com período, dia/início/término são exigidos; deve durar mais de zero e até 24 horas. Horários iguais exigem EndsNextDay=true (24h). Tocar exatamente na abertura/fechamento sem tempo em comum não conta. A consulta considera dias/períodos ativos da agenda (IsClosed=false), múltiplos intervalos, madrugada e semana cíclica (sábado/domingo e domingo/segunda). Agenda ausente não significa aberto. Dia marcado fechado não elimina a cauda de um intervalo válido iniciado no dia anterior. Sem filtro de agenda, hosts sem agenda continuam elegíveis.
+
+Repository aplica preços e Any de dias/períodos diretamente no IQueryable, antes de OrderBy/Skip/Take. Não há carregamento de toda a tabela ou filtro após paginação. Busca preserva nome, cidade, tipos, HasProgrammings e atividade do host. Não altera entities Hosts/HostOpeningDay/HostOpeningPeriod, schema ou migrações: usa campos já existentes.
+
+Por solicitação do usuário, todas as validações do filtro (nulo, Take/Skip, Types, preços não negativos/duas casas/ordem dos limites, dia da semana, campos necessários e duração) foram extraídas para Domain/Validations/Validations/HostFilterValidations, com IHostFilterValidations. HostService recebe a interface pelo construtor e executa Validate(filter) antes do repository. Mensagens/exceções preservadas. Registro scoped acrescentado em Presentation/Program.cs ao lado das validações existentes; alteração necessária à injeção desta funcionalidade, não para suportar o protótipo. Controller continua traduzindo ArgumentException para ProblemDetails 400; DataAnnotations continuam as restrições estruturais no DTO.
+
+Integração com IA: quando VisitDate existir, TravelChatService passa seu DayOfWeek; com período completo confirmado, passa início/fim/virada. Orçamento confirmado por pessoa/por parada vira MaxPrice; não inventa MinPrice, que não existe nas preferências atuais. Orçamento total/grupo permanece sem conversão. Sem data, não aplica horário semanal isolado. Os horários do filtro são horários da agenda, sem novo fuso nomeado ou conversão automática de localização. Client n8n/DI da IA ainda pendentes; a busca pública de hosts reutiliza os services existentes. Especialidade como cafeteria ainda não é distinguida por tipo de host.
+
+Protótipo: catálogo reconhece preços numéricos, horários e seleção de dia da semana com domingo=0; formulários/query mantêm JWT e filtros opcionais, sem herdar preços de um host selecionado. Ajuda explica sobreposição e preços estimados. Exemplo .http atualizado com período normal, madrugada, dia inteiro e entrada inválida. Mudanças de catálogo também tipam DayOfWeek em DTOs já existentes; testes de regressão preservados.
+
+Sem alteração de banco principal, entidades persistidas, configurações EF, migrations, CORS, emissão JWT ou PDF. A API não foi reiniciada.
+
+Validação concluída dos filtros e extração: build do backend aprovado sem erros/nove avisos anteriores; HostFilterHoursCheck executou 197 verificações com EF/PostgreSQL reais em banco local descartável (intervalos/limites, múltiplos períodos, virada de dia/semana, agenda ausente/fechada, faixa monetária, legado nulo, paginação posterior aos filtros, mapping e rejeições de validação). Inclui 147 comparações de intervalos semanais contra um oráculo independente e sete consultas por dia sem período. Banco descartável removido em finally; banco principal preservado. A primeira conexão tentou porta 5434 do Development e foi recusada; teste passou com configuração base da porta 5432 já ativa, sem alteração de config/container/volume. Harness emitiu um aviso CS8602 próprio, separado dos nove avisos do backend.
+
+TravelChatResultsCheck executou 29 verificações simuladas do fluxo combinado, incluindo transferência de dia/período/virada/MaxPrice para HostFilter. node --check de app.js/catalog.mjs e arquivos de teste aprovado; catálogo real conferido; 105 testes do protótipo aprovados com API simulada. Primeira execução da nova fixture de UI falhou por aguardar incorretamente a sincronização inicial; fixture corrigida antes do resultado final. Sem teste HTTP real, API reiniciada, n8n ou PDF. Os exemplos .http foram atualizados, mas não executados contra dados reais. git diff --check sem erros.
+
+## TravelChat: falhas da interpretação — 06/11/2026
+
+TravelChatController.SendMessage mantém POST /api/TravelChat/Messages, JWT e os DTOs existentes. Novo catch de TravelChatInterpretationException: 502/ProblemDetails para resposta de interpretação inválida e 503 para indisponibilidade/configuração/timeout do serviço. Validação do DTO continua 400 e conta/autenticação 401. Sem nova action. Cliente HTTP implementado na Data, mas registro de DI/URL ainda pendente; endpoint integrado indisponível. N8nClientCheck aprovou 198 verificações simuladas, incluindo tradução de erros da action; não houve teste HTTP do middleware JWT, n8n real, banco ou PDF.
+
+## TravelChat: dependências registradas para teste integrado — 06/11/2026
+
+POST /api/TravelChat/Messages preserva JWT, TravelChatMessageDTO/Text e TravelChatResponseDTO/Programmings+Hosts, 400/401/502/503. Agora AppService, service, mapping, validações e cliente HTTP estão registrados na DI. Perfis HTTP/HTTPS locais usam o Webhook de teste na porta 5678 por N8n__TravelChatWebhookUrl. Reiniciar API e deixar Listen for test event ativo no n8n antes da requisição. Sem teste HTTP real nesta etapa; 38 verificações de DI com dependências simuladas aprovadas, sem executar Program/MigrateAsync. URL inválida/ausente é 503 do cliente. Não foi publicada nova action ou workflow.
+
+## Roteiros personalizados — 12/11/2026
+
+Implementação preparada; migration `20261112194651_AddRoadmaps` criada, **não aplicada**. Não reinicie em Development antes de revisar: o Program.cs existente executa MigrateAsync na inicialização. Nenhuma mudança de schema foi executada nesta etapa.
+
+### Contrato e acesso
+- `POST /api/Roadmap`: público, JWT opcional; retorna 201 e Location para a consulta compartilhada. UserId vem exclusivamente da identidade autenticada, nunca do corpo. Sem token cria roteiro anônimo, que não pode ser editado ou desativado depois.
+- `GET /api/Roadmap/Shared/{shareId}`: público, somente leitura; identificador UUID aleatório. Compartilha nome e paradas, nunca UserId/e-mail. Roteiros inativos ou de contas desativadas retornam 404. SharePath é uma rota relativa da API que retorna JSON; o frontend deve compor sua página pública a partir de ShareId, sem colocar JWT no link.
+- `GET /api/Roadmap/GetAllRoadmapbyUserId?take=10&skip=0`: JWT obrigatório; somente roteiros ativos do usuário autenticado. Não recebe userId externo; take de 1 a 100 e skip não negativo. Lista vazia retorna 200 com [].
+- `PUT /api/Roadmap/{id}`: JWT do dono, substitui nome e lista completa de paradas; exige Version da última leitura. Anônimo/outro dono não obtêm acesso por ShareId; 404 para roteiro indisponível e 409 para versão desatualizada/concorrência.
+- `PATCH /api/Roadmap/{id}/Deactivate?version={uuid}`: dono autenticado e versão atual; soft delete, retorna 204 e torna o compartilhamento indisponível.
+- `POST /api/TravelChat/Messages` passou a permitir anônimos. Com JWT válido, continua verificando usuário ativo pelo IUserService.GetProfileAsync. Authorization inválido/expirado não é aceito silenciosamente como anônimo. Sem header, não consulta perfil. Não envia identidade ao n8n.
+- Criação de roteiro e TravelChat usam o limitador local por IP já existente, ProgrammingInteractions (120/minuto); excesso retorna 429. Não substitui política de quotas distribuídas de produção.
+
+### DTOs, entidades e regras
+RoadmapDTO: Name obrigatório até 150 caracteres, Version opcional na criação/obrigatória na edição e Stops de 1 a 30. Cada RoadmapStopDTO recebe somente ProgrammingId OU HostId, mais StartDate/EndDate UTC. A ordem da lista define Position. IDs positivos, início anterior ao fim, período entre 2000 e 2100, sem sobreposição; intervalos adjacentes são permitidos. Não exige participação integral: a visita deve caber no evento. Não calcula tempo de deslocamento, vagas ou reservas e não exige que os IDs pertençam a uma resposta específica da IA: opções ativas de qualquer página são novamente conferidas no banco.
+
+Hosts elegíveis são Gastronomia/Comércio com grade cadastrada. A visita inteira deve caber em um intervalo aberto, incluindo viradas de dia e períodos do dia anterior; não atravessa intervalo fechado. Grade local interpretada em America/Recife, enquanto entrada e persistência usam UTC. O modelo atual não possui timezone por estabelecimento; ampliação a outros fusos fica pendente. Cada programação/host pode aparecer uma vez por roteiro. Validações ocorrem ao criar/editar; alterações posteriores no catálogo não reservam nem garantem disponibilidade. IsAvailable no retorno indica somente o estado ativo da opção/host.
+
+RoadmapResponseDTO: Id, Name, ShareId, SharePath, Version, CreatedAt, CanEdit e Stops ordenadas com nome, IDs, período e IsAvailable. Consulta compartilhada sempre retorna CanEdit=false; criação autenticada/listagem privada/edição retornam true. Não é possível apropriar-se de um roteiro anônimo depois do login.
+
+Persistência: Roadmaps (UserId nullable, ShareId único, Version como token de concorrência), RoadmapStops (FKs, posição única por roteiro, alvo exclusivo e período positivo com checks), RoadmapProgrammingUsages (histórico, par RoadmapId/ProgrammingId único). FKs de catálogo e usuário restritivas preservam referências; a desativação de usuário já é lógica. Criação usa um SaveChanges atômico. Edição usa transação: troca versão, remove paradas antigas, adiciona as novas e registra somente inclusões inéditas. Conflitos de versão são 409; outras falhas de banco não são mascaradas como conflito.
+
+### Estatísticas
+Summary, Daily e Ranking retornam RoadmapInclusions. Ranking aceita sortBy=roadmapInclusions. A métrica conta a primeira inclusão de uma programação em cada roteiro, na data UTC dessa inclusão; retirar/recolocar a mesma programação no mesmo roteiro não conta outra vez. A desativação do roteiro preserva esse histórico. Exclusão de autointeração compara dono do host ao usuário autenticado; não é possível identificar o dono quando navega anonimamente. Conta inclusões, não pessoas únicas, reservas ou comparecimento. Roteiros com somente hosts não aumentam a métrica de programações.
+
+Agregações de favoritos, interações e inclusões são independentes, evitando produto cartesiano. Ranking faz left joins e mantém zeros; Daily reúne os grupos por data e o service mantém dias sem dados com zero. Autorização Pro e propriedade das estatísticas permanecem.
+
+### Testes e operação
+Harness em docs/validacoes/RoadmapChecks.csproj valida regras sem conexão ao banco. Exemplos de todas as rotas no arquivo Projetos - 4.http. Painel prototipo-api sincroniza os contratos e permite selecionar hosts/programações entre páginas, informar horários, ordenar e preparar o POST. Dados só são enviados ao clicar Enviar requisição; JWT é opcional nas duas operações públicas. Compartilhamento de rota da API é JSON, sem nova página pública no Expo. PDFs não foram regenerados.
+
+Limites da verificação: não foram aplicadas migrations nem executadas gravações HTTP/integração PostgreSQL. Testes de transação, concorrência real e execução das agregações no PostgreSQL devem ocorrer após a revisão/aplicação autorizada da migration. Não confundir compilação/testes com banco atualizado.

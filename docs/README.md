@@ -1032,3 +1032,275 @@ Build isolado aprovado sem erros/nove avisos anteriores; 77 verificações integ
 ## Validação de valores movida para Application — 05/11/2026
 
 Por orientação do usuário, ValidatePrices foi transferido do HostService para HostValidation (IValidation<HostDTO>) na Application. Validate chama esse auxiliar antes do mapping; HostAppService já utiliza a mesma validação no cadastro e na edição. Removidos o método e suas chamadas do HostService. Regras, mensagens, DTOs, rotas e persistência preservados; sem alteração funcional no protótipo. Build sem erros/nove avisos anteriores e 77 verificações integradas aprovadas em PostgreSQL descartável, removido; APIs externas simuladas e banco principal preservado. Sem migration ou PDF.
+
+## Assistente de roteiros: planejamento da feature — 05/11/2026
+
+Estruturada a [proposta completa de implementação do chat e roteiros com IA](10-ia-roteiros-plano.md), com contrato API/n8n, perguntas de esclarecimento, localização opcional para proximidade, seleção de programações e hosts de gastronomia/comércio, persistência, fases e critérios de aceite. Documento de planejamento: nenhuma funcionalidade, rota, DTO, model ou migration foi implementada nesta etapa. Validação somente estática; sem build, testes, banco, workflow real ou exportação de PDFs. Os documentos de estado atual permanecem descrevendo o código existente.
+
+Baby step 1 da IA (05/11/2026): definido no plano o contrato Presentation de uma única action SendMessage, POST /api/TravelChat/Messages, com criação de contexto no primeiro envio e continuidade pelo ConversationId. Ainda é proposta, sem endpoint publicado; DTO/interface Application serão definidos nos próximos passos, na ordem de camadas solicitada. Sem código funcional, testes executados ou PDFs.
+
+## TravelChatController: estrutura inicial — 05/11/2026
+
+Criada Presentation/Controllers/TravelChatController.cs, herdando de ControllerBase, com [Authorize], [ApiController] e [Route("api/[controller]")], conforme o padrão existente. A classe ainda não possui actions, dependências ou construtor explícito. O prefixo planejado é /api/TravelChat, mas não existe endpoint acessível desta controller enquanto não houver action. Application, Domain, Data, Program.cs e banco não foram alterados.
+
+Validação: dotnet build do projeto com --no-restore e saída isolada aprovado com zero erros e nove avisos de nulabilidade em arquivos existentes. Sem testes HTTP, execução da API, n8n ou banco. Protótipo preservado porque não houve mudança funcional nem contrato HTTP disponível; PDFs não exportados.
+
+
+## Chat de roteiros: entrada preparada — 05/11/2026
+
+Criados TravelChatMessageDTO e TravelChatLocationDTO na Application, para a futura SendMessage. Contratos e pendências detalhados em [DTOs](04-dtos.md) e no [plano da IA](10-ia-roteiros-plano.md). Respostas de esclarecimento usarão Text nesta primeira versão; answers ainda não implementado. Build isolado aprovado com zero erros e nove avisos existentes. Sem action nova, testes funcionais, banco, n8n, mudança no protótipo ou PDF.
+
+
+## Chat: contrato simplificado — 05/11/2026
+
+Por orientação do usuário, ConversationId agora é int? e ClientMessageId/ExpectedVersion foram removidos de TravelChatMessageDTO. Entrada atual: ConversationId, Text e Location opcional. UserId virá do JWT na futura action, fora do DTO. Veja 04-dtos.md e 10-ia-roteiros-plano.md. Sem nova action, alteração de banco, protótipo ou PDF.
+
+Validação da simplificação: build --no-restore com saída isolada aprovado, zero erros e nove avisos de nulabilidade em arquivos existentes. Sem testes automatizados ou HTTP nesta etapa.
+
+
+## Chat: resposta preparada — 05/11/2026
+
+Criado TravelChatResponseDTO com ConversationId, Message, Questions e listas de ProgrammingResponseDTO/HostResponseDTO. Veja 04-dtos.md e o plano 10-ia-roteiros-plano.md para o estado e limites desta primeira versão. Ainda sem action, interface de AppService, workflow ou alteração funcional no protótipo. PDFs preservados.
+
+Validação do DTO de resposta: build --no-restore com saída isolada aprovado, zero erros e nove avisos de nulabilidade em arquivos existentes; git diff --check sem erros. Sem testes automatizados, HTTP, banco ou n8n nesta etapa.
+
+
+## Chat: interface Application preparada — 05/11/2026
+
+Criada ITravelChatAppService com somente SendMessageAsync(dto, userId, cancellationToken), retornando TravelChatResponseDTO. Sem implementação concreta, DI ou action. Detalhes em 04-dtos.md e 10-ia-roteiros-plano.md. Build isolado aprovado com zero erros e nove avisos existentes; sem testes funcionais, banco, protótipo ou PDFs.
+
+
+## Chat: primeira action preparada — 05/11/2026
+
+Criada SendMessage, POST /api/TravelChat/Messages, com JWT, identificação do usuário e delegação à Application. AppService concreto e DI ainda ausentes: rota não está funcional. Documentação, .http e aviso do protótipo atualizados. Build sem erros/nove avisos existentes; sintaxe Node aprovada e 101 testes simulados aprovados. Sem HTTP da nova action, banco ou PDF. Consulte 01-controllers.md e 10-ia-roteiros-plano.md.
+
+
+## Chat: esqueleto do AppService — 05/11/2026
+
+Criada TravelChatAppService implementando ITravelChatAppService, apenas com SendMessageAsync pendente (NotImplementedException). Sem dependências ou DI; rota ainda indisponível em execução. Detalhes em 04-dtos.md e 10-ia-roteiros-plano.md. Build isolado aprovado com zero erros e nove avisos existentes; sem testes funcionais, mudança de protótipo, banco ou PDF.
+
+
+## Chat: validação da mensagem — 05/11/2026
+
+Criada TravelChatMessageValidation no padrão IValidation<T>, conectada ao AppService por construtor. Valida DTO e localização opcional, sem alterar dados. Fluxo válido ainda termina em NotImplementedException e DI permanece pendente. Build sem erros/nove avisos existentes; 32 verificações locais aprovadas. Detalhes em 04-dtos.md e 10-ia-roteiros-plano.md. Sem HTTP, banco, n8n, protótipo alterado ou PDF.
+
+
+## Chat: mapping conectado ao AppService — 05/11/2026
+
+Criados ITravelChatMapping/TravelChatMapping, três objetos de domínio sem persistência e ITravelChatService. AppService agora valida → mapeia → delega → mapeia resposta, sem NotImplementedException próprio. Ainda falta service concreto e DI; endpoint não funcional. Detalhes em 04-dtos.md, 07-entidades-models.md e 10-ia-roteiros-plano.md. Nenhuma alteração no banco, protótipo ou PDF.
+
+Validações do mapping: build --no-restore com saída isolada aprovado, zero erros e nove avisos anteriores de nulabilidade. TravelChatMappingCheck.cs/.csproj no tmp do workspace do protótipo executou 17 verificações aprovadas com mapping/validação/AppService reais e ITravelChatService simulado: localização opcional/completa, dados de resposta, cópia das perguntas, mapeamento de sugestões, encaminhamento de usuário/token de cancelamento e rejeição de entrada inválida antes do service. Sem teste HTTP, banco ou n8n. git diff --check sem erros.
+
+
+## Chat: Point no domínio — 05/11/2026
+
+TravelChatLocation substitui doubles de coordenadas por Point? Location, preservando captura e precisão. Mapping converte longitude/latitude do DTO para Point com SRID 4326; contrato HTTP preservado. Sem proximidade implementada, banco, DI, protótipo alterado ou PDF. Detalhes em 04-dtos.md e 07-entidades-models.md.
+
+Validação do Point: dotnet run --no-restore do harness TravelChatMappingCheck compilou o backend e aprovou 18 verificações, incluindo X=longitude, Y=latitude, SRID=4326, preservação de metadados, localização ausente, resposta e fluxo do AppService com service simulado. Compilação sem erros, nove avisos anteriores de nulabilidade. git diff --check sem erros. Sem HTTP, consulta espacial, banco ou n8n.
+
+
+## Chat: estrutura do service de domínio — 05/11/2026
+
+Criada TravelChatService implementando ITravelChatService, somente com SendMessageAsync pendente (NotImplementedException). Sem regras, DI ou integração externa; rota ainda indisponível. Build sem erros/nove avisos existentes. Sem testes funcionais, banco, protótipo alterado ou PDF. Detalhes em 02-regras-de-negocio.md e 10-ia-roteiros-plano.md.
+
+
+## Chat: validação do usuário no domínio — 05/11/2026
+
+TravelChatService consulta IUserRepository.GetbyId e rejeita identificação ausente/conta inexistente ou inativa. Conta ativa segue até o trecho ainda não implementado. Propriedade da conversa e DI permanecem pendentes; rota não funcional. Detalhes em 02-regras-de-negocio.md e 03-tokens.md. Sem alteração de contrato, protótipo, banco ou PDF.
+
+Validações deste passo: dotnet run --no-restore do harness TravelChatUserCheck.cs/.csproj compilou o backend sem erros (nove avisos de nulabilidade existentes) e aprovou 13 verificações com IUserRepository simulado: IDs ausentes, conta inexistente/inativa, conta ativa chegando ao trecho pendente, mensagem nula e propagação de falha do repository. git diff --check sem erros. Sem teste HTTP, banco real ou n8n.
+
+
+## Chat: verificação de usuário reaproveitada — 05/11/2026
+
+TravelChatService passou a usar IUserService.GetProfileAsync existente; auxiliar duplicado e dependência direta do repository removidos. Orientação registrada em AGENTS.md. DI e funcionalidade completa ainda pendentes. Detalhes em 02-regras-de-negocio.md. Sem contrato, protótipo, banco ou PDF alterados.
+
+Validação da correção: compilação do backend pelo harness --no-restore aprovada sem erros, com nove avisos existentes; 13 verificações de delegação/retorno nulo/conta disponível/mensagem nula/propagação de erro aprovadas com IUserService simulado. GetProfileAsync real revisado estaticamente; não executado teste de integração dele nesta etapa. Sem HTTP ou banco. git diff --check sem erros.
+
+
+## Chat: model da conversa — 05/11/2026
+
+Criado TravelChatConversation com identificação, vínculo ao usuário, atividade e datas, no padrão de Favorite. Sem coleção de mensagens, EF, repository ou persistência neste passo. Propriedade continua pendente. Detalhes em 07-entidades-models.md e 10-ia-roteiros-plano.md. Sem mudança de protótipo, banco ou PDF.
+
+Validação do model: build --no-restore com saída isolada aprovado, zero erros e nove avisos de nulabilidade anteriores; git diff --check sem erros. Não foram criados testes para propriedades sem lógica. Sem teste HTTP, persistência, banco ou n8n.
+
+
+## Chat: interface de persistência da conversa — 05/11/2026
+
+Criada ITravelChatConversationRepository com AddAsync e GetByIdAsync(conversationId, userId), ambos com cancelamento opcional. Consulta por proprietário/atividade é contrato para a futura implementação, ainda sem código de acesso ao banco. Sem repository concreto, EF, DI ou integração ao service neste passo. Detalhes em 06-banco-de-dados.md e 10-ia-roteiros-plano.md. Sem alteração de protótipo, banco ou PDF.
+
+Validação da interface: build --no-restore com saída isolada aprovado, zero erros e nove avisos anteriores de nulabilidade; git diff --check sem erros. Sem testes automatizados para interface sem implementação, HTTP, persistência, banco ou n8n.
+
+
+## Chat: conversa conectada ao service — 05/11/2026
+
+TravelChatService chama AddAsync sem ConversationId ou GetByIdAsync(id, userId) para continuidade, verificando propriedade/atividade do retorno e propagando cancelamento. Etapa seguinte ainda não implementada; sem repository concreto ou DI, action continua indisponível. Ver limites em 02-regras-de-negocio.md e 10-ia-roteiros-plano.md. Sem banco, protótipo alterado ou PDFs.
+
+Validação desta etapa: dotnet run --no-restore de TravelChatConversationCheck.cs/.csproj compilou o backend sem erros, com nove avisos existentes, e aprovou 22 verificações com IUserService/repository simulados: início/continuidade, identidade enviada, conversa inexistente/inativa/alheia, IDs inválidos, usuário indisponível, cancelamento, mensagem nula e falhas de persistência propagadas. O fluxo válido foi verificado somente até a exceção do trecho pendente. git diff --check sem erros; sem HTTP, banco real ou n8n.
+
+
+## Chat: model da mensagem de histórico — 05/11/2026
+
+Criado TravelChatHistoryMessage com ConversationId/navegação, Role (User/Assistant), Text e CreatedAt. TravelChatMessage continua sendo entrada do service. Sem repository de mensagens, EF, persistência ou histórico funcional. Detalhes em 07-entidades-models.md e 10-ia-roteiros-plano.md. Sem mudança de protótipo, banco ou PDF.
+
+Validação do model de histórico: build --no-restore com saída isolada aprovado, zero erros e nove avisos anteriores de nulabilidade; git diff --check sem erros. Sem testes automatizados para propriedades sem lógica, HTTP, banco ou n8n.
+
+
+## Chat: interface do histórico — 05/11/2026
+
+Criada ITravelChatHistoryMessageRepository com AddAsync e GetRecentByConversationIdAsync(conversationId, userId, take=20, cancellationToken). Contrato prevê contexto recente em ordem cronológica, restrito à conversa do usuário. Ainda sem implementação, conexão ao service ou persistência. Veja 06-banco-de-dados.md e 10-ia-roteiros-plano.md. Sem mudança de protótipo, banco ou PDF.
+
+Validação da interface de histórico: build --no-restore com saída isolada aprovado, zero erros e nove avisos de nulabilidade anteriores; git diff --check sem erros. Sem testes automatizados para interface sem implementação, HTTP, persistência, banco ou n8n.
+
+
+## Chat: contexto e mensagem conectados — 05/11/2026
+
+TravelChatService consulta até 20 mensagens recentes antes de solicitar o registro da mensagem atual como User. Somente interfaces/dependências simuladas; ainda termina em NotImplementedException, sem DI, repository concreto ou resposta da IA. Riscos de gravação parcial/reenvio e pendências documentados em 02-regras-de-negocio.md e 10-ia-roteiros-plano.md. Sem banco, protótipo alterado ou PDF.
+
+Validação do histórico no service: dotnet run --no-restore do harness TravelChatConversationCheck compilou o backend sem erros (nove avisos anteriores) e aprovou 33 verificações com dependências simuladas. Cobrem início/continuidade/propriedade, ordem leitura→gravação, ConversationId/UserId/Role/Text, limite 20, encaminhamento de cancelamento, nenhuma gravação em erro de leitura/acesso, cancelamento durante leitura e propagação de falhas de gravação. Fluxo válido termina no ponto ainda pendente. git diff --check sem erros; sem HTTP, banco real ou n8n.
+
+
+## Chat: entrada da interpretação — 05/11/2026
+
+Criado TravelChatInterpretationRequest com Text, History, ReferenceTime, TimeZone e HasLocation. Contrato interno ainda sem uso/HTTP; Data deverá projetar o histórico sem navegações, e coordenadas permanecem na API. Saída e preferências persistidas continuam pendentes. Detalhes em 07-entidades-models.md e 10-ia-roteiros-plano.md. Sem banco, protótipo alterado ou PDF.
+
+Validação da entrada de interpretação: build --no-restore com saída isolada aprovado, zero erros e nove avisos anteriores de nulabilidade; git diff --check sem erros. Sem testes automatizados para propriedades sem lógica, HTTP, banco ou n8n.
+
+
+## Chat: saída de interpretação — 05/11/2026
+
+Criados TravelChatInterpretationResponse, TravelChatPreferences e TravelChatIntent, reutilizando tipos de host existentes. Separados desconhecido/sem restrição, orçamento por pessoa/grupo e por roteiro/parada, proximidade e intenções. Somente contratos internos: sem validação, n8n, estado persistido ou alteração de API/protótipo/banco. Detalhes e pendências em 07-entidades-models.md e 10-ia-roteiros-plano.md; PDFs preservados.
+
+Validação dos contratos de saída: build --no-restore com saída isolada aprovado, zero erros e nove avisos de nulabilidade anteriores; git diff --check sem erros. Sem testes automatizados para propriedades sem lógica, teste HTTP, banco ou n8n.
+
+
+## Novo escopo da IA: prompt único — 05/11/2026
+
+Primeira versão limitada a um prompt e retorno de programações/hosts, sem localização, perguntas ou histórico. Contratos, mapping, validação, service, .http e aviso do protótipo simplificados. Interpretação/filtros/DI pendentes. Models anteriores ficam inativos. Backend compilado sem erros/nove avisos existentes; 15 verificações simplificadas e 101 testes do protótipo aprovados; sintaxe Node/catálogo conferidos. Sem HTTP da action, banco, n8n ou PDFs. Consulte o escopo vigente no início/final de 10-ia-roteiros-plano.md.
+
+
+## IA: classes fora do escopo removidas — 05/11/2026
+
+Apagados os seis arquivos de DTO/model de localização, conversa, histórico e interfaces de seus repositories, inclusive enum de papel. Menções anteriores a preparação inativa ficam substituídas por esta remoção. Mantidos somente os tipos necessários ao prompt único e à interpretação planejada. Sem alteração de API, banco, protótipo ou PDF. Detalhes em 07-entidades-models.md e 10-ia-roteiros-plano.md.
+
+Validação da limpeza: build --no-restore com saída isolada aprovado, zero erros e nove avisos anteriores. Busca C# no backend sem referências aos tipos removidos; git diff --check sem erros. Não foram repetidos testes funcionais: remoção apenas de tipos já desacoplados. Sem HTTP, banco ou n8n.
+
+
+## IA: mensagem e entrada de interpretação unificadas — 05/11/2026
+
+Mantido TravelChatMessage com Text, ReferenceTime e TimeZone; removido TravelChatInterpretationRequest. DTO público segue somente Text. Preenchimento de data/fuso pelo servidor e integração n8n continuam pendentes. Sem mudança de contrato HTTP, protótipo, banco ou PDF. Detalhes em 07-entidades-models.md e 10-ia-roteiros-plano.md.
+
+Validação da unificação: dotnet run --no-restore de TravelChatMappingCheck compilou o backend sem erros (nove avisos anteriores) e aprovou 15 verificações do fluxo simplificado com service simulado, ajustadas ao model unificado. Busca sem referências C# ao request removido; git diff --check sem erros. Sem HTTP, banco ou n8n.
+
+
+## IA: retorno de interpretação simplificado — 05/11/2026
+
+Removido TravelChatInterpretationResponse, que apenas envolvia TravelChatPreferences. A interpretação retornará as preferências diretamente; campos/enums preservados. Quatro classes de model da IA permanecem. Sem integração publicada, DTO público, banco, protótipo ou PDF alterados. Detalhes em 07-entidades-models.md e 10-ia-roteiros-plano.md.
+
+Validação da unificação do retorno: build --no-restore com saída isolada aprovado, zero erros e nove avisos anteriores de nulabilidade; busca C# sem referências ao wrapper removido; git diff --check sem erros. Sem testes adicionais para remoção de wrapper não consumido, HTTP, banco ou n8n.
+
+
+## IA: interface de interpretação — 05/11/2026
+
+Criada ITravelChatInterpretationService com InterpretAsync(TravelChatMessage, cancellationToken), retornando TravelChatPreferences diretamente. Sem cliente n8n, DI, chamada no service ou filtros neste passo. Sem alteração de contrato público, protótipo, banco ou PDF. Detalhes em 08-arquitetura-frontend-backend.md e 10-ia-roteiros-plano.md.
+
+Validação da interface de interpretação: build --no-restore com saída isolada aprovado, zero erros e nove avisos anteriores de nulabilidade; git diff --check sem erros. Sem testes para interface sem implementação, HTTP, banco ou n8n.
+
+
+## IA: interpretação conectada ao domínio — 05/11/2026
+
+TravelChatService chama ITravelChatInterpretationService após GetProfileAsync, preenchendo UTC e fuso pelo servidor. TravelChat__TimeZone configura o fuso; padrão inicial America/Recife, validado pelo runtime. Preferências ainda não viram filtros; método termina em NotImplementedException. Sem cliente n8n/DI, API funcional, banco, protótipo alterado ou PDF. Detalhes em 02-regras-de-negocio.md e 10-ia-roteiros-plano.md.
+
+Validação da chamada de interpretação: dotnet run --no-restore de TravelChatInterpretationCheck.cs/.csproj compilou o backend sem erros (nove avisos anteriores) e aprovou 16 verificações com IUserService/intérprete simulados: prompt, UTC gerado no servidor, padrão/configuração de fuso, entrada original preservada, cancelamento, usuário indisponível, mensagem nula, erro do intérprete e fuso inválido. Fluxo válido conferido até o trecho de filtros ainda pendente. git diff --check sem erros. Sem HTTP real, banco ou n8n.
+
+
+## IA: validação de preferências — 05/11/2026
+
+Criadas ITravelChatPreferencesValidations/TravelChatPreferencesValidations e chamada no TravelChatService após interpretação. Reutiliza GetallCategories para catálogo ativo; rejeita incoerências de valores/horários/tipos sem exigir informações ausentes. Filtros, transporte n8n e DI continuam pendentes. Detalhes em 02-regras-de-negocio.md e 10-ia-roteiros-plano.md. Sem mudança de API, protótipo, banco ou PDF.
+
+Validações desta etapa: backend compilado sem erros/nove avisos anteriores pelos harnesses --no-restore; TravelChatPreferencesCheck aprovou 42 verificações com catálogo simulado (ausências, limites, enums, orçamento, períodos, virada, listas e categorias existentes/ativas, consulta única e dados preservados); TravelChatInterpretationCheck aprovou 18 verificações com usuário/intérprete/validação simulados, incluindo chamada da validação após interpretação e propagação de rejeição. git diff --check sem erros. Sem HTTP, banco real ou n8n; o trecho de filtros ainda termina em NotImplementedException.
+
+
+## IA: referência temporal simplificada — 05/11/2026
+
+Removidos campo TimeZone, IConfiguration do TravelChatService, configuração TravelChat:TimeZone e validação de fuso nomeado. TravelChatMessage agora possui Text e ReferenceTime (DateTimeOffset), preenchido pelo servidor com UtcNow (+00:00). TravelChat__TimeZone não é mais usada; instruções antigas substituídas. Sem API pública, protótipo, banco ou PDF alterados. Detalhes em 07-entidades-models.md e 10-ia-roteiros-plano.md.
+
+Validação final da simplificação temporal: backend compilado sem erros (nove avisos anteriores) pelos harnesses --no-restore. TravelChatInterpretationCheck aprovou 15 verificações com dependências simuladas, cobrindo referência UTC do servidor sem alterar entrada, cancelamento, identidade e validação; TravelChatPreferencesCheck aprovou 42 verificações com catálogo simulado após compatibilização do model sem IncludeProgrammings. Busca confirmou ausência de TimeZone/IConfiguration nos tipos alterados; git diff --check sem erros. Primeira compilação falhou pela referência ao campo já ausente, corrigida antes destes resultados. Sem HTTP, banco ou n8n.
+
+
+## IA: filtro de programações conectado — 05/11/2026
+
+TravelChatService reutiliza IProgrammingService.FilterAsync por intenção, com cidade, categorias/texto, gratuidade, data/período UTC quando completos e orçamento por pessoa/por parada. Sem consultas genéricas para intenção vazia ou exclusiva de hosts. Helper deduplica/ordena/limita sugestões; retorno combinado ainda pendente (NotImplementedException). Limites documentados em 02-regras-de-negocio.md e 10-ia-roteiros-plano.md. Sem API nova, banco, protótipo ou PDF alterados.
+
+Ajuste do passo de programações — 05/11/2026: preservada a versão salva sem mapeamento de Description para Text. A busca desta feature exige categorias extraídas; ausência delas não gera consulta irrestrita. O filtro textual público existente não foi alterado. O limite novo de Description, vinculado à proposta textual, foi retirado antes da conclusão.
+
+Validação do passo de programações: TravelChatProgrammingCheck.cs/.csproj compilou o backend sem erros (nove avisos existentes) e aprovou 43 verificações com usuário, intérprete, catálogo e IProgrammingService simulados. Cobrem escolha de intenções por categorias, ausência de busca genérica/textual, cidade/gratuidade, UTC/dia/período completo/madrugada/período incompleto, orçamento por pessoa/parada e não conversão de grupo/roteiro, validação antes da consulta, erro de consulta e cancelamento entre intenções. Não foi testado retorno final da action: o fluxo válido ainda termina em NotImplementedException após a etapa de programações. Primeira execução do harness apontou expectativa textual incompatível com a versão salva; ajustados o critério sem categorias e a verificação para preservar essa edição. Sem HTTP real, banco ou n8n.
+
+
+## IA: hosts e resposta combinada — 05/11/2026
+
+Conectado IHostService.FilterAsync por cidade/tipos de gastronomia/comércio. TravelChatService retorna Programmings e Hosts, sem NotImplementedException, com deduplicação/ordem/limites de dez por lista. Preço/agenda/especialidade dos hosts não são filtrados pelo contrato atual. Cliente n8n e DI ainda ausentes; endpoint real indisponível. Protótipo atualizado para as duas listas e aviso dos limites. Backend compilado sem erros/nove avisos anteriores; 27 verificações combinadas e 103 testes do protótipo aprovados; sintaxe Node aprovada. Sem HTTP real, banco ou PDFs. Detalhes em 02-regras-de-negocio.md e 10-ia-roteiros-plano.md.
+
+
+## Hosts: filtros de preço e funcionamento — 05/11/2026
+
+Adicionados MinPrice/MaxPrice, DayOfWeek, StartTime/EndTime e EndsNextDay ao DTO/model/mapping do filtro. Repository usa interseção de preços e qualquer sobreposição positiva da agenda, com madrugada/semana cíclica, antes da paginação. Validações extraídas para HostFilterValidations/IHostFilterValidations, injetadas no HostService e registradas como scoped. TravelChatService reaproveita os novos campos quando as preferências permitirem. Protótipo e .http alinhados. Sem entity/migration/banco principal ou PDF alterados. Consulte 01-controllers.md, 02-regras-de-negocio.md e 04-dtos.md.
+
+Validação concluída dos filtros e extração: build do backend aprovado sem erros/nove avisos anteriores; HostFilterHoursCheck executou 197 verificações com EF/PostgreSQL reais em banco local descartável (intervalos/limites, múltiplos períodos, virada de dia/semana, agenda ausente/fechada, faixa monetária, legado nulo, paginação posterior aos filtros, mapping e rejeições de validação). Inclui 147 comparações de intervalos semanais contra um oráculo independente e sete consultas por dia sem período. Banco descartável removido em finally; banco principal preservado. A primeira conexão tentou porta 5434 do Development e foi recusada; teste passou com configuração base da porta 5432 já ativa, sem alteração de config/container/volume. Harness emitiu um aviso CS8602 próprio, separado dos nove avisos do backend.
+
+TravelChatResultsCheck executou 29 verificações simuladas do fluxo combinado, incluindo transferência de dia/período/virada/MaxPrice para HostFilter. node --check de app.js/catalog.mjs e arquivos de teste aprovado; catálogo real conferido; 105 testes do protótipo aprovados com API simulada. Primeira execução da nova fixture de UI falhou por aguardar incorretamente a sincronização inicial; fixture corrigida antes do resultado final. Sem teste HTTP real, API reiniciada, n8n ou PDF. Os exemplos .http foram atualizados, mas não executados contra dados reais. git diff --check sem erros.
+
+
+## IA: catálogo de categorias enviado ao intérprete — 05/11/2026
+
+TravelChatService reutiliza GetallCategories após verificar a conta e envia categorias ativas ordenadas por ID em TravelChatMessage.Categories. Reaproveitado o model Category; DTO público continua Text. Permite ao futuro n8n usar IDs reais em vez de inventados. Validação posterior de categorias permanece. Sem cliente HTTP/DI, mudança de API, protótipo, banco ou PDF. Detalhes em 07-entidades-models.md e 10-ia-roteiros-plano.md.
+
+Validação do catálogo: TravelChatResultsCheck --no-restore compilou o backend sem erros/nove avisos anteriores e aprovou 37 verificações com validação/mappings/AppService/service reais e dependências simuladas. Incluem categorias ativas ordenadas com IDs/nomes preservados, exclusão de inativas, nenhuma consulta para usuário indisponível, falha/cancelamento do catálogo impedindo interpretação e filtros, além das regressões de resultados/agenda/preço. git diff --check sem erros. Sem HTTP, banco ou n8n; protótipo não alterado pois contrato público permaneceu igual.
+
+## IA: JSON e prompt para montar o n8n — 05/11/2026
+
+Preparados [prompt e instruções](n8n-travelchat-prompt.md), [schema de entrada](n8n-travelchat-entrada.schema.json), [schema de saída](n8n-travelchat-saida.schema.json) e [sete exemplos](n8n-travelchat-exemplos.json). Contratos seguem os models atuais, sem envelopes, perguntas, histórico ou localização. AJV do container n8n aprovou 50 verificações em memória; não houve workflow ou LLM executado, credencial usada, integração HTTP ou alteração funcional. Ver limites e estado no arquivo do prompt. Próximo passo: apenas o Webhook. PDFs preservados.
+
+Complemento da validação do contrato: TravelChatContractCheck.cs/.csproj executado com --no-restore aprovou 41 verificações de compatibilidade entre os schemas e propriedades dos models, desserialização dos sete exemplos, referência UTC, serialização camelCase, datas/horários/decimal preservados e validação de preferências com catálogo simulado. Inclui rejeição de ID inventado, orçamento contraditório e envelope inesperado no harness estrito. Não significa que a futura implementação Data já aplica esse modo estrito: cliente ainda não existe. Backend/harness compilados com êxito. Sem banco, workflow, LLM ou PDF. git diff --check sem erros.
+
+## IA: cliente HTTP da Data — 06/11/2026
+
+Criado N8nTravelChatInterpretationService com POST JSON para HttpClient.BaseAddress e retorno direto TravelChatPreferences, leitura estrita, corpo até 64 KiB, prazo total 30s e sem retry. Nova exceção de domínio traduzida em 502/503 pela action; preferências inválidas do provedor deixam de ser 400. Entrada/mappings/DTOs preservados. Cliente e fluxo passaram em 198 verificações simuladas; protótipo alinhado e 107 testes simulados/sintaxe Node aprovados. Sem n8n, LLM, banco ou HTTP JWT reais. Próximo passo: DI/URL e configuração do cliente, incluindo alinhamento de timeout do protótipo. Endpoint integrado ainda indisponível; PDFs preservados. Detalhes em 08-arquitetura-frontend-backend.md e 10-ia-roteiros-plano.md.
+
+## IA: DI e URL prontas para teste manual — 06/11/2026
+
+Registradas as dependências TravelChat e HttpClient n8n em Program.cs. N8n__TravelChatWebhookUrl configurada nos perfis locais HTTP/HTTPS para o Webhook de teste na porta 5678; sem URL fixa fora dos perfis. Cliente 30s, sem redirecionamento/logs automáticos; protótipo alinhado para proxy 40s/navegador 45s. Build sem erros/nove avisos anteriores; 38 verificações do bloco real de DI com mocks e 107 testes do protótipo aprovados; sintaxe Node aprovada. API/protótipo não reiniciados e integração real não executada. Reiniciar os processos e deixar Listen for test event ativo para o próximo teste manual. Sem alteração de banco, migrations ou PDF. Detalhes em 05-docker.md e 10-ia-roteiros-plano.md.
+
+
+## IA: retorno vazio conferido com os cadastros — 06/11/2026
+
+Usuário relatou retorno vazio da API e interpretação n8n com categorias reais 8/Turismo e 12/Café, Recife e 07/11 09–12. Diagnóstico READ ONLY em localhost:5432/perambulando confirmou categorias ativas, zero programações elegíveis mesmo antes da data/cidade e zero hosts gastronômicos ativos naquele momento. Repositories reais também retornaram zero. Não houve alteração de dados, migration ou chamada de IA pelo assistente. Registro temporal em 06-banco-de-dados.md e 10-ia-roteiros-plano.md; próximo teste com sugestões depende de cadastros compatíveis. PDFs preservados.
+> Orientação de alimentação — 06/11/2026: buscas por café, bares e restaurantes devem usar somente Gastronomia (`Gastronomy = 1`), com `hostTypes: [1]`. O usuário reconsiderou a inclusão de Produtores (0). A validação anterior da API foi restaurada; o schema continua aceitando somente Gastronomia (1) e Comércio (2). Workflow e PDFs não foram alterados.
+
+## TravelChat: validações manuais — 06/11/2026
+
+Usuário confirmou testes de hosts, programações, agenda, orçamento por pessoa/parada, gratuidade, ausência de data/horário, Gastronomia/Comércio e ausência de resultados. Evidências e limites registrados em 10-ia-roteiros-plano.md e 02-regras-de-negocio.md; confirmações manuais não equivalem a novas execuções automatizadas do assistente. Alimentação usa somente Gastronomia (1). Configuração de produção segue pendente. Sem alteração funcional, banco ou PDFs nesta atualização.
+
+## TravelChat: preparação de Header Auth — 06/11/2026
+
+O HttpClient da interpretação lê N8n:TravelChatWebhookKey (variável de ambiente N8n__TravelChatWebhookKey) e, quando preenchida, envia X-Perambulando-Key ao webhook. Sem a configuração, mantém temporariamente o fluxo local sem esse cabeçalho, para permitir configuração em baby steps. Isso não torna o webhook autenticado por si só: a credencial Header Auth do n8n deve usar Name=X-Perambulando-Key e o mesmo Value, e ser vinculada ao Webhook depois da configuração da API.
+
+Chave exclusiva de servidor, independente do JWT do usuário e da credencial Gemini. Não colocar em DTO, frontend/protótipo, launchSettings versionado ou appsettings versionado. Para desenvolvimento, pode ser configurada pelo recurso Manage User Secrets do projeto da API com a propriedade N8n:TravelChatWebhookKey. Em produção, usar o mecanismo de segredos do ambiente e HTTPS quando o tráfego sair do loopback local. A URL de produção e a ativação da autenticação no workflow continuam pendentes. O assistente não recebeu nem gravou a chave.
+
+Rotas, autenticação JWT da API, DTOs e respostas permanecem iguais. Ajuda do protótipo atualizada para deixar explícito que a chave é configurada somente no servidor. Sem migração, alteração de banco, chamada à IA, edição do workflow ou exportação de PDFs.
+
+Validação desta preparação: build --no-restore aprovado com zero erros e nove avisos de nulabilidade preexistentes; node --check public/app.js aprovado; 107 testes do protótipo aprovados com API simulada (reexecução fora da sandbox após bloqueio de loopback EACCES). git diff --check sem erros. O envio autenticado ao n8n real ainda não foi testado.
+
+## Protótipo de pitch independente — 11/11/2026
+
+Criado em C:/Users/Artur/Documents/ChatGPT/Perambulando/pitch-perambulando, separado do painel de testes da API. URL local http://127.0.0.1:5174/, atalho Abrir.cmd e roteiro de apresentação no README da pasta. Contempla exploração/favoritos/sugestões de IA e gestão do host/programações/Pro/estatísticas. Dados fictícios em memória, sem chamadas de API, banco, n8n ou pagamentos. Seleção de paradas e reativação são conceitos demonstrativos identificados; não alteram o escopo implementado. IA demonstra resposta fixa e não monta roteiro automaticamente. Formulários reduzidos para apresentação. Autenticação não é parte desse recorte.
+
+Orientação do Sites utilizada para o artefato; publicação externa não disponível nesta sessão. Validações executadas: sintaxe Node, HTTP 200 e navegação/favorito/ativação Pro no navegador. API, protótipo de testes, banco e PDFs preservados.
+
+### Ampliação do protótipo de pitch — 11/11/2026
+O protótipo local na porta 5174 ganhou cadastro/edição de hosts e programações com endereço, fotos locais, preços e horários, além de listagens separadas e filtros detalhados. Dados permanecem simulados em memória; não houve mudança da API, banco ou PDFs. Verificadas sintaxe JavaScript e, no navegador, filtragem gratuita, cadastro de host/programação e preservação dos campos na edição. Detalhes no README de pitch-perambulando do workspace de apresentação.
+
+
+## Roadmap — 12/11/2026
+Roteiros personalizados, compartilhamento público, vínculo opcional ao usuário e RoadmapInclusions implementados nas camadas existentes. Contratos e regras detalhados nos documentos 01/02/03/04/06/07 e 10. Migration AddRoadmaps somente gerada, não aplicada; inicialização em Development aplica migrations automaticamente. Não reiniciar antes da revisão. PDFs preservados.
+

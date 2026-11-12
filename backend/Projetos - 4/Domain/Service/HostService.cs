@@ -11,6 +11,7 @@ namespace Projetos___4.Domain.Service
     public class HostService : IHostService
     {
         private readonly IOpeningHoursValidations _openingHoursValidations;
+        private readonly IHostFilterValidations _hostFilterValidations;
         private readonly ICnpjValidations _cnpjValidations;
         private readonly ICompanyRegistrationService _companyRegistrationService;
         private readonly UserManager<User> _userManager;
@@ -18,9 +19,10 @@ namespace Projetos___4.Domain.Service
         private readonly IHostRepository _hostRepository;
         private readonly IAddressService _addressService;
         private readonly RoleManager<IdentityRole> _roleManager;
-        public HostService(UserManager<User> userManager, IUserRepository userRepository, IHostRepository hostRepository, RoleManager<IdentityRole> roleManager, IAddressService addressService, ICnpjValidations cnpjValidations, ICompanyRegistrationService companyRegistrationService, IOpeningHoursValidations openingHoursValidations)
+        public HostService(UserManager<User> userManager, IUserRepository userRepository, IHostRepository hostRepository, RoleManager<IdentityRole> roleManager, IAddressService addressService, ICnpjValidations cnpjValidations, ICompanyRegistrationService companyRegistrationService, IOpeningHoursValidations openingHoursValidations, IHostFilterValidations hostFilterValidations)
         {
             _openingHoursValidations = openingHoursValidations;
+            _hostFilterValidations = hostFilterValidations;
             _cnpjValidations = cnpjValidations;
             _companyRegistrationService = companyRegistrationService;
             _userManager = userManager;
@@ -198,22 +200,7 @@ namespace Projetos___4.Domain.Service
 
         public async Task<List<Hosts>> FilterAsync(HostFilter filter)
         {
-            ArgumentNullException.ThrowIfNull(filter);
-
-            if (filter.Take <= 0 || filter.Take > 100)
-            {
-                throw new ArgumentException("Take deve estar entre 1 e 100.", nameof(filter.Take));
-            }
-            if (filter.Skip < 0)
-            {
-                throw new ArgumentException("Skip deve ser maior ou igual a zero.", nameof(filter.Skip));
-            }
-
-            if (filter.Types != null && filter.Types.Any(type => !Enum.IsDefined(type)))
-            {
-                throw new ArgumentException("Informe tipos de host válidos: 0, 1 ou 2.");
-            }
-
+            _hostFilterValidations.Validate(filter);
             return await _hostRepository.FilterAsync(filter);
         }
 

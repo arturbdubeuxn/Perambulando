@@ -1,0 +1,153 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Perambulando - TravelChatPreferences v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "city",
+    "visitDate",
+    "hasTimeRestriction",
+    "startTime",
+    "endTime",
+    "endsNextDay",
+    "participants",
+    "hasBudgetLimit",
+    "budget",
+    "budgetBasis",
+    "budgetScope",
+    "isFree",
+    "intents"
+  ],
+  "properties": {
+    "city": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "minLength": 1,
+      "maxLength": 150,
+      "pattern": "\\S"
+    },
+    "visitDate": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+    },
+    "hasTimeRestriction": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "startTime": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d$"
+    },
+    "endTime": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d$"
+    },
+    "endsNextDay": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "participants": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 1,
+      "maximum": 2147483647
+    },
+    "hasBudgetLimit": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "budget": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": 0,
+      "multipleOf": 0.01
+    },
+    "budgetBasis": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "enum": [
+        0,
+        1,
+        null
+      ]
+    },
+    "budgetScope": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "enum": [
+        0,
+        1,
+        null
+      ]
+    },
+    "isFree": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "intents": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "description",
+          "categoriesId",
+          "hostTypes"
+        ],
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "categoriesId": {
+            "type": "array",
+            "maxItems": 100,
+            "uniqueItems": true,
+            "items": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          "hostTypes": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "type": "integer",
+              "enum": [
+                1,
+                2
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}

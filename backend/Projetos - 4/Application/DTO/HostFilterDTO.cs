@@ -13,6 +13,21 @@ namespace Projetos___4.Application.DTO
 
         public bool? HasProgrammings { get; set; }
 
+        [Range(typeof(decimal), "0", "79228162514264337593543950335")]
+        public decimal? MinPrice { get; set; }
+
+        [Range(typeof(decimal), "0", "79228162514264337593543950335")]
+        public decimal? MaxPrice { get; set; }
+
+        [EnumDataType(typeof(DayOfWeek))]
+        public DayOfWeek? DayOfWeek { get; set; }
+
+        public TimeOnly? StartTime { get; set; }
+
+        public TimeOnly? EndTime { get; set; }
+
+        public bool EndsNextDay { get; set; }
+
         [Range(1, 100)]
         public int Take { get; set; } = 10;
 

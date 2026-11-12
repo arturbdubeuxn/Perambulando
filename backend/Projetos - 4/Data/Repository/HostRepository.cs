@@ -119,6 +119,7 @@ namespace Projetos___4.Data.Repository
 
         public async Task<List<Hosts>> FilterAsync(HostFilter filter)
         {
+            ArgumentNullException.ThrowIfNull(filter);
             var name = filter.Name?.Trim().ToLower();
             var city = filter.City?.Trim().ToUpperInvariant();
             var types = filter.Types ?? new List<Hosts.TypeofHost>();
@@ -131,10 +132,38 @@ namespace Projetos___4.Data.Repository
                     && (string.IsNullOrEmpty(name) || host.Name.ToLower().Contains(name))
                     && (string.IsNullOrEmpty(city) || host.Address.City.ToUpper() == city)
                     && (types.Count == 0 || types.Contains(host.Typeofhost))
+                    && (!filter.MinPrice.HasValue || host.MaxPrice >= filter.MinPrice.Value)
+                    && (!filter.MaxPrice.HasValue || host.MinPrice <= filter.MaxPrice.Value)
                     && (!filter.HasProgrammings.HasValue ||
                         Db.Programmings.Any(programming => programming.HostId == host.Id
                             && programming.IsActive && programming.EndDate > now) == hasProgrammings)
                 select host;
+
+            if (filter.DayOfWeek.HasValue)
+            {
+                var dayOfWeek = filter.DayOfWeek.Value;
+                var previousDay = (DayOfWeek)(((int)dayOfWeek + 6) % 7);
+                var nextDay = (DayOfWeek)(((int)dayOfWeek + 1) % 7);
+                if (filter.StartTime.HasValue && filter.EndTime.HasValue)
+                {
+                    var startTime = filter.StartTime.Value;
+                    var endTime = filter.EndTime.Value;
+                    var endsNextDay = filter.EndsNextDay;
+                    query = query.Where(host => Db.HostOpeningDays.Any(day => day.HostId == host.Id && !day.IsClosed &&
+                        day.Periods.Any(period =>
+                            (day.DayOfWeek == dayOfWeek &&
+                                (endsNextDay || period.OpeningTime < endTime) &&
+                                (period.ClosesNextDay || period.ClosingTime > startTime)) ||
+                            (day.DayOfWeek == previousDay && period.ClosesNextDay && period.ClosingTime > startTime) ||
+                            (endsNextDay && endTime > TimeOnly.MinValue && day.DayOfWeek == nextDay && period.OpeningTime < endTime))));
+                }
+                else
+                {
+                    query = query.Where(host => Db.HostOpeningDays.Any(day => day.HostId == host.Id && !day.IsClosed &&
+                        day.Periods.Any(period => day.DayOfWeek == dayOfWeek ||
+                            (day.DayOfWeek == previousDay && period.ClosesNextDay && period.ClosingTime > TimeOnly.MinValue))));
+                }
+            }
 
             return await query
                 .OrderBy(host => host.Name)

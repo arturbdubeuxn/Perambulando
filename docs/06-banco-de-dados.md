@@ -524,3 +524,174 @@ Preparadas duas propriedades decimal? MinPrice e MaxPrice em Hosts, configuradas
 HostRepository.GetByIdAsync inclui OpeningDays e Periods além de Address, com AsNoTracking, para o perfil retornar a grade real. Não muda tabelas de horários ou suas FKs. Cadastro/edição continuam com as transações existentes.
 
 77 verificações integradas aprovadas com EnsureCreated somente em banco aleatório host_prices_check_<guid>, removido ao final; persistência e Identity reais, CNPJ/geocodificação simulados. Foram verificadas escala/precisão/nullability do modelo, centavos após cadastro/edição, legado nulo, consulta da grade e preservação da agenda ao editar preços. Nenhuma migration/snapshot foi gerada/alterada/aplicada; banco principal preservado. Usuário informou que a migration anterior de horários rodou: as duas colunas monetárias são uma alteração nova e ainda dependem de outra migration. API não reiniciada por essa pendência.
+
+
+## Chat: objetos de domínio sem persistência — 05/11/2026
+
+TravelChatMessage, TravelChatLocation e TravelChatResponse são tipos usados pelo mapping e pelo contrato ITravelChatService. Não foram adicionados a DbSets, relacionamentos ou configurações EF. Nenhuma tabela, migration ou gravação de conversa foi criada; persistência permanece pendente.
+
+
+## Chat: Point apenas em memória — 05/11/2026
+
+TravelChatLocation.Location agora usa Point? com SRID 4326 criado pelo mapping (longitude, latitude). Objeto não mapeado no EF; nenhuma coluna, índice, migration ou consulta de proximidade foi criada. Address e seu mapeamento espacial permanecem preservados.
+
+## Chat: model da conversa — 05/11/2026
+
+Criado Domain/Model/TravelChatConversation.cs após conferir ausência de model equivalente e comparar Favorite/Subscription. Contém Id (int), User (navegação), UserId (string), IsActive (true inicialmente), CreatedAt e UpdatedAt (inicializados com DateTime.UtcNow), seguindo o padrão existente de Favorite. UserId permitirá associar a conversa ao usuário autenticado; o model não verifica propriedade por si só.
+
+Não foram adicionadas coleção de mensagens, preferências extraídas ou estado do workflow neste passo. TravelChatMessage continua sendo o objeto de entrada do service, não uma mensagem persistida de histórico. Model User e DTOs preservados. Sem DbSet, configuração EF, migration, tabela, repository ou utilização do novo model pelo service; criação/consulta de conversas e verificação de propriedade continuam pendentes. O UserId da conversa deverá ser preenchido pelo fluxo servidor, nunca pelo DTO do aplicativo.
+
+Próximo baby step: definir a interface do repository para criar/consultar uma conversa pertencente ao usuário, antes de implementar acesso a dados. Action SendMessage permanece sem funcionamento completo e sem registros de DI da feature. Sem alterações no protótipo, n8n, banco ou PDFs.
+
+Validação do model: build --no-restore com saída isolada aprovado, zero erros e nove avisos de nulabilidade anteriores; git diff --check sem erros. Não foram criados testes para propriedades sem lógica. Sem teste HTTP, persistência, banco ou n8n.
+
+## Chat: interface do repository de conversa — 05/11/2026
+
+Criada Domain/Interfaces/Repository/ITravelChatConversationRepository.cs após conferir contratos existentes de Address, Favorite e OpeningHours e ausência de repository equivalente. Contém somente:
+
+```csharp
+Task<TravelChatConversation> AddAsync(TravelChatConversation conversation, CancellationToken cancellationToken = default);
+Task<TravelChatConversation?> GetByIdAsync(int conversationId, string userId, CancellationToken cancellationToken = default);
+```
+
+AddAsync representa salvar a conversa cujo UserId deverá ser preenchido no service a partir da identidade autenticada. GetByIdAsync recebe ID da conversa e do usuário: o contrato da futura implementação exige restringir a consulta à conversa ativa pertencente ao usuário e retornar null para inexistente, inativa ou alheia, permitindo resposta 404 uniforme pelo service. Esse filtro ainda não foi implementado nem testado em banco. CancellationToken permitirá propagar cancelamento à persistência, sem modificar os repositories existentes.
+
+Este passo define apenas a interface no domínio. Sem repository concreto, DbSet, configuração EF, migration, tabela, DI ou chamada desta interface no service. Não foram acrescentadas operações de listagem/edição, actions ou contratos HTTP. IUserService.GetProfileAsync permanece como função reutilizada para validar a conta. Próximo baby step: conectar o contrato ao TravelChatService para iniciar uma conversa ou consultar a conversa do usuário, com repository simulado na validação.
+
+Sem mudança no protótipo, workflow, banco ou PDFs; action continua indisponível em execução por implementação/DI pendentes.
+
+Validação da interface: build --no-restore com saída isolada aprovado, zero erros e nove avisos anteriores de nulabilidade; git diff --check sem erros. Sem testes automatizados para interface sem implementação, HTTP, persistência, banco ou n8n.
+
+## Chat: seleção/início da conversa no service — 05/11/2026
+
+TravelChatService agora recebe ITravelChatConversationRepository pelo construtor. Após rejeitar mensagem nula e reutilizar IUserService.GetProfileAsync para validar a conta, resolve a conversa: sem ConversationId, chama AddAsync com novo TravelChatConversation cujo UserId vem do parâmetro autenticado do service; com ID, exige valor positivo e chama GetByIdAsync(id, userId). Conversa ausente, inativa ou de outro usuário gera a mesma KeyNotFoundException, já traduzida para 404 pela action. Não cria outra conversa silenciosamente quando um ID existente não pode ser usado.
+
+CancellationToken é verificado antes de consultar o usuário e antes de iniciar a etapa de conversa, e encaminhado aos dois métodos do repository. GetProfileAsync mantém contrato existente sem token. Erros de persistência não são mascarados. O objeto de conversa resolvido foi preparado para as próximas etapas de histórico/contexto; ainda não produz resposta.
+
+Limite incremental: após resolver a conversa, o fluxo continua lançando NotImplementedException. Se fosse ligado a um repository real neste estágio, AddAsync poderia salvar uma conversa antes da falha final; por isso a feature permanece sem DI e não deve ser apresentada como funcional. Não há repository concreto, EF, migration ou chamadas reais ao banco. Atomicidade de histórico e resposta, falhas do workflow e novas tentativas deverão ser resolvidas antes de habilitar o fluxo completo.
+
+Sem alteração de DTO, mapping, rota, protótipo, n8n ou PDF. Próximo baby step proposto: definir o model de mensagem persistida do histórico, separado de TravelChatMessage (entrada do service), antes de criar os respectivos contratos de persistência.
+
+Validação desta etapa: dotnet run --no-restore de TravelChatConversationCheck.cs/.csproj compilou o backend sem erros, com nove avisos existentes, e aprovou 22 verificações com IUserService/repository simulados: início/continuidade, identidade enviada, conversa inexistente/inativa/alheia, IDs inválidos, usuário indisponível, cancelamento, mensagem nula e falhas de persistência propagadas. O fluxo válido foi verificado somente até a exceção do trecho pendente. git diff --check sem erros; sem HTTP, banco real ou n8n.
+
+## Chat: model da mensagem do histórico — 05/11/2026
+
+Criado Domain/Model/TravelChatHistoryMessage.cs após conferir os models existentes e ausência de equivalente. Segue o padrão de navegação/chave de HostOpeningPeriod e enum no mesmo arquivo de ProgrammingInteraction.
+
+Campos: Id (int), Conversation (TravelChatConversation), ConversationId (int), Role (TravelChatMessageRole), Text (string inicializada vazia) e CreatedAt (DateTime.UtcNow). TravelChatMessageRole define User=0 e Assistant=1. O papel deverá ser atribuído pelo servidor conforme a origem da mensagem, não recebido do aplicativo para autorizar mensagens de assistente. O usuário proprietário será obtido pela conversa, sem duplicar UserId em cada mensagem.
+
+TravelChatMessage continua como entrada do service, com localização opcional; não foi transformado na entidade do histórico. O novo model não contém coordenadas, precisão, JWT ou instrução de sistema. Text permite armazenar perguntas do assistente e respostas do usuário; persistência estruturada de perguntas, sugestões e preferências será tratada em passos posteriores, não está implementada por este model.
+
+Estado: somente estrutura de domínio, sem coleção acrescentada à conversa, repository de mensagens, DbSet, configuração EF, limites de coluna, índice, migration ou tabela. Nenhum histórico está sendo salvo ou consultado; service e DI permanecem incompletos. Próximo baby step: definir a interface do repository de mensagens do histórico, para adicionar mensagem e recuperar contexto da conversa, preservando a verificação de propriedade no fluxo.
+
+Sem alteração de DTO, mapping, rota, protótipo, banco, workflow ou PDFs. Nenhum teste funcional ou de persistência foi realizado nesta etapa de propriedades sem lógica.
+
+Validação do model de histórico: build --no-restore com saída isolada aprovado, zero erros e nove avisos anteriores de nulabilidade; git diff --check sem erros. Sem testes automatizados para propriedades sem lógica, HTTP, banco ou n8n.
+
+## Chat: interface do repository de histórico — 05/11/2026
+
+Criada Domain/Interfaces/Repository/ITravelChatHistoryMessageRepository.cs após conferir os repositories existentes e ausência de equivalente. Contém somente AddAsync(TravelChatHistoryMessage message, CancellationToken cancellationToken = default) e GetRecentByConversationIdAsync(int conversationId, string userId, int take = 20, CancellationToken cancellationToken = default), retornando respectivamente a mensagem salva e List<TravelChatHistoryMessage>.
+
+Contrato para a futura implementação: AddAsync salva a mensagem vinculada à conversa previamente validada pelo service; Role será atribuído pelo servidor. Consulta deve restringir a conversa ativa pertencente ao userId, selecionar as últimas take mensagens por CreatedAt/Id e devolvê-las em ordem cronológica crescente (CreatedAt e Id como desempate), para contexto do n8n. take padrão 20 não significa carregar todo o histórico; limitar a faixa de 1 a 100 na implementação/fluxo, conforme padrão de paginação do sistema. Consulta sem registros elegíveis retorna lista vazia; a inexistência/propriedade da conversa deve ser verificada antes pelo contrato já existente de conversa, evitando interpretar lista vazia como autorização.
+
+Este passo define apenas a interface. Não implementa ordenação, filtros, validações, acesso a dados, histórico no service, DI, EF ou persistência. Essas garantias ainda dependem de código e testes futuros. Não foi criada action de consulta de histórico nem alterado DTO/rota. Próximo baby step: conectar o repository de histórico ao TravelChatService para recuperar contexto e registrar a mensagem do usuário, com dependências simuladas e decisão explícita sobre falhas/reenvio antes de habilitar persistência real.
+
+Sem alteração de protótipo, banco, workflow ou PDF; a feature permanece incompleta e indisponível em execução.
+
+Validação da interface de histórico: build --no-restore com saída isolada aprovado, zero erros e nove avisos de nulabilidade anteriores; git diff --check sem erros. Sem testes automatizados para interface sem implementação, HTTP, persistência, banco ou n8n.
+
+## Chat: histórico conectado ao service — 05/11/2026
+
+TravelChatService agora recebe ITravelChatHistoryMessageRepository no construtor. Após reutilizar GetProfileAsync e resolver/validar a conversa, chama GetRecentByConversationIdAsync(conversation.Id, userId, take: 20, cancellationToken) e, em seguida, AddAsync com ConversationId validado, Role=User e Text da mensagem atual. CreatedAt segue a inicialização UTC do model. Nenhuma coordenada ou metadado de localização é copiado para o histórico.
+
+A leitura ocorre antes da gravação para que o contexto recente não contenha novamente a mensagem atual, que será enviada separadamente ao workflow em passo futuro. O contexto é recuperado, mas ainda não utilizado: a integração com o workflow não foi criada. Não são geradas nem salvas respostas fictícias de assistente. Falha na leitura impede a gravação da mensagem; falha na gravação é propagada, sem repetição automática. Cancelamento é verificado antes da leitura e entre leitura/gravação, além de ser encaminhado ao repository.
+
+Limite incremental: o método ainda termina em NotImplementedException depois dessas operações. Se conectado ao banco nesta etapa, poderia salvar conversa/mensagem sem completar a resposta. Portanto não foram registrados DI ou repositories concretos e a feature continua indisponível em execução. A primeira versão não tem ClientMessageId/idempotência: reenvio não poderá ser tratado como exatamente uma gravação; não haverá retry automático. Recuperação de falhas, política de mensagens pendentes e concorrência deverão ser resolvidas antes de habilitar o fluxo real, sem prometer atomicidade que ainda não existe.
+
+DTOs, mappings, rota e verificação de propriedade preservados. Sem DbSet, configuração EF, migrations, banco, workflow, protótipo alterado ou PDF. Próximo baby step: definir o contrato do serviço de interpretação do n8n no domínio, incluindo mensagem atual e contexto recente, antes de implementar transporte HTTP na Data.
+
+Validação do histórico no service: dotnet run --no-restore do harness TravelChatConversationCheck compilou o backend sem erros (nove avisos anteriores) e aprovou 33 verificações com dependências simuladas. Cobrem início/continuidade/propriedade, ordem leitura→gravação, ConversationId/UserId/Role/Text, limite 20, encaminhamento de cancelamento, nenhuma gravação em erro de leitura/acesso, cancelamento durante leitura e propagação de falhas de gravação. Fluxo válido termina no ponto ainda pendente. git diff --check sem erros; sem HTTP, banco real ou n8n.
+
+
+## IA simplificada: sem persistência de chat — 05/11/2026
+
+Primeira versão redefinida para prompt único e listas de programações/hosts. TravelChatService deixou de depender dos repositories de conversa/histórico. Models/interfaces anteriores ficam inativos, sem EF/tabelas. Nenhuma migration ou alteração de banco.
+
+## Limpeza da IA simplificada — 05/11/2026
+
+Removidos do código os seis arquivos fora do escopo vigente: TravelChatLocationDTO, TravelChatLocation, TravelChatConversation, TravelChatHistoryMessage (incluindo TravelChatMessageRole), ITravelChatConversationRepository e ITravelChatHistoryMessageRepository. A conferência de referências mostrou apenas dependências entre os próprios arquivos removidos; o fluxo do prompt já estava desacoplado deles.
+
+As menções anteriores a esses tipos como preparação inativa são históricas e estão substituídas por esta remoção. Não há mais models/interfaces de conversa, histórico ou localização específicos da IA. Address.Location e o restante da localização já existente do sistema foram preservados. Mantidos os contratos de interpretação/preferências/intenções necessários à próxima etapa do prompt único, além de controller, DTOs, validação, mapping, AppService e service atuais.
+
+Sem mudança de contrato público, lógica de busca ou registros de DI. A integração n8n e os filtros continuam pendentes. Sem migração, banco, protótipo ou PDF alterados.
+
+Validação da limpeza: build --no-restore com saída isolada aprovado, zero erros e nove avisos anteriores. Busca C# no backend sem referências aos tipos removidos; git diff --check sem erros. Não foram repetidos testes funcionais: remoção apenas de tipos já desacoplados. Sem HTTP, banco ou n8n.
+
+## Hosts: filtros de preço/funcionamento e validação separada — 05/11/2026
+
+GET /api/Host/HostFilter mantém autenticação, paginação e resposta List<HostResponseDTO>. HostFilterDTO, HostFilter e HostFilterMapping agora incluem:
+
+| Campo | Tipo/uso |
+|---|---|
+| MinPrice / MaxPrice | decimal?; limites opcionais de faixa estimada de gasto por pessoa |
+| DayOfWeek | DayOfWeek?; 0=domingo até 6=sábado |
+| StartTime / EndTime | TimeOnly?; intervalo opcional em horário semanal do estabelecimento |
+| EndsNextDay | bool, padrão false; término do intervalo solicitado no dia seguinte |
+
+Preço usa interseção inclusiva: host.MaxPrice >= MinPrice solicitado e host.MinPrice <= MaxPrice solicitado. Limite ausente não restringe; faixa desconhecida não é tratada como zero/gratuidade e não satisfaz comparação com limite conhecido. Trata-se de estimativa por pessoa, não garantia de valor exato ou de toda a faixa caber no orçamento.
+
+Funcionamento usa qualquer sobreposição positiva, conforme escolha explícita do usuário. Apenas DayOfWeek busca qualquer abertura no dia, incluindo cauda de intervalo iniciado no dia anterior. Com período, dia/início/término são exigidos; deve durar mais de zero e até 24 horas. Horários iguais exigem EndsNextDay=true (24h). Tocar exatamente na abertura/fechamento sem tempo em comum não conta. A consulta considera dias/períodos ativos da agenda (IsClosed=false), múltiplos intervalos, madrugada e semana cíclica (sábado/domingo e domingo/segunda). Agenda ausente não significa aberto. Dia marcado fechado não elimina a cauda de um intervalo válido iniciado no dia anterior. Sem filtro de agenda, hosts sem agenda continuam elegíveis.
+
+Repository aplica preços e Any de dias/períodos diretamente no IQueryable, antes de OrderBy/Skip/Take. Não há carregamento de toda a tabela ou filtro após paginação. Busca preserva nome, cidade, tipos, HasProgrammings e atividade do host. Não altera entities Hosts/HostOpeningDay/HostOpeningPeriod, schema ou migrações: usa campos já existentes.
+
+Por solicitação do usuário, todas as validações do filtro (nulo, Take/Skip, Types, preços não negativos/duas casas/ordem dos limites, dia da semana, campos necessários e duração) foram extraídas para Domain/Validations/Validations/HostFilterValidations, com IHostFilterValidations. HostService recebe a interface pelo construtor e executa Validate(filter) antes do repository. Mensagens/exceções preservadas. Registro scoped acrescentado em Presentation/Program.cs ao lado das validações existentes; alteração necessária à injeção desta funcionalidade, não para suportar o protótipo. Controller continua traduzindo ArgumentException para ProblemDetails 400; DataAnnotations continuam as restrições estruturais no DTO.
+
+Integração com IA: quando VisitDate existir, TravelChatService passa seu DayOfWeek; com período completo confirmado, passa início/fim/virada. Orçamento confirmado por pessoa/por parada vira MaxPrice; não inventa MinPrice, que não existe nas preferências atuais. Orçamento total/grupo permanece sem conversão. Sem data, não aplica horário semanal isolado. Os horários do filtro são horários da agenda, sem novo fuso nomeado ou conversão automática de localização. Client n8n/DI da IA ainda pendentes; a busca pública de hosts reutiliza os services existentes. Especialidade como cafeteria ainda não é distinguida por tipo de host.
+
+Protótipo: catálogo reconhece preços numéricos, horários e seleção de dia da semana com domingo=0; formulários/query mantêm JWT e filtros opcionais, sem herdar preços de um host selecionado. Ajuda explica sobreposição e preços estimados. Exemplo .http atualizado com período normal, madrugada, dia inteiro e entrada inválida. Mudanças de catálogo também tipam DayOfWeek em DTOs já existentes; testes de regressão preservados.
+
+Sem alteração de banco principal, entidades persistidas, configurações EF, migrations, CORS, emissão JWT ou PDF. A API não foi reiniciada.
+
+Validação concluída dos filtros e extração: build do backend aprovado sem erros/nove avisos anteriores; HostFilterHoursCheck executou 197 verificações com EF/PostgreSQL reais em banco local descartável (intervalos/limites, múltiplos períodos, virada de dia/semana, agenda ausente/fechada, faixa monetária, legado nulo, paginação posterior aos filtros, mapping e rejeições de validação). Inclui 147 comparações de intervalos semanais contra um oráculo independente e sete consultas por dia sem período. Banco descartável removido em finally; banco principal preservado. A primeira conexão tentou porta 5434 do Development e foi recusada; teste passou com configuração base da porta 5432 já ativa, sem alteração de config/container/volume. Harness emitiu um aviso CS8602 próprio, separado dos nove avisos do backend.
+
+TravelChatResultsCheck executou 29 verificações simuladas do fluxo combinado, incluindo transferência de dia/período/virada/MaxPrice para HostFilter. node --check de app.js/catalog.mjs e arquivos de teste aprovado; catálogo real conferido; 105 testes do protótipo aprovados com API simulada. Primeira execução da nova fixture de UI falhou por aguardar incorretamente a sincronização inicial; fixture corrigida antes do resultado final. Sem teste HTTP real, API reiniciada, n8n ou PDF. Os exemplos .http foram atualizados, mas não executados contra dados reais. git diff --check sem erros.
+
+## IA: primeiro retorno manual e diagnóstico de listas vazias — 06/11/2026
+
+Usuário informou retorno da API com Programmings=[] e Hosts=[] e trouxe a interpretação do n8n para Recife, 07/11/2026, 09:00–12:00, Turismo (categoria 8), Café (categoria 12) e hostTypes=[1]. Os IDs são do catálogo real; valor monetário/pessoas não informados permaneceram null. Código/status HTTP não foi colado nesta troca; não confundir esse relato com execução automatizada do fluxo completo pelo assistente.
+
+Inspeção do assistente em transação PostgreSQL explicitamente READ ONLY, na configuração base localhost:5432/perambulando: categorias 8=Turismo e 12=Café existem/ativas; zero programações ativas/não encerradas/com host ativo, mesmo antes dos filtros de cidade/data; zero hosts gastronômicos ativos em todas as cidades. Repositories reais retornaram zero para ambas as categorias no período e para host tipo 1/Recife tanto sem agenda quanto com sábado e sábado 09–12. Portanto, nesse banco e nesse momento, o retorno vazio é coerente com os cadastros, não evidência de falha no transporte ou falta de agenda apenas.
+
+Nenhum dado criado/alterado/excluído, nenhuma migration, workflow ou chamada de IA executada pelo assistente. A inspeção consultou apenas contagens e os nomes/atividade das categorias relevantes; não gravou resultados de usuários em arquivos. Próximo teste de presença de sugestões dependerá de cadastros compatíveis, sem alterar silenciosamente filtros ou povoar banco real para teste automatizado de interface. O estado dos dados acima é temporal, não uma regra permanente da API.
+
+## Roteiros personalizados — 12/11/2026
+
+Implementação preparada; migration `20261112194651_AddRoadmaps` criada, **não aplicada**. Não reinicie em Development antes de revisar: o Program.cs existente executa MigrateAsync na inicialização. Nenhuma mudança de schema foi executada nesta etapa.
+
+### Contrato e acesso
+- `POST /api/Roadmap`: público, JWT opcional; retorna 201 e Location para a consulta compartilhada. UserId vem exclusivamente da identidade autenticada, nunca do corpo. Sem token cria roteiro anônimo, que não pode ser editado ou desativado depois.
+- `GET /api/Roadmap/Shared/{shareId}`: público, somente leitura; identificador UUID aleatório. Compartilha nome e paradas, nunca UserId/e-mail. Roteiros inativos ou de contas desativadas retornam 404. SharePath é uma rota relativa da API que retorna JSON; o frontend deve compor sua página pública a partir de ShareId, sem colocar JWT no link.
+- `GET /api/Roadmap/GetAllRoadmapbyUserId?take=10&skip=0`: JWT obrigatório; somente roteiros ativos do usuário autenticado. Não recebe userId externo; take de 1 a 100 e skip não negativo. Lista vazia retorna 200 com [].
+- `PUT /api/Roadmap/{id}`: JWT do dono, substitui nome e lista completa de paradas; exige Version da última leitura. Anônimo/outro dono não obtêm acesso por ShareId; 404 para roteiro indisponível e 409 para versão desatualizada/concorrência.
+- `PATCH /api/Roadmap/{id}/Deactivate?version={uuid}`: dono autenticado e versão atual; soft delete, retorna 204 e torna o compartilhamento indisponível.
+- `POST /api/TravelChat/Messages` passou a permitir anônimos. Com JWT válido, continua verificando usuário ativo pelo IUserService.GetProfileAsync. Authorization inválido/expirado não é aceito silenciosamente como anônimo. Sem header, não consulta perfil. Não envia identidade ao n8n.
+- Criação de roteiro e TravelChat usam o limitador local por IP já existente, ProgrammingInteractions (120/minuto); excesso retorna 429. Não substitui política de quotas distribuídas de produção.
+
+### DTOs, entidades e regras
+RoadmapDTO: Name obrigatório até 150 caracteres, Version opcional na criação/obrigatória na edição e Stops de 1 a 30. Cada RoadmapStopDTO recebe somente ProgrammingId OU HostId, mais StartDate/EndDate UTC. A ordem da lista define Position. IDs positivos, início anterior ao fim, período entre 2000 e 2100, sem sobreposição; intervalos adjacentes são permitidos. Não exige participação integral: a visita deve caber no evento. Não calcula tempo de deslocamento, vagas ou reservas e não exige que os IDs pertençam a uma resposta específica da IA: opções ativas de qualquer página são novamente conferidas no banco.
+
+Hosts elegíveis são Gastronomia/Comércio com grade cadastrada. A visita inteira deve caber em um intervalo aberto, incluindo viradas de dia e períodos do dia anterior; não atravessa intervalo fechado. Grade local interpretada em America/Recife, enquanto entrada e persistência usam UTC. O modelo atual não possui timezone por estabelecimento; ampliação a outros fusos fica pendente. Cada programação/host pode aparecer uma vez por roteiro. Validações ocorrem ao criar/editar; alterações posteriores no catálogo não reservam nem garantem disponibilidade. IsAvailable no retorno indica somente o estado ativo da opção/host.
+
+RoadmapResponseDTO: Id, Name, ShareId, SharePath, Version, CreatedAt, CanEdit e Stops ordenadas com nome, IDs, período e IsAvailable. Consulta compartilhada sempre retorna CanEdit=false; criação autenticada/listagem privada/edição retornam true. Não é possível apropriar-se de um roteiro anônimo depois do login.
+
+Persistência: Roadmaps (UserId nullable, ShareId único, Version como token de concorrência), RoadmapStops (FKs, posição única por roteiro, alvo exclusivo e período positivo com checks), RoadmapProgrammingUsages (histórico, par RoadmapId/ProgrammingId único). FKs de catálogo e usuário restritivas preservam referências; a desativação de usuário já é lógica. Criação usa um SaveChanges atômico. Edição usa transação: troca versão, remove paradas antigas, adiciona as novas e registra somente inclusões inéditas. Conflitos de versão são 409; outras falhas de banco não são mascaradas como conflito.
+
+### Estatísticas
+Summary, Daily e Ranking retornam RoadmapInclusions. Ranking aceita sortBy=roadmapInclusions. A métrica conta a primeira inclusão de uma programação em cada roteiro, na data UTC dessa inclusão; retirar/recolocar a mesma programação no mesmo roteiro não conta outra vez. A desativação do roteiro preserva esse histórico. Exclusão de autointeração compara dono do host ao usuário autenticado; não é possível identificar o dono quando navega anonimamente. Conta inclusões, não pessoas únicas, reservas ou comparecimento. Roteiros com somente hosts não aumentam a métrica de programações.
+
+Agregações de favoritos, interações e inclusões são independentes, evitando produto cartesiano. Ranking faz left joins e mantém zeros; Daily reúne os grupos por data e o service mantém dias sem dados com zero. Autorização Pro e propriedade das estatísticas permanecem.
+
+### Testes e operação
+Harness em docs/validacoes/RoadmapChecks.csproj valida regras sem conexão ao banco. Exemplos de todas as rotas no arquivo Projetos - 4.http. Painel prototipo-api sincroniza os contratos e permite selecionar hosts/programações entre páginas, informar horários, ordenar e preparar o POST. Dados só são enviados ao clicar Enviar requisição; JWT é opcional nas duas operações públicas. Compartilhamento de rota da API é JSON, sem nova página pública no Expo. PDFs não foram regenerados.
+
+Limites da verificação: não foram aplicadas migrations nem executadas gravações HTTP/integração PostgreSQL. Testes de transação, concorrência real e execução das agregações no PostgreSQL devem ocorrer após a revisão/aplicação autorizada da migration. Não confundir compilação/testes com banco atualizado.

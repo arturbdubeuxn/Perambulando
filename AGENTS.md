@@ -19,3 +19,8 @@ Por solicitação do usuário, ao alterar funcionalidades desta API, atualize ta
 - Siga sempre o padrão das funções, classes, interfaces, construtores, nomenclatura e camadas já existentes no sistema. Leia implementações equivalentes antes de alterar ou criar funcionalidades.
 - Não crie pastas adicionais. Adapte a implementação somente às pastas que já existem no projeto.
 - Preserve o modo existente de fazer mapeamentos, validações e injeção de dependências; evite introduzir novos estilos ou abstrações por iniciativa própria.
+
+
+## Reutilização de funções — orientação de 05/11/2026
+
+Antes de criar uma função, procure uma equivalente existente e reutilize-a quando atender ao fluxo. Para verificar usuário existente e ativo, reutilize IUserService.GetProfileAsync; não duplique a verificação nos novos services.

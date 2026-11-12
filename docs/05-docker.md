@@ -105,3 +105,42 @@ Cliente n8n, opções e registros HTTP exclusivos da primeira implementação de
 ## Teste isolado de funcionamento semanal — 04/11/2026
 
 Docker Desktop estava desligado e foi iniciado para validar OpeningHoursRepository. Container perambulando-postgres disponibilizou PostgreSQL em 127.0.0.1:5432. Testes usaram somente banco aleatório opening_hours_check_..., criado com EnsureCreated e removido ao finalizar; conexões ao banco principal não foram usadas pelo harness. Nenhum compose/imagem/volume foi alterado, nem migration gerada/aplicada. 23 verificações de persistência/DI passaram. API principal não reiniciada e PDFs preservados.
+
+
+## IA: fuso de referência — 05/11/2026
+
+TravelChatService lê TravelChat:TimeZone (ambiente: TravelChat__TimeZone), com padrão America/Recife se a chave não existir. Fuso deve ser reconhecido pelo runtime; validação ocorre na construção do service. Configure no processo/container da API, não no PostgreSQL. Não há alteração em compose/Dockerfile nem cliente n8n/DI nesta etapa. Endpoint continua incompleto. Sem container iniciado, banco ou PDF.
+
+Validação da chamada de interpretação: dotnet run --no-restore de TravelChatInterpretationCheck.cs/.csproj compilou o backend sem erros (nove avisos anteriores) e aprovou 16 verificações com IUserService/intérprete simulados: prompt, UTC gerado no servidor, padrão/configuração de fuso, entrada original preservada, cancelamento, usuário indisponível, mensagem nula, erro do intérprete e fuso inválido. Fluxo válido conferido até o trecho de filtros ainda pendente. git diff --check sem erros. Sem HTTP real, banco ou n8n.
+
+## IA: remoção do fuso nomeado e configuração — 05/11/2026
+
+Por solicitação do usuário, removidos TimeZone de TravelChatMessage, o campo _timeZone, a leitura TravelChat:TimeZone com padrão America/Recife e a chamada TimeZoneInfo.FindSystemTimeZoneById. TravelChatService não recebe mais IConfiguration no construtor. Dependências atuais: IUserService, ITravelChatInterpretationService e ITravelChatPreferencesValidations.
+
+TravelChatMessage contém somente Text e ReferenceTime (DateTimeOffset). O service continua preenchendo ReferenceTime com DateTimeOffset.UtcNow no servidor, portanto o instante enviado usa deslocamento +00:00, sem configuração adicional. DateTimeOffset representa instante/deslocamento; não representa um fuso nomeado nem regras regionais. Não inferir automaticamente o horário local de Recife a partir deste valor UTC. Interpretação de datas relativas deve usar a referência explícita e o contrato que será montado no workflow, sem prometer conversão regional não implementada.
+
+O DTO público permanece somente Text. Mapping, AppService, verificação de usuário por GetProfileAsync e validação de preferências preservados. Não foram modificados appsettings, Program.cs ou configuração de outros serviços. A variável TravelChat__TimeZone não é mais lida nem necessária; instruções anteriores sobre ela são históricas, substituídas por esta remoção.
+
+Sem alteração de rota, resposta pública, banco, protótipo ou PDF. Interpretação concreta, filtros e DI ainda pendentes; o service continua terminando em NotImplementedException após validar preferências. Harnesses temporários de interpretação e mapping foram ajustados ao contrato sem TimeZone.
+
+Validação final da simplificação temporal: backend compilado sem erros (nove avisos anteriores) pelos harnesses --no-restore. TravelChatInterpretationCheck aprovou 15 verificações com dependências simuladas, cobrindo referência UTC do servidor sem alterar entrada, cancelamento, identidade e validação; TravelChatPreferencesCheck aprovou 42 verificações com catálogo simulado após compatibilização do model sem IncludeProgrammings. Busca confirmou ausência de TimeZone/IConfiguration nos tipos alterados; git diff --check sem erros. Primeira compilação falhou pela referência ao campo já ausente, corrigida antes destes resultados. Sem HTTP, banco ou n8n.
+
+## IA: cliente n8n aguarda configuração de execução — 06/11/2026
+
+Implementado N8nTravelChatInterpretationService na Data, ainda sem registro HttpClient/DI ou configuração de URL. BaseAddress deverá receber o endereço completo do Webhook; não há URL fixa no cliente. API no Windows poderá usar a porta local 5678 publicada pelo container n8n; se a API também estiver em container, endereço/rede deverão ser verificados antes da conexão. Não houve mudança de compose/container/volume nem consulta ao n8n real neste passo. Prazo do cliente: 30s; resposta até 64 KiB; alinhar timeout do protótipo (atualmente 20s) antes do teste integrado. Sem banco, migration ou PDF.
+
+## IA: endereço local configurado por perfil — 06/11/2026
+
+ITravelChatInterpretationService registrado como HttpClient tipado. Chave de configuração N8n:TravelChatWebhookUrl (env N8n__TravelChatWebhookUrl), com URL completa HTTP/HTTPS válida. Perfis http/https do Visual Studio/dotnet run apontam a http://localhost:5678/webhook-test/perambulando-travelchat. Não há fallback fixo fora dos perfis; ausência/endereço inválido provoca indisponibilidade 503, sem chamada externa. Timeout 30s, redirecionamentos desabilitados e logs automáticos do HttpClient removidos.
+
+O container n8n/volumes/rede não foram alterados. API no Windows acessa a porta publicada; API em container exigirá endereço alcançável em sua rede, não assumir localhost. URL de teste depende de Listen for test event; publicação/URL de produção permanecem passos futuros. Reiniciar API para receber a variável do perfil. Reiniciar servidor do protótipo se já aberto: timeout de proxy 40s e navegador 45s. Sem banco, migration, processo reiniciado pelo assistente ou PDF nesta etapa.
+
+## TravelChat: preparação de Header Auth — 06/11/2026
+
+O HttpClient da interpretação lê N8n:TravelChatWebhookKey (variável de ambiente N8n__TravelChatWebhookKey) e, quando preenchida, envia X-Perambulando-Key ao webhook. Sem a configuração, mantém temporariamente o fluxo local sem esse cabeçalho, para permitir configuração em baby steps. Isso não torna o webhook autenticado por si só: a credencial Header Auth do n8n deve usar Name=X-Perambulando-Key e o mesmo Value, e ser vinculada ao Webhook depois da configuração da API.
+
+Chave exclusiva de servidor, independente do JWT do usuário e da credencial Gemini. Não colocar em DTO, frontend/protótipo, launchSettings versionado ou appsettings versionado. Para desenvolvimento, pode ser configurada pelo recurso Manage User Secrets do projeto da API com a propriedade N8n:TravelChatWebhookKey. Em produção, usar o mecanismo de segredos do ambiente e HTTPS quando o tráfego sair do loopback local. A URL de produção e a ativação da autenticação no workflow continuam pendentes. O assistente não recebeu nem gravou a chave.
+
+Rotas, autenticação JWT da API, DTOs e respostas permanecem iguais. Ajuda do protótipo atualizada para deixar explícito que a chave é configurada somente no servidor. Sem migração, alteração de banco, chamada à IA, edição do workflow ou exportação de PDFs.
+
+Validação desta preparação: build --no-restore aprovado com zero erros e nove avisos de nulabilidade preexistentes; node --check public/app.js aprovado; 107 testes do protótipo aprovados com API simulada (reexecução fora da sandbox após bloqueio de loopback EACCES). git diff --check sem erros. O envio autenticado ao n8n real ainda não foi testado.

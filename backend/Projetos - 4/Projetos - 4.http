@@ -573,7 +573,7 @@ Authorization: Bearer {{login.response.body.$.accessToken}}
 # @name filterHosts
 GET {{Projetos___4_HostAddress}}/api/Host/HostFilter?types=0&types=1&take=10&skip=0
 Accept: application/json
-Authorization: Bearer {{login.response.body.$.accessToken}}
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiOTlhZGEyMi02MDZiLTQyZmUtYmQ3NS1mNWRkYzFjNzJmZjQiLCJqdGkiOiJjYzNkOWU3OC03MDM0LTRlMjAtYmUwNi0wNWU2YTQ1ZTdmNjciLCJuYW1lIjoiTWFyaWEiLCJ0eXBlb2Z1c2VyIjowLCJuYmYiOjE3OTM5OTM3MTYsImV4cCI6MTc5NjU4NTcxNiwiaXNzIjoiUGVyYW1idWxhbmRvIiwiYXVkIjoiUGVyYW1idWxhbmRvLkNsaWVudCJ9.ObvR7QXbLxVbLrjUpyFA6eq2JewkncCBCcklBoIxIpg
 
 ### HOST - Somente hosts com programação ativa futura ou em andamento
 # @name filterHostsWithProgrammings
@@ -854,3 +854,117 @@ Accept: application/json
   "email": "{{email}}",
   "password": "{{senha}}"
 }
+
+### TravelChat — DI configurada; aguarda teste integrado com n8n
+# Reinicie a API para carregar N8n__TravelChatWebhookUrl dos perfis locais.
+# No n8n, deixe Listen for test event ativo antes de chamar a URL de teste.
+POST {{Projetos___4_HostAddress}}/api/TravelChat/Messages
+Authorization: Bearer {{login.response.body.$.accessToken}}
+Content-Type: application/json
+
+{
+  "text": "Quero passear no Recife e tomar um café"
+}
+
+### Hosts por faixa de gasto e qualquer sobreposição de funcionamento (segunda, 11h às 13h)
+GET {{Projetos___4_HostAddress}}/api/Host/HostFilter?types=1&types=2&city=Recife&minPrice=10&maxPrice=60&dayOfWeek=1&startTime=11:00:00&endTime=13:00:00&endsNextDay=false&take=10&skip=0
+Authorization: Bearer {{login.response.body.$.accessToken}}
+
+### Hosts abertos em algum momento de domingo (inclusive madrugada iniciada no sábado)
+GET {{Projetos___4_HostAddress}}/api/Host/HostFilter?dayOfWeek=0&take=10&skip=0
+Authorization: Bearer {{login.response.body.$.accessToken}}
+
+### Período solicitado atravessa a meia noite: sábado 23h até domingo 02h
+GET {{Projetos___4_HostAddress}}/api/Host/HostFilter?dayOfWeek=6&startTime=23:00:00&endTime=02:00:00&endsNextDay=true&maxPrice=80&take=10&skip=0
+Authorization: Bearer {{login.response.body.$.accessToken}}
+
+### 400: intervalo sem o dia da semana
+GET {{Projetos___4_HostAddress}}/api/Host/HostFilter?startTime=09:00:00&endTime=12:00:00
+Authorization: Bearer {{login.response.body.$.accessToken}}
+
+###
+
+POST http://localhost:5678/webhook-test/perambulando-travelchat
+Content-Type: application/json
+
+{
+  "text": "Quero visitar pontos turísticos no Recife no dia 7 de novembro de 2026, das 9h às 12h, e tomar um café.",
+  "referenceTime": "2026-11-05T15:00:00+00:00",
+  "categories": [
+    {
+      "id": 101,
+      "name": "Turismo",
+      "isActive": true
+    }
+  ]
+}
+
+#####
+
+POST https://localhost:7042/api/TravelChat/Messages
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiOTlhZGEyMi02MDZiLTQyZmUtYmQ3NS1mNWRkYzFjNzJmZjQiLCJqdGkiOiJjYzNkOWU3OC03MDM0LTRlMjAtYmUwNi0wNWU2YTQ1ZTdmNjciLCJuYW1lIjoiTWFyaWEiLCJ0eXBlb2Z1c2VyIjowLCJuYmYiOjE3OTM5OTM3MTYsImV4cCI6MTc5NjU4NTcxNiwiaXNzIjoiUGVyYW1idWxhbmRvIiwiYXVkIjoiUGVyYW1idWxhbmRvLkNsaWVudCJ9.ObvR7QXbLxVbLrjUpyFA6eq2JewkncCBCcklBoIxIpg
+Content-Type: application/json
+
+{
+  "text": "Quero tomar um café"
+}
+
+### ROADMAP - Criar roteiro anônimo (não poderá editar depois)
+# Migration AddRoadmaps deve ser revisada e aplicada manualmente antes dos testes.
+# Substitua os IDs e horários por opções existentes. Datas UTC; a lista define a ordem.
+# @name createAnonymousRoadmap
+POST {{Projetos___4_HostAddress}}/api/Roadmap
+Content-Type: application/json
+
+{
+  "name": "Meu passeio pelo Recife",
+  "stops": [
+    { "programmingId": 1, "startDate": "2026-12-05T12:00:00Z", "endDate": "2026-12-05T13:00:00Z" },
+    { "hostId": 2, "startDate": "2026-12-05T13:00:00Z", "endDate": "2026-12-05T14:00:00Z" }
+  ]
+}
+
+### ROADMAP - Criar vinculado ao perfil (mesmo contrato do anônimo)
+# @name createRoadmap
+POST {{Projetos___4_HostAddress}}/api/Roadmap
+Authorization: Bearer {{login.response.body.$.accessToken}}
+Content-Type: application/json
+
+{
+  "name": "Meu roteiro",
+  "stops": [
+    { "programmingId": 1, "startDate": "2026-12-05T12:00:00Z", "endDate": "2026-12-05T13:00:00Z" }
+  ]
+}
+
+### ROADMAP - Link compartilhado, sem login
+GET {{Projetos___4_HostAddress}}/api/Roadmap/Shared/{{createRoadmap.response.body.$.shareId}}
+Accept: application/json
+
+### ROADMAP - Meus roteiros (usuário vem do JWT, nunca da query)
+GET {{Projetos___4_HostAddress}}/api/Roadmap/GetAllRoadmapbyUserId?take=10&skip=0
+Authorization: Bearer {{login.response.body.$.accessToken}}
+
+### ROADMAP - Substituir as paradas do roteiro; use a versão mais recente
+# @name editRoadmap
+PUT {{Projetos___4_HostAddress}}/api/Roadmap/{{createRoadmap.response.body.$.id}}
+Authorization: Bearer {{login.response.body.$.accessToken}}
+Content-Type: application/json
+
+{
+  "name": "Roteiro atualizado",
+  "version": "{{createRoadmap.response.body.$.version}}",
+  "stops": [
+    { "programmingId": 1, "startDate": "2026-12-05T12:00:00Z", "endDate": "2026-12-05T13:30:00Z" }
+  ]
+}
+
+### ROADMAP - Desativar (invalida acesso público, preserva histórico estatístico)
+PATCH {{Projetos___4_HostAddress}}/api/Roadmap/{{createRoadmap.response.body.$.id}}/Deactivate?version={{editRoadmap.response.body.$.version}}
+Authorization: Bearer {{login.response.body.$.accessToken}}
+
+### TRAVELCHAT - Consulta sem login
+POST {{Projetos___4_HostAddress}}/api/TravelChat/Messages
+Content-Type: application/json
+
+{ "text": "Quero passear pelo Recife e tomar um café no sábado." }
