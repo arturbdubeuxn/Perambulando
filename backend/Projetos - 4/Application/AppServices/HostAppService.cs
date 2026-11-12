@@ -1,10 +1,12 @@
 using Projetos___4.Application.Mapping.Interfaces;
 using Projetos___4.Application.Validations.Interfaces;
-using Projetos___4.Application.DTO;
 using Projetos___4.Application.Interfaces;
 using System.Net.WebSockets;
 using Projetos___4.Domain.Model;
 using Projetos___4.Domain.Interfaces.Service;
+using Projetos___4.Application.DTO.Host;
+using Projetos___4.Application.DTO.OpeningDays;
+using Projetos___4.Application.DTO.Company;
 
 namespace Projetos___4.Application.AppServices
 {

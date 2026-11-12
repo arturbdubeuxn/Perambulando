@@ -1,6 +1,6 @@
-using Projetos___4.Application.DTO;
 using Projetos___4.Domain.Model;
 using Projetos___4.Application.Validations.Interfaces;
+using Projetos___4.Application.DTO.Host;
 
 namespace Projetos___4.Application.Validations.Validations.Host;
 

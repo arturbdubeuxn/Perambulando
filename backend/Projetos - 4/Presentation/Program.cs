@@ -19,12 +19,15 @@ using Projetos___4.Domain.Model;
 using Projetos___4.Domain.Service;
 using System.Text;
 using static System.Net.Mime.MediaTypeNames;
-
-using Projetos___4.Application.DTO;
 using Projetos___4.Application.Validations.Validations.User;
 using Projetos___4.Application.Validations.Validations.Host;
 using Projetos___4.Domain.Validations.Interface;
 using Projetos___4.Domain.Validations.Validations;
+using Projetos___4.Application.DTO.Host;
+using Projetos___4.Application.DTO.OpeningDays;
+using Projetos___4.Application.DTO.Programming;
+using Projetos___4.Application.DTO.User;
+using Projetos___4.Application.DTO.TravelChat;
 
 
 

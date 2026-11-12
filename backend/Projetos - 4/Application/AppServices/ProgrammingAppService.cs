@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
-using Projetos___4.Application.DTO;
+using Projetos___4.Application.DTO.Programming;
 using Projetos___4.Application.Interfaces;
 using Projetos___4.Application.Mapping.Interfaces;
 using Projetos___4.Application.Validations.Interfaces;

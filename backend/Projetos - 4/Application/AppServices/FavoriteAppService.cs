@@ -1,8 +1,8 @@
 using Projetos___4.Application.Mapping.Interfaces;
-using Projetos___4.Application.DTO;
 using Projetos___4.Application.Interfaces;
 using Projetos___4.Domain.Interfaces.Service;
 using Projetos___4.Domain.Model;
+using Projetos___4.Application.DTO.Favorite;
 
 namespace Projetos___4.Application.AppServices
 {

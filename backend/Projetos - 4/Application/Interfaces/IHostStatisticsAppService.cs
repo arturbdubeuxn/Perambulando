@@ -1,4 +1,5 @@
-using Projetos___4.Application.DTO;
+using Projetos___4.Application.DTO.Programming;
+using Projetos___4.Application.DTO.Statistics;
 namespace Projetos___4.Application.Interfaces;
 
 public interface IHostStatisticsAppService

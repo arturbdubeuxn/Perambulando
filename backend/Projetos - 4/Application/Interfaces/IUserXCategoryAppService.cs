@@ -1,4 +1,4 @@
-﻿using Projetos___4.Application.DTO;
+﻿using Projetos___4.Application.DTO.User;
 
 namespace Projetos___4.Application.Interfaces
 {

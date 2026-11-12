@@ -4,9 +4,9 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Projetos___4.Application.AppServices;
-using Projetos___4.Application.DTO;
 using Projetos___4.Application.Interfaces;
 using Projetos___4.Domain.Model;
+using Projetos___4.Application.DTO.User;
 
 namespace Projetos___4.Presentation.Controllers;
 

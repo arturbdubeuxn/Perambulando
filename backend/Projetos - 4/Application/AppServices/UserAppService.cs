@@ -2,9 +2,9 @@ using Projetos___4.Application.Mapping.Interfaces;
 using Projetos___4.Application.Validations.Interfaces;
 using Microsoft.AspNetCore.Identity;
 using Projetos___4.Domain.Model;
-using Projetos___4.Application.DTO;
 using Projetos___4.Application.Interfaces;
 using Projetos___4.Domain.Interfaces.Service;
+using Projetos___4.Application.DTO.User;
 
 namespace Projetos___4.Application.AppServices
 {

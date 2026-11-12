@@ -6,9 +6,9 @@ using Projetos___4.Domain.Exceptions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using Projetos___4.Application.DTO;
 using Projetos___4.Application.Interfaces;
 using Projetos___4.Domain.Model;
+using Projetos___4.Application.DTO.Programming;
 
 namespace Projetos___4.Presentation.Controllers
 {

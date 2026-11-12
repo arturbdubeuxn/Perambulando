@@ -1,4 +1,4 @@
-using Projetos___4.Application.DTO;
+using Projetos___4.Application.DTO.User;
 using Projetos___4.Application.Validations.Interfaces;
 
 namespace Projetos___4.Application.Validations.Validations.User;

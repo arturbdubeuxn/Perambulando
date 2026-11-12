@@ -1,5 +1,5 @@
 using Projetos___4.Domain.Model;
-using Projetos___4.Application.DTO;
+using Projetos___4.Application.DTO.Statistics;
 namespace Projetos___4.Application.Mapping.Interfaces;
 public interface ISubscriptionMapping
 {
