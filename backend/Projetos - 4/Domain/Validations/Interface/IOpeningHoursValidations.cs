@@ -1,4 +1,4 @@
-using Projetos___4.Domain.Model;
+using Projetos___4.Domain.Model.OpeningDay;
 
 namespace Projetos___4.Domain.Validations.Interface;
 

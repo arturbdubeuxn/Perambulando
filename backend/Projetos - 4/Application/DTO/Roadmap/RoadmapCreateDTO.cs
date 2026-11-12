@@ -1,6 +1,6 @@
 ﻿namespace Projetos___4.Application.DTO.Roadmap
 {
-    public class RoadmapCreateDTO
+    public class RoadmapDTO
     {
 
         public string? Name { get; set; }

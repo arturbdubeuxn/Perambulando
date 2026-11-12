@@ -3,8 +3,9 @@ using System.Security.Claims;
 using System.Text;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.IdentityModel.Tokens;
-using Projetos___4.Domain.Model;
 using Projetos___4.Domain.Interfaces.Service;
+using Projetos___4.Domain.Model.Token;
+using Projetos___4.Domain.Model.User;
 
 namespace Projetos___4.Data.Services;
 

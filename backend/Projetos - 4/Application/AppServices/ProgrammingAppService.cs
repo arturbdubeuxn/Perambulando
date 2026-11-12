@@ -5,7 +5,7 @@ using Projetos___4.Application.Interfaces;
 using Projetos___4.Application.Mapping.Interfaces;
 using Projetos___4.Application.Validations.Interfaces;
 using Projetos___4.Domain.Interfaces.Service;
-using Projetos___4.Domain.Model;
+using Projetos___4.Domain.Model.Programming;
 using System.Collections.Generic;
 
 namespace Projetos___4.Application.AppServices

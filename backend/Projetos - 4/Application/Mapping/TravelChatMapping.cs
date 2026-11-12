@@ -1,6 +1,6 @@
 using Projetos___4.Application.DTO.TravelChat;
 using Projetos___4.Application.Mapping.Interfaces;
-using Projetos___4.Domain.Model;
+using Projetos___4.Domain.Model.TravelChat;
 
 namespace Projetos___4.Application.Mapping;
 

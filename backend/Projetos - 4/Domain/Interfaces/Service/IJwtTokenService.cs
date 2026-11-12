@@ -1,4 +1,5 @@
-using Projetos___4.Domain.Model;
+using Projetos___4.Domain.Model.Token;
+using Projetos___4.Domain.Model.User;
 
 namespace Projetos___4.Domain.Interfaces.Service;
 

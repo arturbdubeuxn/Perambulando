@@ -1,6 +1,7 @@
 using Projetos___4.Application.DTO.OpeningDays;
 using Projetos___4.Application.Mapping.Interfaces;
 using Projetos___4.Domain.Model;
+using Projetos___4.Domain.Model.OpeningDay;
 
 namespace Projetos___4.Application.Mapping;
 

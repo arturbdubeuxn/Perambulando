@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-using Projetos___4.Domain.Model;
+using Projetos___4.Domain.Model.Host;
 
 namespace Projetos___4.Data.Configurations;
 

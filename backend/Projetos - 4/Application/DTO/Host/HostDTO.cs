@@ -1,7 +1,7 @@
 using Projetos___4.Application.DTO.Address;
 using Projetos___4.Application.DTO.OpeningDays;
 using System.ComponentModel.DataAnnotations;
-using static Projetos___4.Domain.Model.Hosts;
+using static Projetos___4.Domain.Model.Host.Hosts;
 
 namespace Projetos___4.Application.DTO.Host;
 

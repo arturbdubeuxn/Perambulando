@@ -1,9 +1,16 @@
-using Projetos___4.Domain.Model;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
+using Projetos___4.Domain.Model.Address;
+using Projetos___4.Domain.Model.Category;
+using Projetos___4.Domain.Model.Favorite;
+using Projetos___4.Domain.Model.Host;
+using Projetos___4.Domain.Model.Programming;
+using Projetos___4.Domain.Model.Statistics;
+using Projetos___4.Domain.Model.User;
+using Projetos___4.Domain.Model.OpeningDay;
 namespace Projetos___4.Data.Context
 {
     public class Context : IdentityDbContext<User>

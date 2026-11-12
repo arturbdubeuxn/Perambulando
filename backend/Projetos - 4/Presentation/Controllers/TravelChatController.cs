@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Projetos___4.Application.DTO.TravelChat;
 using Projetos___4.Application.Interfaces;
 using Projetos___4.Domain.Exceptions;
-using Projetos___4.Domain.Model;
+using Projetos___4.Domain.Model.User;
 
 namespace Projetos___4.Presentation.Controllers;
 

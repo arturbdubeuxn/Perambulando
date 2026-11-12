@@ -1,5 +1,5 @@
 using NetTopologySuite.Geometries;
-using Projetos___4.Domain.Model;
+using Projetos___4.Domain.Model.Address;
 
 namespace Projetos___4.Domain.Interfaces.Service;
 

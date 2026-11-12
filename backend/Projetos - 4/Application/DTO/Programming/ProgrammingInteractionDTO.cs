@@ -1,5 +1,5 @@
 using System.ComponentModel.DataAnnotations;
-using Projetos___4.Domain.Model;
+using Projetos___4.Domain.Model.Programming;
 namespace Projetos___4.Application.DTO.Programming;
 public class ProgrammingInteractionDTO
 {

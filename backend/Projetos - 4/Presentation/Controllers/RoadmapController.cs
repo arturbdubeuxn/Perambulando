@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Projetos___4.Application.DTO.Roadmap;
 using Projetos___4.Application.Interfaces;
 using Projetos___4.Domain.Exceptions;
-using Projetos___4.Domain.Model;
+using Projetos___4.Domain.Model.User;
 
 namespace Projetos___4.Presentation.Controllers
 {
@@ -13,24 +13,24 @@ namespace Projetos___4.Presentation.Controllers
     [ApiController]
     public class RoadmapController : Controller
     {
-        private readonly ITravelChatAppService _travelChatAppService;
+        private readonly IRoadmapAppService _roadmapAppService;
         private readonly UserManager<User> _userManager;
 
-        public RoadmapController(ITravelChatAppService travelChatAppService, UserManager<User> userManager)
+        public RoadmapController(IRoadmapAppService roadmapAppService, UserManager<User> userManager)
         {
-            _travelChatAppService = travelChatAppService;
+            _roadmapAppService = roadmapAppService;
             _userManager = userManager;
         }
 
         [HttpPost("Create")]
         [AllowAnonymous]
-        public async Task<IActionResult> Create([FromBody] RoadmapCreateDTO dto)
+        public async Task<IActionResult> Create([FromBody] RoadmapDTO dto)
         {
             var userId = _userManager.GetUserId(User);
 
             try
             {
-                return Created("", await _travelChatAppService.Create(dto, userId, HttpContext.RequestAborted));
+                return Created("", await _roadmapAppService.Create(dto, userId));
             }
             catch (ArgumentException ex)
             {

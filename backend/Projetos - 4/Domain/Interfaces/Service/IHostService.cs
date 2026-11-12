@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Identity;
-using Projetos___4.Domain.Model;
+using Projetos___4.Domain.Model.Company;
+using Projetos___4.Domain.Model.Host;
 
 namespace Projetos___4.Domain.Interfaces.Service
 {

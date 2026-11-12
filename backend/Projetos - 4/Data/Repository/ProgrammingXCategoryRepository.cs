@@ -2,7 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using Projetos___4.Domain.Exceptions;
 using Projetos___4.Domain.Interfaces.Repository;
-using Projetos___4.Domain.Model;
+using Projetos___4.Domain.Model.Programming;
 
 namespace Projetos___4.Data.Repository
 {

@@ -3,7 +3,8 @@ using Npgsql;
 using Projetos___4.Domain.Exceptions;
 using Projetos___4.Domain.Interfaces;
 using Projetos___4.Domain.Interfaces.Repository;
-using Projetos___4.Domain.Model;
+using Projetos___4.Domain.Model.Programming;
+using Projetos___4.Domain.Model.Statistics;
 using System.Net;
 
 namespace Projetos___4.Data.Repository
