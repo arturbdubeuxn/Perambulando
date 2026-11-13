@@ -307,3 +307,11 @@ Implementação: o seletor horizontal de estabelecimentos em `/meus_eventos` inc
 Com uma sessão web válida, o cadastro adicional reutiliza o JWT e não exibe nem envia um novo cadastro/login de usuário. A tela carrega `GET /api/Host/GetAllHostsbyUserId` antes de liberar o CNPJ. CNPJ novo mantém o autopreenchimento atual. Quando o CNPJ já pertence a outro host da mesma conta, razão social e nome empresarial continuam disponíveis, mas todos os campos de localização são limpos; CEP, cidade, logradouro, número e bairro precisam ser informados novamente, enquanto complemento permanece opcional. Depois do POST, o token atualizado e o novo `hostId` são armazenados, e há retorno direto ao painel.
 
 O backend permite CNPJ repetido somente entre hosts do mesmo proprietário e mantém conflito para outro `UserId`. A role `HOST` é atribuída apenas se ainda não existir. TypeScript, ESLint e build .NET em saída temporária foram aprovados; não houve criação real de host nem alteração do banco. A API aberta precisa ser reiniciada. Protótipo externo indisponível no caminho obrigatório; PDFs preservados.
+
+## Exclusão de programação pelo painel — 13/11/2026
+
+Implementação: cada card de programação em `/meus_eventos` ganhou uma lixeira vermelha no canto inferior direito, separada da área que abre a edição. Ao acioná-la, um modal bloqueante identifica a programação e pergunta “Tem certeza que deseja excluir essa programação?”. “Cancelar” fecha o modal sem alteração; “Sim, excluir” usa o JWT da sessão em `PATCH /api/Programming/{hostId}/Delete/{programmingId}`.
+
+Enquanto a requisição está em andamento, os botões do modal ficam desabilitados. Em caso de erro, o ProblemDetails da API é exibido no próprio modal. Com sucesso 204, a programação é removida do estado local do host e os totais do painel são recalculados. A operação continua sendo uma desativação lógica no backend; nenhuma exclusão física, rota nova ou mudança de contrato foi introduzida.
+
+Validações realizadas: TypeScript e ESLint direto de `meus_eventos.tsx` aprovados; rota web preservada. Não foi executado PATCH real para evitar desativar uma programação do banco do usuário. Backend, protótipo externo e PDFs não foram alterados nesta etapa.

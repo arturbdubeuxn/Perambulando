@@ -5,6 +5,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Image,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -105,11 +106,13 @@ function getWebSessionStorage(): StorageLike | null {
   return (globalThis as { sessionStorage?: StorageLike }).sessionStorage ?? null;
 }
 
-async function apiRequest<T>(path: string, token: string) {
+async function apiRequest<T>(path: string, token: string, options: RequestInit = {}) {
   const response = await fetch(`${apiBaseUrl}${path}`, {
+    ...options,
     headers: {
       Accept: 'application/json',
       Authorization: `Bearer ${token}`,
+      ...options.headers,
     },
   });
   const responseText = await response.text();
@@ -199,6 +202,10 @@ export default function MyEventsScreen() {
   const [hosts, setHosts] = useState<HostResponse[]>([]);
   const [detailsByHost, setDetailsByHost] = useState<Record<number, HostDetails>>({});
   const [selectedHostId, setSelectedHostId] = useState<number | null>(null);
+  const [accessToken, setAccessToken] = useState('');
+  const [pendingDelete, setPendingDelete] = useState<ProgrammingDetails | null>(null);
+  const [deleteStatus, setDeleteStatus] = useState<'idle' | 'deleting' | 'error'>('idle');
+  const [deleteMessage, setDeleteMessage] = useState('');
 
   useEffect(() => {
     let active = true;
@@ -207,6 +214,7 @@ export default function MyEventsScreen() {
       const storage = getWebSessionStorage();
       const token = storage?.getItem(accessTokenStorageKey) ?? '';
       const preferredHostId = Number(storage?.getItem(hostIdStorageKey) ?? 0);
+      setAccessToken(token);
 
       if (!token) {
         setStatus('unauthenticated');
@@ -282,6 +290,61 @@ export default function MyEventsScreen() {
   const selectHost = (hostId: number) => {
     setSelectedHostId(hostId);
     getWebSessionStorage()?.setItem(hostIdStorageKey, String(hostId));
+  };
+
+  const requestDelete = (programming: ProgrammingDetails) => {
+    setPendingDelete(programming);
+    setDeleteStatus('idle');
+    setDeleteMessage('');
+  };
+
+  const closeDeleteConfirmation = () => {
+    if (deleteStatus === 'deleting') {
+      return;
+    }
+
+    setPendingDelete(null);
+    setDeleteStatus('idle');
+    setDeleteMessage('');
+  };
+
+  const confirmDelete = async () => {
+    if (!pendingDelete || !accessToken) {
+      setDeleteStatus('error');
+      setDeleteMessage('Sua sessão não está disponível. Atualize a página e tente novamente.');
+      return;
+    }
+
+    setDeleteStatus('deleting');
+    setDeleteMessage('');
+    try {
+      await apiRequest<void>(
+        `/api/Programming/${pendingDelete.hostId}/Delete/${pendingDelete.id}`,
+        accessToken,
+        { method: 'PATCH' },
+      );
+      setDetailsByHost((current) => {
+        const hostDetails = current[pendingDelete.hostId];
+        if (!hostDetails) {
+          return current;
+        }
+
+        return {
+          ...current,
+          [pendingDelete.hostId]: {
+            ...hostDetails,
+            programmings: hostDetails.programmings.filter(
+              (programming) => programming.id !== pendingDelete.id,
+            ),
+          },
+        };
+      });
+      setPendingDelete(null);
+      setDeleteStatus('idle');
+    } catch (error) {
+      setDeleteStatus('error');
+      setDeleteMessage(error instanceof Error ? error.message : 'Não foi possível excluir a programação.');
+    }
   };
 
   return (
@@ -493,36 +556,46 @@ export default function MyEventsScreen() {
                   {selectedProgrammings.map((programming) => {
                     const programmingStatus = getProgrammingStatus(programming, currentTime);
                     return (
-                      <Pressable
-                        accessibilityHint="Abre o formulário para editar esta programação"
-                        accessibilityRole="button"
-                        key={programming.id}
-                        onPress={() =>
-                          router.push({
-                            pathname: '/editar_evento',
-                            params: {
-                              programmingId: String(programming.id),
-                              hostId: String(programming.hostId),
-                            },
-                          })
-                        }
-                        style={({ pressed }) => [styles.programmingCard, pressed && styles.programmingCardPressed]}
-                      >
-                        <View style={styles.programmingHeader}>
-                          <View style={[styles.statusBadge, programmingStatus.style]}>
-                            <Text style={[styles.statusText, programmingStatus.textStyle]}>
-                              {programmingStatus.label}
-                            </Text>
+                      <View key={programming.id} style={styles.programmingCard}>
+                        <Pressable
+                          accessibilityHint="Abre o formulário para editar esta programação"
+                          accessibilityRole="button"
+                          onPress={() =>
+                            router.push({
+                              pathname: '/editar_evento',
+                              params: {
+                                programmingId: String(programming.id),
+                                hostId: String(programming.hostId),
+                              },
+                            })
+                          }
+                          style={({ pressed }) => [styles.programmingContent, pressed && styles.programmingCardPressed]}
+                        >
+                          <View style={styles.programmingHeader}>
+                            <View style={[styles.statusBadge, programmingStatus.style]}>
+                              <Text style={[styles.statusText, programmingStatus.textStyle]}>
+                                {programmingStatus.label}
+                              </Text>
+                            </View>
+                            <Text style={styles.programmingId}>#{programming.id}</Text>
                           </View>
-                          <Text style={styles.programmingId}>#{programming.id}</Text>
-                        </View>
-                        <Text style={styles.programmingName}>{programming.name}</Text>
-                        <Text style={styles.programmingDate}>{formatDate(programming.startDate)}</Text>
-                        <Text numberOfLines={1} style={styles.programmingAddress}>
-                          {[programming.address?.street, programming.address?.city].filter(Boolean).join(' · ')}
-                        </Text>
-                        <Text style={styles.programmingEditHint}>Toque para editar</Text>
-                      </Pressable>
+                          <Text style={styles.programmingName}>{programming.name}</Text>
+                          <Text style={styles.programmingDate}>{formatDate(programming.startDate)}</Text>
+                          <Text numberOfLines={1} style={styles.programmingAddress}>
+                            {[programming.address?.street, programming.address?.city].filter(Boolean).join(' · ')}
+                          </Text>
+                          <Text style={styles.programmingEditHint}>Toque para editar</Text>
+                        </Pressable>
+                        <Pressable
+                          accessibilityHint="Solicita confirmação antes de excluir"
+                          accessibilityLabel={`Excluir programação ${programming.name}`}
+                          accessibilityRole="button"
+                          onPress={() => requestDelete(programming)}
+                          style={({ pressed }) => [styles.deleteButton, pressed && styles.deleteButtonPressed]}
+                        >
+                          <Text style={styles.deleteIcon}>🗑</Text>
+                        </Pressable>
+                      </View>
                     );
                   })}
                 </View>
@@ -530,6 +603,59 @@ export default function MyEventsScreen() {
             </>
           ) : null}
         </ScrollView>
+
+        <Modal
+          animationType="fade"
+          onRequestClose={closeDeleteConfirmation}
+          transparent
+          visible={pendingDelete !== null}
+        >
+          <View style={styles.modalBackdrop}>
+            <View accessibilityRole="alert" style={styles.confirmationModal}>
+              <View style={styles.confirmationIcon}>
+                <Text style={styles.confirmationIconText}>🗑</Text>
+              </View>
+              <Text style={styles.confirmationTitle}>Excluir programação</Text>
+              <Text style={styles.confirmationQuestion}>
+                Tem certeza que deseja excluir essa programação?
+              </Text>
+              {pendingDelete ? (
+                <Text numberOfLines={2} style={styles.confirmationProgrammingName}>
+                  {pendingDelete.name}
+                </Text>
+              ) : null}
+              {deleteStatus === 'error' ? (
+                <Text accessibilityRole="alert" style={styles.deleteErrorText}>
+                  {deleteMessage}
+                </Text>
+              ) : null}
+              <View style={styles.confirmationActions}>
+                <Pressable
+                  accessibilityRole="button"
+                  disabled={deleteStatus === 'deleting'}
+                  onPress={closeDeleteConfirmation}
+                  style={({ pressed }) => [styles.cancelDeleteButton, pressed && styles.pressed]}
+                >
+                  <Text style={styles.cancelDeleteButtonText}>Cancelar</Text>
+                </Pressable>
+                <Pressable
+                  accessibilityRole="button"
+                  disabled={deleteStatus === 'deleting'}
+                  onPress={() => void confirmDelete()}
+                  style={({ pressed }) => [
+                    styles.confirmDeleteButton,
+                    pressed && styles.confirmDeleteButtonPressed,
+                    deleteStatus === 'deleting' && styles.deleteButtonDisabled,
+                  ]}
+                >
+                  <Text style={styles.confirmDeleteButtonText}>
+                    {deleteStatus === 'deleting' ? 'Excluindo...' : 'Sim, excluir'}
+                  </Text>
+                </Pressable>
+              </View>
+            </View>
+          </View>
+        </Modal>
 
         <View style={styles.bottomNav}>
           <NavItem icon="▦" label="Painel" />
@@ -787,13 +913,13 @@ const styles = StyleSheet.create({
   outlineButtonText: { color: colors.orange, fontSize: 11, fontWeight: '800' },
   programmingList: { gap: 10 },
   programmingCard: {
-    padding: 15,
+    position: 'relative',
     borderRadius: 17,
     borderColor: colors.line,
     borderWidth: 1,
     backgroundColor: colors.card,
-    gap: 6,
   },
+  programmingContent: { padding: 15, paddingBottom: 48, borderRadius: 17, gap: 6 },
   programmingHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   statusBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
   statusText: { fontSize: 9, fontWeight: '800' },
@@ -809,6 +935,101 @@ const styles = StyleSheet.create({
   programmingAddress: { color: colors.muted, fontSize: 10 },
   programmingEditHint: { marginTop: 4, color: colors.orange, fontSize: 10, fontWeight: '800' },
   programmingCardPressed: { borderColor: colors.orange, backgroundColor: '#FFF9F5' },
+  deleteButton: {
+    position: 'absolute',
+    right: 13,
+    bottom: 11,
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.dangerBackground,
+    borderColor: '#FCA5A5',
+    borderWidth: 1,
+  },
+  deleteButtonPressed: { backgroundColor: '#FEE2E2', transform: [{ scale: 0.94 }] },
+  deleteIcon: { color: colors.danger, fontSize: 17, lineHeight: 20 },
+  modalBackdrop: {
+    flex: 1,
+    padding: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0, 25, 54, 0.58)',
+  },
+  confirmationModal: {
+    width: '100%',
+    maxWidth: 360,
+    padding: 22,
+    alignItems: 'center',
+    borderRadius: 22,
+    backgroundColor: colors.card,
+    borderColor: '#FECACA',
+    borderWidth: 1,
+    ...Platform.select({
+      web: { boxShadow: '0 18px 50px rgba(0, 20, 44, 0.28)' },
+      default: { elevation: 8 },
+    }),
+  },
+  confirmationIcon: {
+    width: 48,
+    height: 48,
+    marginBottom: 12,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.dangerBackground,
+  },
+  confirmationIconText: { fontSize: 22 },
+  confirmationTitle: { color: colors.danger, fontSize: 18, fontWeight: '800' },
+  confirmationQuestion: {
+    marginTop: 8,
+    color: colors.ink,
+    fontSize: 13,
+    lineHeight: 19,
+    textAlign: 'center',
+  },
+  confirmationProgrammingName: {
+    marginTop: 8,
+    color: colors.muted,
+    fontSize: 12,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  deleteErrorText: {
+    width: '100%',
+    marginTop: 12,
+    padding: 10,
+    borderRadius: 10,
+    color: colors.danger,
+    backgroundColor: colors.dangerBackground,
+    fontSize: 10,
+    lineHeight: 15,
+    textAlign: 'center',
+  },
+  confirmationActions: { width: '100%', marginTop: 20, flexDirection: 'row', gap: 10 },
+  cancelDeleteButton: {
+    flex: 1,
+    minHeight: 44,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderColor: colors.line,
+    borderWidth: 1,
+    backgroundColor: colors.card,
+  },
+  cancelDeleteButtonText: { color: colors.ink, fontSize: 11, fontWeight: '800' },
+  confirmDeleteButton: {
+    flex: 1,
+    minHeight: 44,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.danger,
+  },
+  confirmDeleteButtonPressed: { backgroundColor: '#8F1C13' },
+  confirmDeleteButtonText: { color: colors.card, fontSize: 11, fontWeight: '800' },
+  deleteButtonDisabled: { opacity: 0.58 },
   pressed: { opacity: 0.72 },
   bottomNav: {
     minHeight: 74,
