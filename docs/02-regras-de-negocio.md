@@ -707,6 +707,18 @@ Cada host continua possuindo `AddressId` próprio. O frontend, ao identificar re
 
 Na segunda criação, a role `HOST` já existente não é adicionada novamente. A persistência do host e eventual atribuição inicial da role continuam na mesma transação. Build aprovado; teste de escrita e protótipo externo pendentes. Nenhuma migration ou PDF foi gerado.
 
+### Correção da regra de identidade empresarial — 13/11/2026
+
+Esta seção substitui a afirmação anterior de que a mesma conta poderia cadastrar CNPJs diferentes. O primeiro host define o CNPJ empresarial da conta. Todo host adicional deve reutilizar um CNPJ já presente entre os hosts ativos do mesmo `UserId`; um identificador empresarial diferente é rejeitado antes da resolução do endereço e da persistência. A proteção contra uso do CNPJ por outro proprietário permanece.
+
+O novo host possui nome, tipo, descrição, contatos, imagem e endereço próprios. No frontend, o CNPJ é herdado do perfil selecionado e fica somente leitura. A localidade sugerida pelo CNPJ é descartada, exigindo novo CEP, cidade, logradouro, número e bairro; complemento permanece opcional. Edição de hosts existentes não foi alterada nesta correção. Build aprovado; teste de escrita pendente e nenhuma migration aplicada.
+
+### CNPJ imutável na edição do host — 13/11/2026
+
+Na edição de um host existente, o CNPJ normalizado enviado deve ser igual ao CNPJ já persistido. `HostService.EditHostAsync` valida os dois identificadores e rejeita qualquer diferença com erro de CNPJ inválido antes da resolução/geocodificação do endereço e da gravação. A regra vale inclusive para requisições feitas fora do frontend; o formulário apenas reforça a restrição mantendo o campo desabilitado.
+
+Os demais dados do host continuam editáveis conforme o contrato atual: tipo, nome, descrição, telefone, logo, Instagram e endereço. A autorização e a verificação de propriedade permanecem anteriores à comparação do CNPJ. Não houve mudança de DTO, rota, entidade, schema ou migration. Build e análise estática aprovados; PUT real pendente para preservar os dados existentes.
+
 ## Remoção de bairro dos filtros de host — 27/10/2026
 
 Neighborhood removido de HostFilterDTO, HostFilter, HostFilterMapping e da consulta HostRepository.FilterAsync. Bairro continua opcional no endereço e nos formulários de cadastro/edição, para exibição; não participa da seleção de hosts. Proximidade permanece uma implementação futura. Nenhuma alteração no schema ou migration. O catálogo do protótipo lê o DTO atualizado; ajustada descoberta da pasta da API para aceitar a estrutura atual e a estrutura backend/Projetos - 4. PDFs preservados.

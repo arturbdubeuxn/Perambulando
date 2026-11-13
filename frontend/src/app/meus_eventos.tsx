@@ -469,7 +469,12 @@ export default function MyEventsScreen() {
                   accessibilityHint="Abre o cadastro de outro estabelecimento para esta conta"
                   accessibilityLabel="Cadastrar novo host"
                   accessibilityRole="button"
-                  onPress={() => router.push({ pathname: '/cadastro_host', params: { novoHost: '1' } })}
+                  onPress={() =>
+                    router.push({
+                      pathname: '/cadastro_host',
+                      params: { novoHost: '1', sourceHostId: String(selectedHost.id) },
+                    })
+                  }
                   style={({ pressed }) => [styles.newHostOption, pressed && styles.newHostOptionPressed]}
                 >
                   <View style={styles.newHostBadge}>
@@ -521,7 +526,12 @@ export default function MyEventsScreen() {
                   </Pressable>
                   <Pressable
                     accessibilityRole="button"
-                    onPress={() => scrollRef.current?.scrollToEnd({ animated: true })}
+                    onPress={() =>
+                      router.push({
+                        pathname: '/cadastro_host',
+                        params: { editarHost: '1', hostId: String(selectedHost.id) },
+                      })
+                    }
                     style={({ pressed }) => [styles.secondaryAction, pressed && styles.pressed]}
                   >
                     <Text style={styles.secondaryActionText}>Administrar</Text>

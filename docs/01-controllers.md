@@ -650,6 +650,8 @@ Esta atualização substitui o bloqueio de compilação anteriormente registrado
 
 Conferidos os contratos: Create retorna HostCreatedDTO; GetByIdAsync retorna HostDetailsDTO; EditHostAsync retorna HostResponseDTO; GetAllHostsbyUserId retorna coleção de HostResponseDTO. Essas quatro operações já mapeavam os dados do serviço para DTOs.
 
+Atualização em 13/11/2026: `PUT /api/Host/{hostId}/Edit` mantém o mesmo verbo, rota, autorização e `HostDTO`, mas a regra de domínio agora recusa a troca do CNPJ do host. O identificador deve ser reenviado sem alteração; os demais campos continuam editáveis. Uma tentativa de mudança retorna ProblemDetails pelo tratamento de `CnpjException`, sem persistir o host ou resolver um novo endereço.
+
 DeleteHostAsync era o único método do AppService que ainda retornava Hosts. Agora retorna HostResponseDTO ou null, com o mesmo mapeamento explícito de campos permitidos e AddressDetailsDTO. IHostAppService foi atualizado e não referencia entidades do domínio nos retornos. Não foi criado um DTO adicional. Os serviços e repositórios continuam trabalhando com entidades internamente.
 
 O controller de exclusão continua retornando HTTP 204 sem corpo no sucesso, 404 para host indisponível e 401 para usuário não autenticado. O DTO da exclusão é o retorno interno do AppService, não um novo corpo HTTP. Cadastro mantém result/auth; contratos dos demais endpoints preservados.
@@ -933,6 +935,12 @@ Validações: `tsc --noEmit` e ESLint direto da tela aprovados; build do backend
 Ao criar o segundo host, a atribuição da role `HOST` é idempotente: se o usuário já possui a role, a criação prossegue sem tentar adicioná-la novamente. Rotas, verbos, DTOs, respostas de sucesso, validação na base de CNPJ, geocodificação e transação foram preservados. Não há índice único de CNPJ nem mudança de schema; nenhuma migration foi necessária.
 
 Validação: backend compilado em saída temporária com zero erros e dez avisos preexistentes. Não foi realizado POST real, para não criar dados de teste no banco principal. A API em execução precisa ser reiniciada para carregar a nova regra. O protótipo obrigatório não existe em `C:/Users/Artur/Documents/ChatGPT/Perambulando/prototipo-api` neste computador e permaneceu pendente. PDFs não foram regenerados.
+
+### Correção: novo host deve reutilizar CNPJ da conta — 13/11/2026
+
+Esta regra substitui a possibilidade descrita acima de cadastrar um CNPJ diferente para a mesma conta. Em `POST /api/Host/Create`, se o usuário ainda não possui host ativo, o primeiro CNPJ continua livre, sujeito às validações existentes. A partir do segundo host, o CNPJ enviado deve coincidir com um CNPJ já pertencente a um host ativo do mesmo usuário; caso contrário, retorna ProblemDetails 400 com o detalhe “Novos hosts devem usar o mesmo CNPJ já vinculado a esta conta.”
+
+O mesmo CNPJ continua bloqueado para outro proprietário com 409. Rota, verbo e `HostDTO` não mudaram. A regra é aplicada no domínio e não depende do campo bloqueado no frontend. Build em saída temporária aprovado com zero erros e dez avisos preexistentes; nenhum POST real, migration ou PDF foi gerado. O protótipo externo segue indisponível.
 
 ## Autocomplete de endereços na criação de evento Expo — 03/11/2026
 

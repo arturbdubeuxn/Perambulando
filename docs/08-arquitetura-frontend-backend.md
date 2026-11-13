@@ -308,6 +308,12 @@ Com uma sessão web válida, o cadastro adicional reutiliza o JWT e não exibe n
 
 O backend permite CNPJ repetido somente entre hosts do mesmo proprietário e mantém conflito para outro `UserId`. A role `HOST` é atribuída apenas se ainda não existir. TypeScript, ESLint e build .NET em saída temporária foram aprovados; não houve criação real de host nem alteração do banco. A API aberta precisa ser reiniciada. Protótipo externo indisponível no caminho obrigatório; PDFs preservados.
 
+### Correção: CNPJ fixo no cadastro adicional — 13/11/2026
+
+O card “Novo host” agora envia também `sourceHostId`, correspondente ao perfil selecionado no painel. Em `/cadastro_host?novoHost=1`, o frontend carrega os hosts da conta, localiza a origem e preenche seu CNPJ em um campo desabilitado. Não existe opção visual para digitar outro CNPJ. O formulário informa de qual perfil ele foi herdado e continua limpando toda a localidade para receber os dados do novo estabelecimento.
+
+O backend reforça a mesma regra: depois do primeiro host, `HostService` aceita na criação somente um CNPJ já pertencente aos hosts ativos do usuário. Assim, manipular o HTML ou chamar a API diretamente não permite cadastrar outro identificador. TypeScript, ESLint e build .NET aprovados; nenhum host real foi criado. A API precisa ser reiniciada, o protótipo externo permanece indisponível e os PDFs não foram regenerados.
+
 ## Exclusão de programação pelo painel — 13/11/2026
 
 Implementação: cada card de programação em `/meus_eventos` ganhou uma lixeira vermelha no canto inferior direito, separada da área que abre a edição. Ao acioná-la, um modal bloqueante identifica a programação e pergunta “Tem certeza que deseja excluir essa programação?”. “Cancelar” fecha o modal sem alteração; “Sim, excluir” usa o JWT da sessão em `PATCH /api/Programming/{hostId}/Delete/{programmingId}`.
@@ -315,3 +321,11 @@ Implementação: cada card de programação em `/meus_eventos` ganhou uma lixeir
 Enquanto a requisição está em andamento, os botões do modal ficam desabilitados. Em caso de erro, o ProblemDetails da API é exibido no próprio modal. Com sucesso 204, a programação é removida do estado local do host e os totais do painel são recalculados. A operação continua sendo uma desativação lógica no backend; nenhuma exclusão física, rota nova ou mudança de contrato foi introduzida.
 
 Validações realizadas: TypeScript e ESLint direto de `meus_eventos.tsx` aprovados; rota web preservada. Não foi executado PATCH real para evitar desativar uma programação do banco do usuário. Backend, protótipo externo e PDFs não foram alterados nesta etapa.
+
+## Edição do host selecionado pelo painel — 13/11/2026
+
+Implementação: o botão “Administrar” do resumo do perfil em `/meus_eventos` abre `/cadastro_host?editarHost=1&hostId={id}` para o host atualmente selecionado. O formulário reutilizado carrega `GET /api/Host/GetAllHostsbyUserId`, confirma que o ID pertence à conta autenticada e preenche tipo, nome, telefone, descrição, logo, Instagram e endereço. O CNPJ é exibido desabilitado e identificado como dado apenas para consulta.
+
+Ao salvar, o frontend envia o `HostDTO` para `PUT /api/Host/{hostId}/Edit` com o JWT atual. Nome, tipo, contatos, descrição e localidade podem ser alterados; o endereço preenchido é enviado como objeto para a resolução e deduplicação já existentes. Em sucesso, a tela informa a atualização e oferece retorno ao painel.
+
+Validações realizadas: `tsc --noEmit` e ESLint direto de `cadastro_host.tsx` e `meus_eventos.tsx` aprovados. O backend também rejeita mudança do CNPJ antes de resolver o endereço. Não foi executado PUT real nem houve gravação no banco. O protótipo externo permanece pendente porque o caminho obrigatório não existe neste computador; PDFs não foram regenerados.

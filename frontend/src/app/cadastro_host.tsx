@@ -2,7 +2,7 @@ import { Fredoka_700Bold } from '@expo-google-fonts/fredoka/700Bold';
 import { useFonts } from 'expo-font';
 import { router, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Image,
   KeyboardAvoidingView,
@@ -207,8 +207,19 @@ type HostCreateResponse = {
 
 type ExistingHostResponse = {
   id: number;
+  typeofhost: HostType;
   name: string;
   cnpj: string;
+  logoUrl: string;
+  instagranUrl: string;
+  phone: string;
+  description: string;
+  addressId: number;
+  address: Omit<AddressDraft, 'state'> & { id: number };
+};
+
+type HostEditResponse = ExistingHostResponse & {
+  isActive: boolean;
 };
 
 type ApiErrorBody = {
@@ -336,7 +347,12 @@ function SectionTitle({ number, title, description }: SectionTitleProps) {
 }
 
 export default function HostRegistrationScreen() {
-  const params = useLocalSearchParams<{ novoHost?: string }>();
+  const params = useLocalSearchParams<{
+    novoHost?: string;
+    sourceHostId?: string;
+    editarHost?: string;
+    hostId?: string;
+  }>();
   const { width: viewportWidth } = useWindowDimensions();
   const [fontsLoaded] = useFonts({ Fredoka_700Bold });
   const cnpjLookupRequest = useRef(0);
@@ -351,6 +367,9 @@ export default function HostRegistrationScreen() {
   const [existingHosts, setExistingHosts] = useState<ExistingHostResponse[]>([]);
   const [existingHostsLoaded, setExistingHostsLoaded] = useState(false);
   const [reusedCnpj, setReusedCnpj] = useState(false);
+  const [sourceHostName, setSourceHostName] = useState('');
+  const [sourceCnpjInitialized, setSourceCnpjInitialized] = useState(false);
+  const [editingHostInitialized, setEditingHostInitialized] = useState(false);
   const [submission, setSubmission] = useState<SubmissionState>({
     status: 'idle',
     message: '',
@@ -382,9 +401,13 @@ export default function HostRegistrationScreen() {
 
   const selectedHostType = hostTypes.find((item) => item.value === hostDraft.typeofhost);
   const isAddingHostToExistingAccount = Boolean(existingSessionToken) && params.novoHost === '1';
+  const editingHostId = Number(params.hostId ?? 0);
+  const isEditingHost =
+    Boolean(existingSessionToken) && params.editarHost === '1' && editingHostId > 0;
+  const isAuthenticatedHostFlow = isAddingHostToExistingAccount || isEditingHost;
 
   useEffect(() => {
-    if (!isAddingHostToExistingAccount) {
+    if (!isAuthenticatedHostFlow) {
       return;
     }
 
@@ -410,7 +433,68 @@ export default function HostRegistrationScreen() {
     return () => {
       active = false;
     };
-  }, [existingSessionToken, isAddingHostToExistingAccount]);
+  }, [existingSessionToken, isAuthenticatedHostFlow]);
+
+  useEffect(() => {
+    if (!isEditingHost || !existingHostsLoaded || editingHostInitialized) {
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      const host = existingHosts.find((item) => item.id === editingHostId);
+      if (!host) {
+        setSubmission({
+          status: 'error',
+          message: 'O perfil selecionado não foi encontrado ou não pertence à conta atual.',
+        });
+        return;
+      }
+
+      setEditingHostInitialized(true);
+      setSourceHostName(host.name);
+      setHostDraft({
+        typeofhost: host.typeofhost,
+        cnpj: maskCnpj(host.cnpj),
+        logoUrl: host.logoUrl ?? '',
+        instagranUrl: host.instagranUrl ?? '',
+        phone: maskPhone(host.phone ?? ''),
+        name: host.name,
+        description: host.description,
+        address: {
+          city: host.address.city ?? '',
+          state: '',
+          street: host.address.street,
+          number: host.address.number,
+          complement: host.address.complement ?? '',
+          neighborhood: host.address.neighborhood ?? '',
+          cep: maskCep(host.address.cep),
+        },
+      });
+
+      apiRequest<CompanyRegistrationResponse>(
+        `/api/Host/GetByCNPJ?cnpj=${encodeURIComponent(onlyDigits(host.cnpj))}`,
+        { headers: { Authorization: `Bearer ${existingSessionToken}` } },
+      )
+        .then((company) => {
+          setLegalName(company.legalName);
+          setCnpjLookup({ status: 'success', message: 'CNPJ original do perfil mantido e bloqueado para edição.' });
+        })
+        .catch(() => {
+          setCnpjLookup({ status: 'idle', message: '' });
+        });
+    }, 0);
+
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [
+    editingHostId,
+    editingHostInitialized,
+    existingHosts,
+    existingHostsLoaded,
+    existingSessionToken,
+    isEditingHost,
+  ]);
 
   const resetValidation = () => {
     setErrors({});
@@ -439,7 +523,7 @@ export default function HostRegistrationScreen() {
     }));
   };
 
-  const lookupCnpj = async (cnpj: string, requestId: number) => {
+  const lookupCnpj = useCallback(async (cnpj: string, requestId: number) => {
     if (isAddingHostToExistingAccount && !existingHostsLoaded) {
       setCnpjLookup({ status: 'error', message: 'Aguarde a validação dos perfis vinculados à sua conta.' });
       return;
@@ -513,7 +597,7 @@ export default function HostRegistrationScreen() {
       setErrors((current) => ({ ...current, cnpj: message }));
       setCnpjLookup({ status: 'error', message });
     }
-  };
+  }, [existingHosts, existingHostsLoaded, isAddingHostToExistingAccount]);
 
   const handleCnpjChange = (value: string) => {
     resetValidation();
@@ -534,6 +618,40 @@ export default function HostRegistrationScreen() {
       void lookupCnpj(digits, requestId);
     }
   };
+
+  useEffect(() => {
+    if (!isAddingHostToExistingAccount || !existingHostsLoaded || sourceCnpjInitialized) {
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      const sourceHostId = Number(params.sourceHostId ?? 0);
+      const sourceHost = existingHosts.find((host) => host.id === sourceHostId) ?? existingHosts[0];
+      if (!sourceHost) {
+        setSubmission({ status: 'error', message: 'Nenhum perfil existente foi encontrado para reutilizar o CNPJ.' });
+        return;
+      }
+
+      const cnpj = onlyDigits(sourceHost.cnpj);
+      const requestId = cnpjLookupRequest.current + 1;
+      cnpjLookupRequest.current = requestId;
+      setSourceHostName(sourceHost.name);
+      setSourceCnpjInitialized(true);
+      setHostDraft((current) => ({ ...current, cnpj: maskCnpj(cnpj) }));
+      void lookupCnpj(cnpj, requestId);
+    }, 0);
+
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [
+    existingHosts,
+    existingHostsLoaded,
+    isAddingHostToExistingAccount,
+    lookupCnpj,
+    params.sourceHostId,
+    sourceCnpjInitialized,
+  ]);
 
   const lookupCep = async (cep: string, requestId: number) => {
     setCepLookup({ status: 'loading', message: 'Consultando CEP...' });
@@ -595,7 +713,7 @@ export default function HostRegistrationScreen() {
     const normalizedEmail = userDraft.email.trim();
     const phoneDigits = onlyDigits(hostDraft.phone);
 
-    if (!isAddingHostToExistingAccount) {
+    if (!isAuthenticatedHostFlow) {
       if (!userDraft.name.trim()) {
         nextErrors.userName = 'Informe o nome completo.';
       }
@@ -688,7 +806,7 @@ export default function HostRegistrationScreen() {
   };
 
   const submitRegistration = async () => {
-    if (isAddingHostToExistingAccount && !existingHostsLoaded) {
+    if (isAuthenticatedHostFlow && !existingHostsLoaded) {
       setSubmission({ status: 'error', message: 'Não foi possível validar os perfis da conta atual.' });
       return;
     }
@@ -704,7 +822,7 @@ export default function HostRegistrationScreen() {
 
     try {
       let accessToken = existingSessionToken;
-      if (!isAddingHostToExistingAccount) {
+      if (!isAuthenticatedHostFlow) {
         if (!userRegistered) {
           try {
             await apiRequest<{ message: string }>('/api/User/auth/Register', {
@@ -736,6 +854,23 @@ export default function HostRegistrationScreen() {
       }
 
       const authorization = { Authorization: `Bearer ${accessToken}` };
+
+      if (isEditingHost) {
+        const updated = await apiRequest<HostEditResponse>(`/api/Host/${editingHostId}/Edit`, {
+          method: 'PUT',
+          headers: authorization,
+          body: JSON.stringify(prepared.host),
+        });
+        storeWebSession(accessToken, updated.id);
+        setSubmission({
+          status: 'success',
+          message: `${updated.name} foi atualizado com sucesso.`,
+          hostId: updated.id,
+          addressId: updated.addressId,
+        });
+        return;
+      }
+
       const company = await apiRequest<CompanyRegistrationResponse>(
         `/api/Host/GetByCNPJ?cnpj=${encodeURIComponent(prepared.host.cnpj)}`,
         { headers: authorization },
@@ -778,7 +913,7 @@ export default function HostRegistrationScreen() {
           <Pressable
             accessibilityLabel="Voltar"
             accessibilityRole="button"
-            onPress={() => router.replace(isAddingHostToExistingAccount ? '/meus_eventos' : '/')}
+            onPress={() => router.replace(isAuthenticatedHostFlow ? '/meus_eventos' : '/')}
             style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}
           >
             <Text style={styles.backIcon}>‹</Text>
@@ -810,23 +945,33 @@ export default function HostRegistrationScreen() {
           >
             <View style={styles.intro}>
               <Text style={styles.eyebrow}>
-                {isAddingHostToExistingAccount ? 'NOVO HOST' : 'CADASTRO HOST'}
+                {isEditingHost ? 'AJUSTAR HOST' : isAddingHostToExistingAccount ? 'NOVO HOST' : 'CADASTRO HOST'}
               </Text>
               <Text style={styles.pageTitle}>
-                {isAddingHostToExistingAccount ? 'Cadastre outro perfil' : 'Conte sobre sua empresa'}
+                {isEditingHost
+                  ? 'Atualize o perfil selecionado'
+                  : isAddingHostToExistingAccount
+                    ? 'Cadastre outro perfil'
+                    : 'Conte sobre sua empresa'}
               </Text>
               <Text style={styles.pageSubtitle}>
-                {isAddingHostToExistingAccount
+                {isEditingHost
+                  ? 'Altere os dados do estabelecimento. O CNPJ original será mantido.'
+                  : isAddingHostToExistingAccount
                   ? 'O novo perfil ficará vinculado à mesma conta e poderá ser selecionado no painel.'
                   : 'Validaremos os dados antes da primeira publicação.'}
               </Text>
             </View>
 
-            {isAddingHostToExistingAccount ? (
+            {isAuthenticatedHostFlow ? (
               <View style={styles.existingAccountNotice}>
-                <Text style={styles.existingAccountNoticeTitle}>Usando sua conta atual</Text>
+                <Text style={styles.existingAccountNoticeTitle}>
+                  {isEditingHost ? 'Editando perfil existente' : 'Usando sua conta atual'}
+                </Text>
                 <Text style={styles.existingAccountNoticeText}>
-                  Não é necessário criar outro login. Você poderá alternar entre todos os perfis no painel.
+                  {isEditingHost
+                    ? `As alterações serão aplicadas somente a ${sourceHostName || 'este perfil'}.`
+                    : 'Não é necessário criar outro login. Você poderá alternar entre todos os perfis no painel.'}
                 </Text>
               </View>
             ) : (
@@ -876,7 +1021,7 @@ export default function HostRegistrationScreen() {
             <View style={styles.card}>
               <SectionTitle
                 description="Você poderá adicionar outras depois"
-                number={isAddingHostToExistingAccount ? '01' : '02'}
+                number={isAuthenticatedHostFlow ? '01' : '02'}
                 title="Dados empresariais"
               />
 
@@ -897,10 +1042,10 @@ export default function HostRegistrationScreen() {
                 value={hostDraft.name}
               />
               <Field
-                editable={!isAddingHostToExistingAccount || existingHostsLoaded}
+                editable={!isAuthenticatedHostFlow}
                 error={errors.cnpj}
                 keyboardType="numeric"
-                label="CNPJ *"
+                label={isAuthenticatedHostFlow ? 'CNPJ da conta *' : 'CNPJ *'}
                 maxLength={18}
                 onChangeText={handleCnpjChange}
                 placeholder="00.000.000/0000-00"
@@ -908,6 +1053,16 @@ export default function HostRegistrationScreen() {
               />
               {isAddingHostToExistingAccount && !existingHostsLoaded ? (
                 <Text style={styles.lookupMessage}>Carregando os CNPJs já vinculados à conta...</Text>
+              ) : null}
+              {isAddingHostToExistingAccount && sourceHostName ? (
+                <Text style={styles.fixedCnpjMessage}>
+                  CNPJ herdado de {sourceHostName}. Ele não pode ser alterado neste novo perfil.
+                </Text>
+              ) : null}
+              {isEditingHost && sourceHostName ? (
+                <Text style={styles.fixedCnpjMessage}>
+                  O CNPJ de {sourceHostName} é apenas para consulta e não pode ser alterado.
+                </Text>
               ) : null}
               {cnpjLookup.status !== 'idle' && cnpjLookup.status !== 'error' && (
                 <Text
@@ -1006,7 +1161,7 @@ export default function HostRegistrationScreen() {
             <View style={styles.card}>
               <SectionTitle
                 description="Informe o endereço usado no cadastro do estabelecimento"
-                number={isAddingHostToExistingAccount ? '02' : '03'}
+                number={isAuthenticatedHostFlow ? '02' : '03'}
                 title="Endereço"
               />
 
@@ -1092,7 +1247,11 @@ export default function HostRegistrationScreen() {
               ]}
             >
               <Text style={styles.primaryButtonText}>
-                {submission.status === 'submitting' ? 'Enviando...' : 'Cadastrar host'}
+                {submission.status === 'submitting'
+                  ? 'Enviando...'
+                  : isEditingHost
+                    ? 'Salvar alterações'
+                    : 'Cadastrar host'}
               </Text>
             </Pressable>
 
@@ -1100,12 +1259,14 @@ export default function HostRegistrationScreen() {
               <View accessibilityRole="alert" style={styles.securityNotice}>
                 <Text style={styles.securityIcon}>✓</Text>
                 <View style={styles.securityCopy}>
-                  <Text style={styles.securityTitle}>Host cadastrado</Text>
+                  <Text style={styles.securityTitle}>
+                    {isEditingHost ? 'Host atualizado' : 'Host cadastrado'}
+                  </Text>
                   <Text style={styles.securityDescription}>
                     {submission.message} ID do host: {submission.hostId}. ID do endereço:{' '}
                     {submission.addressId}.
                   </Text>
-                  {isAddingHostToExistingAccount ? (
+                  {isAuthenticatedHostFlow ? (
                     <Pressable
                       accessibilityRole="button"
                       onPress={() => router.replace('/meus_eventos')}
@@ -1364,6 +1525,13 @@ const styles = StyleSheet.create({
   },
   reusedCnpjNoticeTitle: { color: colors.orange, fontSize: 12, fontWeight: '800' },
   reusedCnpjNoticeText: { color: colors.muted, fontSize: 11, lineHeight: 16 },
+  fixedCnpjMessage: {
+    marginTop: -4,
+    color: colors.ink,
+    fontSize: 10,
+    fontWeight: '700',
+    lineHeight: 15,
+  },
   select: {
     minHeight: 52,
     paddingHorizontal: 14,

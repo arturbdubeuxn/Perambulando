@@ -743,6 +743,14 @@ O painel `/meus_eventos` ganhou o card destacado “Novo host” ao lado dos est
 
 No backend, o CNPJ pode se repetir entre hosts do mesmo `UserId`, mas continua retornando 409 quando pertence a outro proprietário. A atribuição da role `HOST` tornou-se idempotente para permitir o segundo cadastro. Não houve mudança de rota, DTO, entidade, schema ou migration. TypeScript, ESLint e build .NET foram aprovados; nenhum POST ou dado real foi criado. Reinício da API, teste HTTP de escrita e atualização do protótipo externo permanecem pendentes; o caminho exigido para o protótipo não existe neste computador. PDFs não foram regenerados. Consulte [Controllers](01-controllers.md), [Regras de negócio](02-regras-de-negocio.md) e [Arquitetura frontend e backend](08-arquitetura-frontend-backend.md).
 
+### Correção: novo host sem escolha de outro CNPJ — 13/11/2026
+
+A regra anterior foi restringida: apenas o primeiro host define o CNPJ da conta. O card “Novo host” reaproveita o CNPJ do perfil selecionado, mostra-o como somente leitura e exige os novos dados de localização. O backend rejeita CNPJ diferente para host adicional, mesmo fora da interface, e continua bloqueando uso por outro proprietário. TypeScript, ESLint e build .NET aprovados; sem POST real, migration, atualização do protótipo externo ou PDF. Reinicie a API para carregar a regra. Consulte [Controllers](01-controllers.md), [Regras de negócio](02-regras-de-negocio.md) e [Arquitetura frontend e backend](08-arquitetura-frontend-backend.md).
+
 ## Confirmação de exclusão de programação no painel — 13/11/2026
 
 Os cards de `/meus_eventos` agora exibem uma lixeira vermelha no canto inferior direito. Ela abre um modal de confirmação com cancelar ou excluir; a confirmação chama o PATCH de desativação já existente, trata falhas dentro do modal e remove o item da lista após sucesso. O restante do card continua abrindo a edição. TypeScript e ESLint foram aprovados; nenhum PATCH real foi executado e nenhum dado foi desativado durante a validação. Backend, protótipo e PDFs foram preservados. Consulte [Arquitetura frontend e backend](08-arquitetura-frontend-backend.md).
+
+## Administração dos dados do host — 13/11/2026
+
+O botão “Administrar” do perfil selecionado em `/meus_eventos` abre o formulário preenchido daquele host. Tipo, nome, contato, descrição, mídias e endereço podem ser ajustados; o CNPJ aparece bloqueado. O salvamento usa o PUT de edição existente, e o backend passou a rejeitar também chamadas diretas que tentem trocar o CNPJ. Não houve mudança de rota, DTO, entidade ou migration. TypeScript, ESLint e build .NET foram aprovados; nenhum PUT real foi executado. O protótipo externo está indisponível no caminho configurado e os PDFs foram preservados. Consulte [Controllers](01-controllers.md), [Regras de negócio](02-regras-de-negocio.md) e [Arquitetura frontend e backend](08-arquitetura-frontend-backend.md).

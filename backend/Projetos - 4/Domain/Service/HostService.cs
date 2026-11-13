@@ -46,6 +46,16 @@ namespace Projetos___4.Domain.Service
         private async Task<string> ValidateHostCnpjAsync(string cnpj, string ownerUserId, int hostId, string? previousCnpj = null)
         {
             var normalized = _cnpjValidations.ValidateCnpj(cnpj);
+            if (hostId == 0)
+            {
+                var ownerHosts = await _hostRepository.GetAllHostsbyUserId(ownerUserId);
+                if (ownerHosts.Any() && !ownerHosts.Any(existingHost =>
+                    existingHost.CNPJ.Trim().Replace(".", "").Replace("/", "").Replace("-", "").ToUpperInvariant() == normalized))
+                {
+                    throw new CnpjException(CnpjFailure.Invalid, "Novos hosts devem usar o mesmo CNPJ já vinculado a esta conta.");
+                }
+            }
+
             if (await _hostRepository.CnpjExistsForAnotherUserAsync(normalized, ownerUserId, hostId))
             {
                 throw new CnpjException(CnpjFailure.Duplicate, "Este CNPJ já está vinculado a outro proprietário.");
@@ -143,6 +153,13 @@ namespace Projetos___4.Domain.Service
             if (existing == null)
             {
                 return null;
+            }
+
+            var normalizedSubmittedCnpj = _cnpjValidations.ValidateCnpj(host.CNPJ);
+            var normalizedExistingCnpj = _cnpjValidations.ValidateCnpj(existing.CNPJ);
+            if (normalizedSubmittedCnpj != normalizedExistingCnpj)
+            {
+                throw new CnpjException(CnpjFailure.Invalid, "O CNPJ do host não pode ser alterado.");
             }
 
             host.CNPJ = await ValidateHostCnpjAsync(host.CNPJ, existing.UserId, existing.Id, existing.CNPJ);
