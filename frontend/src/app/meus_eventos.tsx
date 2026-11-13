@@ -306,7 +306,7 @@ export default function MyEventsScreen() {
         <ScrollView ref={scrollRef} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator>
           <View style={styles.intro}>
             <Text style={styles.eyebrow}>AREA DO HOST</Text>
-            <Text style={styles.pageTitle}>Meus eventos</Text>
+            <Text style={styles.pageTitle}>Programações</Text>
             <Text style={styles.pageSubtitle}>
               Acompanhe seus estabelecimentos e administre as programações em um só lugar.
             </Text>
@@ -402,6 +402,19 @@ export default function MyEventsScreen() {
                     </Pressable>
                   );
                 })}
+                <Pressable
+                  accessibilityHint="Abre o cadastro de outro estabelecimento para esta conta"
+                  accessibilityLabel="Cadastrar novo host"
+                  accessibilityRole="button"
+                  onPress={() => router.push({ pathname: '/cadastro_host', params: { novoHost: '1' } })}
+                  style={({ pressed }) => [styles.newHostOption, pressed && styles.newHostOptionPressed]}
+                >
+                  <View style={styles.newHostBadge}>
+                    <Text style={styles.newHostPlus}>+</Text>
+                  </View>
+                  <Text style={styles.newHostTitle}>Novo host</Text>
+                  <Text style={styles.newHostText}>Cadastrar outro perfil</Text>
+                </Pressable>
               </ScrollView>
 
               <View style={styles.hostSummary}>
@@ -456,7 +469,7 @@ export default function MyEventsScreen() {
               <View style={styles.sectionHeader}>
                 <View>
                   <Text style={styles.sectionEyebrow}>PROGRAMACOES</Text>
-                  <Text style={styles.sectionTitle}>Administrar eventos</Text>
+                  <Text style={styles.sectionTitle}>Administrar programações</Text>
                 </View>
                 <Text style={styles.sectionCount}>{selectedProgrammings.length}</Text>
               </View>
@@ -480,7 +493,21 @@ export default function MyEventsScreen() {
                   {selectedProgrammings.map((programming) => {
                     const programmingStatus = getProgrammingStatus(programming, currentTime);
                     return (
-                      <View key={programming.id} style={styles.programmingCard}>
+                      <Pressable
+                        accessibilityHint="Abre o formulário para editar esta programação"
+                        accessibilityRole="button"
+                        key={programming.id}
+                        onPress={() =>
+                          router.push({
+                            pathname: '/editar_evento',
+                            params: {
+                              programmingId: String(programming.id),
+                              hostId: String(programming.hostId),
+                            },
+                          })
+                        }
+                        style={({ pressed }) => [styles.programmingCard, pressed && styles.programmingCardPressed]}
+                      >
                         <View style={styles.programmingHeader}>
                           <View style={[styles.statusBadge, programmingStatus.style]}>
                             <Text style={[styles.statusText, programmingStatus.textStyle]}>
@@ -494,7 +521,8 @@ export default function MyEventsScreen() {
                         <Text numberOfLines={1} style={styles.programmingAddress}>
                           {[programming.address?.street, programming.address?.city].filter(Boolean).join(' · ')}
                         </Text>
-                      </View>
+                        <Text style={styles.programmingEditHint}>Toque para editar</Text>
+                      </Pressable>
                     );
                   })}
                 </View>
@@ -665,6 +693,32 @@ const styles = StyleSheet.create({
   hostNameSelected: { color: colors.orange },
   hostType: { color: colors.muted, fontSize: 10 },
   hostTypeSelected: { color: '#A8400D' },
+  newHostOption: {
+    width: 146,
+    minHeight: 112,
+    padding: 14,
+    borderRadius: 17,
+    alignItems: 'flex-start',
+    justifyContent: 'center',
+    borderColor: colors.orange,
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+    backgroundColor: '#FFF9F5',
+    gap: 4,
+  },
+  newHostOptionPressed: { backgroundColor: '#FFF0E6', transform: [{ scale: 0.98 }] },
+  newHostBadge: {
+    width: 34,
+    height: 34,
+    marginBottom: 4,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.orange,
+  },
+  newHostPlus: { color: colors.card, fontSize: 24, fontWeight: '300', lineHeight: 25 },
+  newHostTitle: { color: colors.orange, fontSize: 13, fontWeight: '800' },
+  newHostText: { color: colors.muted, fontSize: 10 },
   hostSummary: {
     padding: 17,
     borderRadius: 22,
@@ -753,6 +807,8 @@ const styles = StyleSheet.create({
   programmingName: { color: colors.ink, fontSize: 15, fontWeight: '800' },
   programmingDate: { color: colors.orange, fontSize: 10, fontWeight: '700' },
   programmingAddress: { color: colors.muted, fontSize: 10 },
+  programmingEditHint: { marginTop: 4, color: colors.orange, fontSize: 10, fontWeight: '800' },
+  programmingCardPressed: { borderColor: colors.orange, backgroundColor: '#FFF9F5' },
   pressed: { opacity: 0.72 },
   bottomNav: {
     minHeight: 74,

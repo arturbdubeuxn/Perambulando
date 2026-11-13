@@ -1,8 +1,8 @@
 import { Fredoka_700Bold } from '@expo-google-fonts/fredoka/700Bold';
 import { useFonts } from 'expo-font';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Image,
   KeyboardAvoidingView,
@@ -33,8 +33,18 @@ const accessTokenStorageKey = 'perambulando.accessToken';
 const hostIdStorageKey = 'perambulando.hostId';
 
 type WritableStorageLike = {
+  getItem: (key: string) => string | null;
   setItem: (key: string, value: string) => void;
 };
+
+function getWebSessionToken() {
+  if (Platform.OS !== 'web') {
+    return '';
+  }
+
+  const storage = (globalThis as { sessionStorage?: WritableStorageLike }).sessionStorage;
+  return storage?.getItem(accessTokenStorageKey) ?? '';
+}
 
 function storeWebSession(accessToken: string, hostId?: number) {
   if (Platform.OS !== 'web') {
@@ -195,6 +205,12 @@ type HostCreateResponse = {
   auth: AuthResponse;
 };
 
+type ExistingHostResponse = {
+  id: number;
+  name: string;
+  cnpj: string;
+};
+
 type ApiErrorBody = {
   title?: string;
   detail?: string;
@@ -320,6 +336,7 @@ function SectionTitle({ number, title, description }: SectionTitleProps) {
 }
 
 export default function HostRegistrationScreen() {
+  const params = useLocalSearchParams<{ novoHost?: string }>();
   const { width: viewportWidth } = useWindowDimensions();
   const [fontsLoaded] = useFonts({ Fredoka_700Bold });
   const cnpjLookupRequest = useRef(0);
@@ -330,6 +347,10 @@ export default function HostRegistrationScreen() {
   const [cepLookup, setCepLookup] = useState<LookupState>({ status: 'idle', message: '' });
   const [errors, setErrors] = useState<RegistrationErrors>({});
   const [userRegistered, setUserRegistered] = useState(false);
+  const [existingSessionToken] = useState(getWebSessionToken);
+  const [existingHosts, setExistingHosts] = useState<ExistingHostResponse[]>([]);
+  const [existingHostsLoaded, setExistingHostsLoaded] = useState(false);
+  const [reusedCnpj, setReusedCnpj] = useState(false);
   const [submission, setSubmission] = useState<SubmissionState>({
     status: 'idle',
     message: '',
@@ -360,6 +381,36 @@ export default function HostRegistrationScreen() {
   });
 
   const selectedHostType = hostTypes.find((item) => item.value === hostDraft.typeofhost);
+  const isAddingHostToExistingAccount = Boolean(existingSessionToken) && params.novoHost === '1';
+
+  useEffect(() => {
+    if (!isAddingHostToExistingAccount) {
+      return;
+    }
+
+    let active = true;
+    apiRequest<ExistingHostResponse[]>('/api/Host/GetAllHostsbyUserId', {
+      headers: { Authorization: `Bearer ${existingSessionToken}` },
+    })
+      .then((hostList) => {
+        if (active) {
+          setExistingHosts(hostList);
+          setExistingHostsLoaded(true);
+        }
+      })
+      .catch((error) => {
+        if (active) {
+          setSubmission({
+            status: 'error',
+            message: error instanceof Error ? error.message : 'Não foi possível validar a sessão atual.',
+          });
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [existingSessionToken, isAddingHostToExistingAccount]);
 
   const resetValidation = () => {
     setErrors({});
@@ -389,6 +440,11 @@ export default function HostRegistrationScreen() {
   };
 
   const lookupCnpj = async (cnpj: string, requestId: number) => {
+    if (isAddingHostToExistingAccount && !existingHostsLoaded) {
+      setCnpjLookup({ status: 'error', message: 'Aguarde a validação dos perfis vinculados à sua conta.' });
+      return;
+    }
+
     setCnpjLookup({ status: 'loading', message: 'Consultando CNPJ...' });
     try {
       const company = await apiRequest<CompanyRegistrationResponse>(
@@ -406,26 +462,42 @@ export default function HostRegistrationScreen() {
       }
 
       const suggestedName = company.tradeName.trim() || company.legalName.trim();
+      const isCnpjReused = existingHosts.some(
+        (host) => onlyDigits(host.cnpj) === onlyDigits(company.cnpj),
+      );
       cepLookupRequest.current += 1;
       setCepLookup({ status: 'idle', message: '' });
       setLegalName(company.legalName);
+      setReusedCnpj(isCnpjReused);
       setHostDraft((current) => ({
         ...current,
         name: suggestedName || current.name,
-        address: {
-          city: company.city.trim(),
-          state: company.state.trim(),
-          street: company.street.trim(),
-          number: company.number.trim(),
-          complement: company.complement.trim(),
-          neighborhood: company.neighborhood.trim(),
-          cep: maskCep(company.cep),
-        },
+        address: isCnpjReused
+          ? {
+              city: '',
+              state: '',
+              street: '',
+              number: '',
+              complement: '',
+              neighborhood: '',
+              cep: '',
+            }
+          : {
+              city: company.city.trim(),
+              state: company.state.trim(),
+              street: company.street.trim(),
+              number: company.number.trim(),
+              complement: company.complement.trim(),
+              neighborhood: company.neighborhood.trim(),
+              cep: maskCep(company.cep),
+            },
       }));
       setErrors((current) => ({ ...current, cnpj: undefined }));
       setCnpjLookup({
         status: 'success',
-        message: 'CNPJ validado. Dados empresariais e endereço sugerido preenchidos.',
+        message: isCnpjReused
+          ? 'CNPJ já usado por esta conta. Informe novamente todos os dados de localização do novo perfil.'
+          : 'CNPJ validado. Dados empresariais e endereço sugerido preenchidos.',
       });
     } catch (error) {
       if (requestId !== cnpjLookupRequest.current) {
@@ -450,6 +522,7 @@ export default function HostRegistrationScreen() {
     const requestId = cnpjLookupRequest.current + 1;
     cnpjLookupRequest.current = requestId;
     setLegalName('');
+    setReusedCnpj(false);
     setCnpjLookup({ status: 'idle', message: '' });
     setHostDraft((current) => ({ ...current, cnpj: masked }));
 
@@ -522,20 +595,22 @@ export default function HostRegistrationScreen() {
     const normalizedEmail = userDraft.email.trim();
     const phoneDigits = onlyDigits(hostDraft.phone);
 
-    if (!userDraft.name.trim()) {
-      nextErrors.userName = 'Informe o nome completo.';
-    }
-    if (!isValidEmail(normalizedEmail)) {
-      nextErrors.email = 'Informe um e-mail válido.';
-    }
-    if (
-      userDraft.password.length < 8 ||
-      !/[a-z]/.test(userDraft.password) ||
-      !/[A-Z]/.test(userDraft.password) ||
-      !/\d/.test(userDraft.password) ||
-      !/[^A-Za-z0-9]/.test(userDraft.password)
-    ) {
-      nextErrors.password = 'Use 8 caracteres, com maiúscula, minúscula, número e símbolo.';
+    if (!isAddingHostToExistingAccount) {
+      if (!userDraft.name.trim()) {
+        nextErrors.userName = 'Informe o nome completo.';
+      }
+      if (!isValidEmail(normalizedEmail)) {
+        nextErrors.email = 'Informe um e-mail válido.';
+      }
+      if (
+        userDraft.password.length < 8 ||
+        !/[a-z]/.test(userDraft.password) ||
+        !/[A-Z]/.test(userDraft.password) ||
+        !/\d/.test(userDraft.password) ||
+        !/[^A-Za-z0-9]/.test(userDraft.password)
+      ) {
+        nextErrors.password = 'Use 8 caracteres, com maiúscula, minúscula, número e símbolo.';
+      }
     }
     if (!hostDraft.name.trim()) {
       nextErrors.hostName = 'Informe o nome fantasia.';
@@ -561,11 +636,17 @@ export default function HostRegistrationScreen() {
     if (hostDraft.address.city.length > 150) {
       nextErrors.city = 'A cidade deve ter no máximo 150 caracteres.';
     }
+    if (reusedCnpj && !hostDraft.address.city.trim()) {
+      nextErrors.city = 'Informe a cidade do novo perfil.';
+    }
     if (!hostDraft.address.street.trim()) {
       nextErrors.street = 'Informe o logradouro.';
     }
     if (!hostDraft.address.number.trim()) {
       nextErrors.number = 'Informe o número.';
+    }
+    if (reusedCnpj && !hostDraft.address.neighborhood.trim()) {
+      nextErrors.neighborhood = 'Informe o bairro do novo perfil.';
     }
     if (onlyDigits(hostDraft.address.cep).length !== 8) {
       nextErrors.cep = 'Informe um CEP com oito dígitos.';
@@ -607,6 +688,11 @@ export default function HostRegistrationScreen() {
   };
 
   const submitRegistration = async () => {
+    if (isAddingHostToExistingAccount && !existingHostsLoaded) {
+      setSubmission({ status: 'error', message: 'Não foi possível validar os perfis da conta atual.' });
+      return;
+    }
+
     const prepared = validateRegistration();
     if (!prepared) {
       setSubmission({ status: 'error', message: 'Revise os campos destacados.' });
@@ -617,35 +703,39 @@ export default function HostRegistrationScreen() {
     let accountCreatedDuringAttempt = false;
 
     try {
-      if (!userRegistered) {
-        try {
-          await apiRequest<{ message: string }>('/api/User/auth/Register', {
-            method: 'POST',
-            body: JSON.stringify(prepared.user),
-          });
-          setUserRegistered(true);
-          accountCreatedDuringAttempt = true;
-        } catch (error) {
-          const duplicateAccount =
-            error instanceof ApiRequestError &&
-            Object.keys(error.body?.errors ?? {}).some((key) => key.startsWith('Duplicate'));
-          if (!duplicateAccount) {
-            throw error;
+      let accessToken = existingSessionToken;
+      if (!isAddingHostToExistingAccount) {
+        if (!userRegistered) {
+          try {
+            await apiRequest<{ message: string }>('/api/User/auth/Register', {
+              method: 'POST',
+              body: JSON.stringify(prepared.user),
+            });
+            setUserRegistered(true);
+            accountCreatedDuringAttempt = true;
+          } catch (error) {
+            const duplicateAccount =
+              error instanceof ApiRequestError &&
+              Object.keys(error.body?.errors ?? {}).some((key) => key.startsWith('Duplicate'));
+            if (!duplicateAccount) {
+              throw error;
+            }
+            setUserRegistered(true);
           }
-          setUserRegistered(true);
         }
+
+        const auth = await apiRequest<AuthResponse>('/api/User/auth/Login', {
+          method: 'POST',
+          body: JSON.stringify({
+            email: prepared.user.email,
+            password: prepared.user.password,
+          }),
+        });
+        accessToken = auth.accessToken;
+        storeWebSession(accessToken);
       }
 
-      const auth = await apiRequest<AuthResponse>('/api/User/auth/Login', {
-        method: 'POST',
-        body: JSON.stringify({
-          email: prepared.user.email,
-          password: prepared.user.password,
-        }),
-      });
-      storeWebSession(auth.accessToken);
-
-      const authorization = { Authorization: `Bearer ${auth.accessToken}` };
+      const authorization = { Authorization: `Bearer ${accessToken}` };
       const company = await apiRequest<CompanyRegistrationResponse>(
         `/api/Host/GetByCNPJ?cnpj=${encodeURIComponent(prepared.host.cnpj)}`,
         { headers: authorization },
@@ -688,7 +778,7 @@ export default function HostRegistrationScreen() {
           <Pressable
             accessibilityLabel="Voltar"
             accessibilityRole="button"
-            onPress={() => router.replace('/')}
+            onPress={() => router.replace(isAddingHostToExistingAccount ? '/meus_eventos' : '/')}
             style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}
           >
             <Text style={styles.backIcon}>‹</Text>
@@ -719,14 +809,28 @@ export default function HostRegistrationScreen() {
             showsVerticalScrollIndicator
           >
             <View style={styles.intro}>
-              <Text style={styles.eyebrow}>CADASTRO HOST</Text>
-              <Text style={styles.pageTitle}>Conte sobre sua empresa</Text>
+              <Text style={styles.eyebrow}>
+                {isAddingHostToExistingAccount ? 'NOVO HOST' : 'CADASTRO HOST'}
+              </Text>
+              <Text style={styles.pageTitle}>
+                {isAddingHostToExistingAccount ? 'Cadastre outro perfil' : 'Conte sobre sua empresa'}
+              </Text>
               <Text style={styles.pageSubtitle}>
-                Validaremos os dados antes da primeira publicação.
+                {isAddingHostToExistingAccount
+                  ? 'O novo perfil ficará vinculado à mesma conta e poderá ser selecionado no painel.'
+                  : 'Validaremos os dados antes da primeira publicação.'}
               </Text>
             </View>
 
-            <View style={styles.card}>
+            {isAddingHostToExistingAccount ? (
+              <View style={styles.existingAccountNotice}>
+                <Text style={styles.existingAccountNoticeTitle}>Usando sua conta atual</Text>
+                <Text style={styles.existingAccountNoticeText}>
+                  Não é necessário criar outro login. Você poderá alternar entre todos os perfis no painel.
+                </Text>
+              </View>
+            ) : (
+              <View style={styles.card}>
               <SectionTitle
                 description="Seus dados de acesso e contato"
                 number="01"
@@ -766,12 +870,13 @@ export default function HostRegistrationScreen() {
                   O perfil será vinculado automaticamente à função HOST ao concluir o cadastro da empresa.
                 </Text>
               </View>
-            </View>
+              </View>
+            )}
 
             <View style={styles.card}>
               <SectionTitle
                 description="Você poderá adicionar outras depois"
-                number="02"
+                number={isAddingHostToExistingAccount ? '01' : '02'}
                 title="Dados empresariais"
               />
 
@@ -792,6 +897,7 @@ export default function HostRegistrationScreen() {
                 value={hostDraft.name}
               />
               <Field
+                editable={!isAddingHostToExistingAccount || existingHostsLoaded}
                 error={errors.cnpj}
                 keyboardType="numeric"
                 label="CNPJ *"
@@ -800,6 +906,9 @@ export default function HostRegistrationScreen() {
                 placeholder="00.000.000/0000-00"
                 value={hostDraft.cnpj}
               />
+              {isAddingHostToExistingAccount && !existingHostsLoaded ? (
+                <Text style={styles.lookupMessage}>Carregando os CNPJs já vinculados à conta...</Text>
+              ) : null}
               {cnpjLookup.status !== 'idle' && cnpjLookup.status !== 'error' && (
                 <Text
                   accessibilityRole="alert"
@@ -811,6 +920,14 @@ export default function HostRegistrationScreen() {
                   {cnpjLookup.message}
                 </Text>
               )}
+              {reusedCnpj ? (
+                <View style={styles.reusedCnpjNotice}>
+                  <Text style={styles.reusedCnpjNoticeTitle}>Mesmo CNPJ, novo local</Text>
+                  <Text style={styles.reusedCnpjNoticeText}>
+                    Os dados de localização foram limpos. Informe CEP, cidade, logradouro, número e bairro do novo perfil.
+                  </Text>
+                </View>
+              ) : null}
 
               <View style={styles.fieldGroup}>
                 <Text style={styles.fieldLabel}>Tipo de host *</Text>
@@ -889,7 +1006,7 @@ export default function HostRegistrationScreen() {
             <View style={styles.card}>
               <SectionTitle
                 description="Informe o endereço usado no cadastro do estabelecimento"
-                number="03"
+                number={isAddingHostToExistingAccount ? '02' : '03'}
                 title="Endereço"
               />
 
@@ -988,6 +1105,15 @@ export default function HostRegistrationScreen() {
                     {submission.message} ID do host: {submission.hostId}. ID do endereço:{' '}
                     {submission.addressId}.
                   </Text>
+                  {isAddingHostToExistingAccount ? (
+                    <Pressable
+                      accessibilityRole="button"
+                      onPress={() => router.replace('/meus_eventos')}
+                      style={styles.returnToHostsButton}
+                    >
+                      <Text style={styles.returnToHostsButtonText}>Voltar para meus eventos</Text>
+                    </Pressable>
+                  ) : null}
                 </View>
               </View>
             ) : submission.status === 'error' ? (
@@ -1122,6 +1248,16 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     borderWidth: 1,
   },
+  existingAccountNotice: {
+    padding: 16,
+    gap: 5,
+    backgroundColor: '#EAF1FA',
+    borderColor: '#C5D6E8',
+    borderRadius: 16,
+    borderWidth: 1,
+  },
+  existingAccountNoticeTitle: { color: colors.ink, fontSize: 13, fontWeight: '800' },
+  existingAccountNoticeText: { color: colors.muted, fontSize: 11, lineHeight: 17 },
   sectionTitleRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -1218,6 +1354,16 @@ const styles = StyleSheet.create({
     fontSize: 11,
     lineHeight: 16,
   },
+  reusedCnpjNotice: {
+    padding: 13,
+    gap: 4,
+    backgroundColor: '#FFF4EC',
+    borderColor: '#FFC9A8',
+    borderRadius: 13,
+    borderWidth: 1,
+  },
+  reusedCnpjNoticeTitle: { color: colors.orange, fontSize: 12, fontWeight: '800' },
+  reusedCnpjNoticeText: { color: colors.muted, fontSize: 11, lineHeight: 16 },
   select: {
     minHeight: 52,
     paddingHorizontal: 14,
@@ -1304,6 +1450,15 @@ const styles = StyleSheet.create({
     fontSize: 11,
     lineHeight: 16,
   },
+  returnToHostsButton: {
+    minHeight: 38,
+    marginTop: 10,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.success,
+  },
+  returnToHostsButtonText: { color: colors.card, fontSize: 11, fontWeight: '800' },
   pendingNotice: {
     padding: 15,
     backgroundColor: '#FFF4EC',

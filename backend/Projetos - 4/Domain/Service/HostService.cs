@@ -43,12 +43,12 @@ namespace Projetos___4.Domain.Service
             return company;
         }
 
-        private async Task<string> ValidateHostCnpjAsync(string cnpj, int hostId, string? previousCnpj = null)
+        private async Task<string> ValidateHostCnpjAsync(string cnpj, string ownerUserId, int hostId, string? previousCnpj = null)
         {
             var normalized = _cnpjValidations.ValidateCnpj(cnpj);
-            if (await _hostRepository.CnpjExistsAsync(normalized, hostId))
+            if (await _hostRepository.CnpjExistsForAnotherUserAsync(normalized, ownerUserId, hostId))
             {
-                throw new CnpjException(CnpjFailure.Duplicate, "Já existe um host cadastrado com este CNPJ.");
+                throw new CnpjException(CnpjFailure.Duplicate, "Este CNPJ já está vinculado a outro proprietário.");
             }
             var previous = previousCnpj?.Trim().Replace(".", "").Replace("/", "").Replace("-", "").ToUpperInvariant();
             if (previous != normalized)
@@ -83,12 +83,17 @@ namespace Projetos___4.Domain.Service
                 throw new InvalidOperationException("User not found.");
             }
 
-            host.CNPJ = await ValidateHostCnpjAsync(host.CNPJ, 0);
+            host.CNPJ = await ValidateHostCnpjAsync(host.CNPJ, userId, 0);
             host.Address = await _addressService.AddAddress(host.AddressId, host.Address, userId);
             host.AddressId = host.Address.Id;
 
             var result = await _hostRepository.Create(host, async () =>
             {
+                    if (await _userManager.IsInRoleAsync(user, "HOST"))
+                    {
+                        return;
+                    }
+
                     var roleResult = await _userManager.AddToRoleAsync(user, "HOST");
                     if (!roleResult.Succeeded)
                     {
@@ -140,7 +145,7 @@ namespace Projetos___4.Domain.Service
                 return null;
             }
 
-            host.CNPJ = await ValidateHostCnpjAsync(host.CNPJ, existing.Id, existing.CNPJ);
+            host.CNPJ = await ValidateHostCnpjAsync(host.CNPJ, existing.UserId, existing.Id, existing.CNPJ);
             var address = await _addressService.AddAddress(host.AddressId, host.Address, userId);
 
             existing.Typeofhost = host.Typeofhost;

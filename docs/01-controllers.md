@@ -926,6 +926,14 @@ Na rota Expo `/cadastro_host`, completar um CNPJ localmente válido dispara a co
 
 Validações: `tsc --noEmit` e ESLint direto da tela aprovados; build do backend aprovado em saída temporária, com um aviso `NETSDK1194` causado pelo uso de `--output` na solução e zero erros. O build normal ficou impedido pelos binários da API já em execução. O teste HTTP temporário foi impedido pelo logger de Event Log sem permissão no ambiente isolado; a autorização foi conferida pelos atributos compilados/código. `expo lint` permaneceu sem saída e foi interrompido. O protótipo externo não existe no caminho indicado neste computador e não pôde ser alterado; o `.http` foi alinhado. Nenhuma migration, gravação no banco ou PDF foi gerado. Como os dois endpoints agora encaminham consultas públicas a provedores externos, limitação de frequência permanece uma pendência operacional antes de exposição pública.
 
+## Múltiplos hosts e reutilização de CNPJ pelo proprietário — 13/11/2026
+
+`POST /api/Host/Create` mantém JWT obrigatório e o mesmo `HostDTO`, mas a verificação de duplicidade passa a considerar o proprietário. O mesmo usuário autenticado pode cadastrar vários hosts com CNPJs diferentes ou reutilizar um CNPJ já vinculado à própria conta. Se o CNPJ estiver vinculado a outro usuário, a API continua retornando ProblemDetails 409, agora com o detalhe “Este CNPJ já está vinculado a outro proprietário.” A edição usa o proprietário real do host para aplicar a mesma regra, inclusive quando realizada por ADMIN.
+
+Ao criar o segundo host, a atribuição da role `HOST` é idempotente: se o usuário já possui a role, a criação prossegue sem tentar adicioná-la novamente. Rotas, verbos, DTOs, respostas de sucesso, validação na base de CNPJ, geocodificação e transação foram preservados. Não há índice único de CNPJ nem mudança de schema; nenhuma migration foi necessária.
+
+Validação: backend compilado em saída temporária com zero erros e dez avisos preexistentes. Não foi realizado POST real, para não criar dados de teste no banco principal. A API em execução precisa ser reiniciada para carregar a nova regra. O protótipo obrigatório não existe em `C:/Users/Artur/Documents/ChatGPT/Perambulando/prototipo-api` neste computador e permaneceu pendente. PDFs não foram regenerados.
+
 ## Autocomplete de endereços na criação de evento Expo — 03/11/2026
 
 O campo Logradouro da seção “Onde acontece” espera 300 ms após cada alteração e, a partir de seis letras/dígitos, consulta `GET /api/Address/GetAllAddress?search=...` com o JWT da sessão. Exibe até dez opções com logradouro, número, bairro, cidade e CEP. Consultas antigas são descartadas quando o texto muda.

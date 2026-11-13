@@ -730,3 +730,15 @@ O tipo de host e a navegação inferior passaram a exibir `Comércio` no lugar d
 A nova rota `/meus_eventos` implementa o painel solicitado para a navegação “Meus eventos”, que passa a abrir a tela e fica visualmente selecionada nela. O painel protege a consulta pela sessão JWT atual, lista e alterna os estabelecimentos ativos do usuário, resume programações ativas, futuras e encerradas e oferece atalhos para criação e administração. São tratados carregamento, falha da API, sessão ausente/expirada, usuário sem estabelecimento e estabelecimento sem programação.
 
 A implementação reutiliza `GetAllHostsbyUserId` e `Host/Details/{hostId}` sem mudar o backend. TypeScript, ESLint direto dos arquivos envolvidos e `git diff --check` foram aprovados. Não houve teste HTTP ou login real, alteração de banco/API/protótipo externo nem geração de PDF. Consulte [Arquitetura frontend e backend](08-arquitetura-frontend-backend.md).
+
+## Edição de programação pelo painel — 13/11/2026
+
+As programações listadas em `/meus_eventos` agora são clicáveis e abrem `/editar_evento` com o formulário preenchido pelos detalhes da programação. O modo de edição mantém o host original, permite ajustar os campos suportados por `ProgrammingDTO`, restaura os dados carregados e salva em `PUT /api/Programming/{hostId}/Edit/{programmingId}`. Após sucesso, o usuário pode retornar ao painel atualizado; “Meus eventos” permanece destacado na navegação durante a edição.
+
+TypeScript, ESLint direto e resposta HTTP 200 da nova rota no Expo local foram validados. A leitura real dos detalhes da programação 2 (“festa na arvore”) confirmou os campos necessários ao preenchimento, sem escrita. Não houve PUT real, gravação no banco, alteração de backend/protótipo externo ou geração de PDF. Detalhes em [Arquitetura frontend e backend](08-arquitetura-frontend-backend.md).
+
+## Múltiplos hosts por conta e CNPJ reutilizável — 13/11/2026
+
+O painel `/meus_eventos` ganhou o card destacado “Novo host” ao lado dos estabelecimentos existentes. O cadastro aberto por esse card reutiliza o JWT atual e não solicita outra conta. CNPJs diferentes são aceitos normalmente; ao reutilizar um CNPJ já presente na conta, a interface limpa a localidade e exige o preenchimento do novo CEP, cidade, logradouro, número e bairro antes de enviar.
+
+No backend, o CNPJ pode se repetir entre hosts do mesmo `UserId`, mas continua retornando 409 quando pertence a outro proprietário. A atribuição da role `HOST` tornou-se idempotente para permitir o segundo cadastro. Não houve mudança de rota, DTO, entidade, schema ou migration. TypeScript, ESLint e build .NET foram aprovados; nenhum POST ou dado real foi criado. Reinício da API, teste HTTP de escrita e atualização do protótipo externo permanecem pendentes; o caminho exigido para o protótipo não existe neste computador. PDFs não foram regenerados. Consulte [Controllers](01-controllers.md), [Regras de negócio](02-regras-de-negocio.md) e [Arquitetura frontend e backend](08-arquitetura-frontend-backend.md).

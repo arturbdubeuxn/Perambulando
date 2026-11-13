@@ -1,6 +1,6 @@
 import { Fredoka_700Bold } from '@expo-google-fonts/fredoka/700Bold';
 import { useFonts } from 'expo-font';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -55,6 +55,19 @@ type HostResponse = {
   address: AddressResponse;
 };
 type ProgrammingResponse = { id: number; name: string; hostId: number; addressId: number };
+type ProgrammingDetailsResponse = ProgrammingResponse & {
+  description: string;
+  startDate: string;
+  endDate: string;
+  isFree: boolean;
+  imageUrl: string;
+  ticketUrl: string;
+  instagranUrl: string;
+  minPrice: number;
+  maxPrice: number;
+  address: AddressResponse;
+  categories?: CategoryResponse[];
+};
 type ApiErrorBody = { title?: string; detail?: string; errors?: Record<string, string[]> };
 type SubmissionState = {
   status: 'idle' | 'submitting' | 'success' | 'error';
@@ -185,11 +198,26 @@ function SectionTitle({ number, title, description }: { number: string; title: s
   );
 }
 
-function NavItem({ icon, label, onPress }: { icon: string; label: string; onPress?: () => void }) {
+function NavItem({
+  icon,
+  label,
+  active = false,
+  onPress,
+}: {
+  icon: string;
+  label: string;
+  active?: boolean;
+  onPress?: () => void;
+}) {
   return (
-    <Pressable accessibilityRole="button" onPress={onPress} style={styles.navItem}>
-      <Text style={styles.navIcon}>{icon}</Text>
-      <Text style={styles.navLabel}>{label}</Text>
+    <Pressable
+      accessibilityRole="button"
+      accessibilityState={{ selected: active }}
+      onPress={onPress}
+      style={[styles.navItem, active && styles.navItemActive]}
+    >
+      <Text style={[styles.navIcon, active && styles.navIconActive]}>{icon}</Text>
+      <Text style={[styles.navLabel, active && styles.navLabelActive]}>{label}</Text>
     </Pressable>
   );
 }
@@ -277,7 +305,51 @@ function parsePrice(value: string) {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+function toLocalDateAndTime(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return { date: '', time: '' };
+  }
+
+  const pad = (part: number) => String(part).padStart(2, '0');
+  return {
+    date: `${pad(date.getDate())}/${pad(date.getMonth() + 1)}/${date.getFullYear()}`,
+    time: `${pad(date.getHours())}:${pad(date.getMinutes())}`,
+  };
+}
+
+function programmingToDraft(programming: ProgrammingDetailsResponse): EventDraft {
+  const start = toLocalDateAndTime(programming.startDate);
+  const end = toLocalDateAndTime(programming.endDate);
+
+  return {
+    name: programming.name,
+    description: programming.description,
+    ticketUrl: programming.ticketUrl,
+    imageUrl: programming.imageUrl,
+    instagranUrl: programming.instagranUrl,
+    startDate: start.date,
+    startTime: start.time,
+    endDate: end.date,
+    endTime: end.time,
+    isFree: programming.isFree,
+    minPrice: String(programming.minPrice),
+    maxPrice: String(programming.maxPrice),
+    state: '',
+    city: programming.address.city,
+    street: programming.address.street,
+    number: programming.address.number,
+    complement: programming.address.complement,
+    neighborhood: programming.address.neighborhood,
+    cep: maskCep(programming.address.cep),
+  };
+}
+
 export default function CreateEventScreen() {
+  const params = useLocalSearchParams<{ programmingId?: string; hostId?: string }>();
+  const editingProgrammingId = Number(params.programmingId ?? 0);
+  const requestedHostId = Number(params.hostId ?? 0);
+  const isEditing = Number.isInteger(editingProgrammingId) && editingProgrammingId > 0;
   const { width: viewportWidth } = useWindowDimensions();
   const [fontsLoaded] = useFonts({ Fredoka_700Bold });
   const cepLookupRequest = useRef(0);
@@ -296,6 +368,7 @@ export default function CreateEventScreen() {
   const [referenceMessage, setReferenceMessage] = useState('');
   const [cepLookup, setCepLookup] = useState<LookupState>({ status: 'idle', message: '' });
   const [submission, setSubmission] = useState<SubmissionState>({ status: 'idle', message: '' });
+  const [programmingBeingEdited, setProgrammingBeingEdited] = useState<ProgrammingDetailsResponse | null>(null);
 
   const selectedHost = useMemo(
     () => hosts.find((host) => host.id === selectedHostId) ?? null,
@@ -336,8 +409,9 @@ export default function CreateEventScreen() {
 
         const activeHosts = hostList.filter((host) => host.isActive);
         setHosts(activeHosts);
+        const requestedHost = activeHosts.find((host) => host.id === requestedHostId);
         const preferredHost = activeHosts.find((host) => host.id === preferredHostId);
-        const initialHost = preferredHost ?? activeHosts[0] ?? null;
+        const initialHost = requestedHost ?? preferredHost ?? activeHosts[0] ?? null;
         setSelectedHostId(initialHost?.id ?? null);
         if (initialHost) {
           setSelectedAddressId(initialHost.address.id);
@@ -364,8 +438,36 @@ export default function CreateEventScreen() {
         if (activeHosts.length === 0) {
           setReferenceMessage('Nenhum host ativo foi encontrado para esta conta.');
         }
+
+        if (isEditing) {
+          const programming = await apiRequest<ProgrammingDetailsResponse>(
+            `/api/Programming/Details/${editingProgrammingId}`,
+            { headers: { Authorization: `Bearer ${token}` } },
+          );
+          if (!active) {
+            return;
+          }
+
+          const ownerHost = activeHosts.find((host) => host.id === programming.hostId);
+          if (!ownerHost || (requestedHostId > 0 && requestedHostId !== programming.hostId)) {
+            throw new Error('Esta programação não pertence a um estabelecimento ativo desta conta.');
+          }
+
+          setSelectedHostId(ownerHost.id);
+          setSelectedAddressId(programming.addressId);
+          setDraft(programmingToDraft(programming));
+          setSelectedCategoryIds(programming.categories?.map((category) => category.id) ?? []);
+          setProgrammingBeingEdited(programming);
+          setCepLookup({
+            status: 'success',
+            message: 'Endereço atual da programação carregado. Revise os dados antes de salvar.',
+          });
+        }
       } catch (error) {
         if (active) {
+          if (isEditing) {
+            setHosts([]);
+          }
           setReferenceMessage(error instanceof Error ? error.message : 'Não foi possível carregar hosts e categorias.');
         }
       } finally {
@@ -379,7 +481,7 @@ export default function CreateEventScreen() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [editingProgrammingId, isEditing, requestedHostId]);
 
   const updateDraft = <Key extends keyof EventDraft>(key: Key, value: EventDraft[Key]) => {
     setDraft((current) => ({ ...current, [key]: value }));
@@ -599,6 +701,17 @@ export default function CreateEventScreen() {
   const resetForm = () => {
     cepLookupRequest.current += 1;
     addressSearchRequest.current += 1;
+    if (isEditing && programmingBeingEdited) {
+      setDraft(programmingToDraft(programmingBeingEdited));
+      setSelectedAddressId(programmingBeingEdited.addressId);
+      setSelectedCategoryIds(programmingBeingEdited.categories?.map((category) => category.id) ?? []);
+      setAddressSuggestions([]);
+      setAddressSearch({ status: 'idle', message: '' });
+      setCepLookup({ status: 'success', message: 'Dados originais da programação restaurados.' });
+      setSubmission({ status: 'idle', message: '' });
+      return;
+    }
+
     const hostAddress = selectedHost?.address;
     setDraft(
       hostAddress
@@ -692,42 +805,52 @@ export default function CreateEventScreen() {
       return;
     }
 
-    setSubmission({ status: 'submitting', message: 'Publicando evento...' });
+    setSubmission({
+      status: 'submitting',
+      message: isEditing ? 'Salvando alterações...' : 'Publicando evento...',
+    });
     try {
-      const created = await apiRequest<ProgrammingResponse>(`/api/Programming/${selectedHostId}/Create`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${accessToken}` },
-        body: JSON.stringify({
-          name: draft.name.trim(),
-          description: draft.description.trim(),
-          startDate: start.toISOString(),
-          endDate: end.toISOString(),
-          isFree: draft.isFree,
-          ...(selectedAddressId
-            ? { addressId: selectedAddressId }
-            : {
-                address: {
-                  city: draft.city.trim(),
-                  street: draft.street.trim(),
-                  number: draft.number.trim(),
-                  complement: draft.complement.trim(),
-                  neighborhood: draft.neighborhood.trim(),
-                  cep: onlyDigits(draft.cep),
-                },
-              }),
-          imageUrl: draft.imageUrl.trim(),
-          ticketUrl: draft.ticketUrl.trim(),
-          instagranUrl: draft.instagranUrl.trim(),
-          minPrice,
-          maxPrice,
-          categoryIds: selectedCategoryIds,
-        }),
-      });
+      const saved = await apiRequest<ProgrammingResponse>(
+        isEditing
+          ? `/api/Programming/${selectedHostId}/Edit/${editingProgrammingId}`
+          : `/api/Programming/${selectedHostId}/Create`,
+        {
+          method: isEditing ? 'PUT' : 'POST',
+          headers: { Authorization: `Bearer ${accessToken}` },
+          body: JSON.stringify({
+            name: draft.name.trim(),
+            description: draft.description.trim(),
+            startDate: start.toISOString(),
+            endDate: end.toISOString(),
+            isFree: draft.isFree,
+            ...(selectedAddressId
+              ? { addressId: selectedAddressId }
+              : {
+                  address: {
+                    city: draft.city.trim(),
+                    street: draft.street.trim(),
+                    number: draft.number.trim(),
+                    complement: draft.complement.trim(),
+                    neighborhood: draft.neighborhood.trim(),
+                    cep: onlyDigits(draft.cep),
+                  },
+                }),
+            imageUrl: draft.imageUrl.trim(),
+            ticketUrl: draft.ticketUrl.trim(),
+            instagranUrl: draft.instagranUrl.trim(),
+            minPrice,
+            maxPrice,
+            categoryIds: selectedCategoryIds,
+          }),
+        },
+      );
 
       setSubmission({
         status: 'success',
-        message: `${created.name} foi publicado com sucesso.`,
-        programmingId: created.id,
+        message: isEditing
+          ? `${saved.name} foi atualizado com sucesso.`
+          : `${saved.name} foi publicado com sucesso.`,
+        programmingId: saved.id,
       });
     } catch (error) {
       const message =
@@ -735,7 +858,9 @@ export default function CreateEventScreen() {
           ? `Não foi possível acessar ${apiBaseUrl}. Verifique a API e o CORS.`
           : error instanceof Error
             ? error.message
-            : 'Não foi possível publicar o evento.';
+            : isEditing
+              ? 'Não foi possível atualizar o evento.'
+              : 'Não foi possível publicar o evento.';
       setSubmission({ status: 'error', message });
     }
   };
@@ -769,9 +894,13 @@ export default function CreateEventScreen() {
             showsVerticalScrollIndicator
           >
             <View style={styles.intro}>
-              <Text style={styles.eyebrow}>PUBLICAR NA CIDADE</Text>
-              <Text style={styles.pageTitle}>Criar novo evento</Text>
-              <Text style={styles.pageSubtitle}>Preencha os dados exigidos pela API para publicar a programação.</Text>
+              <Text style={styles.eyebrow}>{isEditing ? 'ADMINISTRAR PROGRAMAÇÃO' : 'PUBLICAR NA CIDADE'}</Text>
+              <Text style={styles.pageTitle}>{isEditing ? 'Editar evento' : 'Criar novo evento'}</Text>
+              <Text style={styles.pageSubtitle}>
+                {isEditing
+                  ? 'Revise os dados registrados e salve somente os ajustes necessários.'
+                  : 'Preencha os dados exigidos pela API para publicar a programação.'}
+              </Text>
             </View>
 
             <View style={styles.sessionCard}>
@@ -783,13 +912,21 @@ export default function CreateEventScreen() {
                   <Pressable
                     accessibilityLabel="Selecionar host"
                     accessibilityRole="button"
+                    disabled={isEditing}
                     onPress={() => setHostOpen((current) => !current)}
-                    style={({ pressed }) => [styles.select, pressed && styles.pressed]}
+                    style={({ pressed }) => [
+                      styles.select,
+                      isEditing && styles.selectDisabled,
+                      pressed && !isEditing && styles.pressed,
+                    ]}
                   >
                     <Text style={styles.selectText}>{selectedHost?.name ?? 'Selecione o host'}</Text>
-                    <Text style={styles.chevron}>{hostOpen ? '⌃' : '⌄'}</Text>
+                    <Text style={styles.chevron}>{isEditing ? '✓' : hostOpen ? '⌃' : '⌄'}</Text>
                   </Pressable>
-                  {hostOpen && (
+                  {isEditing ? (
+                    <Text style={styles.helperText}>O estabelecimento responsável não pode ser trocado na edição.</Text>
+                  ) : null}
+                  {hostOpen && !isEditing && (
                     <View style={styles.selectMenu}>
                       {hosts.map((host) => (
                         <Pressable
@@ -986,21 +1123,34 @@ export default function CreateEventScreen() {
 
             {submission.status === 'error' ? (
               <View style={[styles.notice, styles.errorNotice]}>
-                <Text style={styles.errorNoticeTitle}>Publicação não concluída</Text>
+                <Text style={styles.errorNoticeTitle}>
+                  {isEditing ? 'Alteração não concluída' : 'Publicação não concluída'}
+                </Text>
                 <Text style={styles.errorNoticeText}>{submission.message}</Text>
               </View>
             ) : null}
             {submission.status === 'success' ? (
               <View style={[styles.notice, styles.successNotice]}>
-                <Text style={styles.successNoticeTitle}>Evento publicado</Text>
+                <Text style={styles.successNoticeTitle}>
+                  {isEditing ? 'Evento atualizado' : 'Evento publicado'}
+                </Text>
                 <Text style={styles.successNoticeText}>{submission.message}</Text>
                 <Text style={styles.successNoticeMeta}>ID da programação: {submission.programmingId}</Text>
+                {isEditing ? (
+                  <Pressable
+                    accessibilityRole="button"
+                    onPress={() => router.replace('/meus_eventos')}
+                    style={styles.successBackButton}
+                  >
+                    <Text style={styles.successBackButtonText}>Voltar para meus eventos</Text>
+                  </Pressable>
+                ) : null}
               </View>
             ) : null}
 
             <View style={styles.secondaryActions}>
               <Pressable accessibilityRole="button" onPress={resetForm} style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}>
-                <Text style={styles.secondaryButtonText}>Limpar</Text>
+                <Text style={styles.secondaryButtonText}>{isEditing ? 'Restaurar dados' : 'Limpar'}</Text>
               </Pressable>
               <View style={[styles.secondaryButton, styles.secondaryButtonDisabled]}>
                 <Text style={styles.secondaryButtonDisabledText}>Rascunho indisponível</Text>
@@ -1012,17 +1162,31 @@ export default function CreateEventScreen() {
               onPress={() => void publishEvent()}
               style={({ pressed }) => [styles.publishButton, pressed && styles.publishButtonPressed, submission.status === 'submitting' && styles.buttonDisabled]}
             >
-              <Text style={styles.publishButtonText}>{submission.status === 'submitting' ? 'Publicando...' : '✓  Publicar evento'}</Text>
+              <Text style={styles.publishButtonText}>
+                {submission.status === 'submitting'
+                  ? isEditing
+                    ? 'Salvando...'
+                    : 'Publicando...'
+                  : isEditing
+                    ? '✓  Salvar alterações'
+                    : '✓  Publicar evento'}
+              </Text>
             </Pressable>
           </ScrollView>
         </KeyboardAvoidingView>
 
         <View style={styles.bottomNav}>
           <NavItem icon="▦" label="Painel" />
-          <NavItem icon="▣" label="Meus eventos" onPress={() => router.push('/meus_eventos')} />
-          <Pressable accessibilityRole="button" style={styles.activeNavItem}>
-            <View style={styles.activeNavButton}><Text style={styles.activeNavPlus}>＋</Text></View>
-            <Text style={styles.activeNavLabel}>Criar evento</Text>
+          <NavItem active={isEditing} icon="▣" label="Meus eventos" onPress={() => router.push('/meus_eventos')} />
+          <Pressable
+            accessibilityRole="button"
+            onPress={isEditing ? () => router.push('/') : undefined}
+            style={styles.activeNavItem}
+          >
+            <View style={[styles.activeNavButton, isEditing && styles.activeNavButtonInactive]}>
+              <Text style={[styles.activeNavPlus, isEditing && styles.activeNavPlusInactive]}>＋</Text>
+            </View>
+            <Text style={[styles.activeNavLabel, isEditing && styles.activeNavLabelInactive]}>Criar evento</Text>
           </Pressable>
           <NavItem icon="⊙" label="Explorar" />
           <NavItem icon="▥" label="Comércio" onPress={() => router.push('/cadastro_host')} />
@@ -1077,6 +1241,7 @@ const styles = StyleSheet.create({
   inlineField: { flex: 1, minWidth: 0 },
   inlineFieldSmall: { flex: 0.68, minWidth: 0 },
   select: { minHeight: 52, paddingHorizontal: 14, borderRadius: 12, borderColor: colors.line, borderWidth: 1, backgroundColor: colors.input, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  selectDisabled: { opacity: 0.78, backgroundColor: '#F1EEE9' },
   selectText: { color: colors.ink, fontSize: 14 },
   chevron: { color: colors.ink, fontSize: 18 },
   selectMenu: { overflow: 'hidden', marginTop: -2, borderRadius: 12, borderColor: colors.line, borderWidth: 1, backgroundColor: colors.card },
@@ -1103,6 +1268,8 @@ const styles = StyleSheet.create({
   successNoticeTitle: { color: colors.success, fontSize: 16, fontWeight: '800' },
   successNoticeText: { color: '#356B47', fontSize: 12, lineHeight: 19 },
   successNoticeMeta: { color: colors.success, fontSize: 11, fontWeight: '700' },
+  successBackButton: { minHeight: 40, marginTop: 6, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.success },
+  successBackButtonText: { color: colors.card, fontSize: 11, fontWeight: '800' },
   secondaryActions: { flexDirection: 'row', gap: 10, marginTop: 2 },
   secondaryButton: { flex: 1, minHeight: 48, borderRadius: 12, borderColor: colors.line, borderWidth: 1, backgroundColor: colors.card, alignItems: 'center', justifyContent: 'center' },
   secondaryButtonText: { color: colors.ink, fontSize: 13, fontWeight: '700' },
@@ -1115,10 +1282,16 @@ const styles = StyleSheet.create({
   pressed: { opacity: 0.72 },
   bottomNav: { minHeight: 74, paddingHorizontal: 5, paddingBottom: 7, flexDirection: 'row', alignItems: 'flex-end', backgroundColor: colors.card, borderTopColor: colors.line, borderTopWidth: 1 },
   navItem: { flex: 1, minHeight: 54, alignItems: 'center', justifyContent: 'flex-end', gap: 3 },
+  navItemActive: { borderRadius: 12, backgroundColor: '#FFF0E6' },
   navIcon: { color: '#8C8C93', fontSize: 19, lineHeight: 20 },
+  navIconActive: { color: colors.orange },
   navLabel: { color: '#8C8C93', fontSize: 8 },
+  navLabelActive: { color: colors.orange, fontWeight: '800' },
   activeNavItem: { flex: 1.18, minHeight: 68, alignItems: 'center', justifyContent: 'flex-end', gap: 4 },
   activeNavButton: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.orange, borderColor: colors.card, borderWidth: 4, ...Platform.select({ web: { boxShadow: '0 5px 14px rgba(255, 90, 10, 0.3)' }, default: { elevation: 4 } }) },
+  activeNavButtonInactive: { backgroundColor: colors.ink, ...Platform.select({ web: { boxShadow: '0 5px 14px rgba(0, 43, 92, 0.22)' }, default: { elevation: 4 } }) },
   activeNavPlus: { color: colors.card, fontSize: 24, fontWeight: '300', lineHeight: 25 },
+  activeNavPlusInactive: { color: colors.card },
   activeNavLabel: { color: colors.orange, fontSize: 8, fontWeight: '800' },
+  activeNavLabelInactive: { color: colors.ink, fontWeight: '700' },
 });

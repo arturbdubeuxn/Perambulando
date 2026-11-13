@@ -699,6 +699,14 @@ Take <= 0 e Skip < 0 lançam ArgumentException. City preenchido lança ArgumentE
 
 Validação: build aprovado com zero erros e dez avisos existentes; sem teste HTTP ou consulta ao banco real. PDFs preservados.
 
+## Propriedade do CNPJ entre múltiplos hosts — 13/11/2026
+
+Um usuário pode possuir N hosts ativos e pode reutilizar o mesmo CNPJ em mais de um deles. A duplicidade é permitida somente quando todos pertencem ao mesmo `UserId`; um CNPJ encontrado em host de outro proprietário bloqueia cadastro ou alteração com conflito 409. A regra considera também hosts inativos de outro usuário, preservando o vínculo de propriedade. Para ADMIN, a edição compara com o `UserId` do host, não com o ID do administrador que executou a operação.
+
+Cada host continua possuindo `AddressId` próprio. O frontend, ao identificar reutilização do CNPJ na conta, limpa toda a sugestão de localidade e solicita CEP, cidade, logradouro, número e bairro para o novo perfil; complemento permanece opcional. A API continua aceitando um endereço novo ou um `AddressId` válido e pode deduplicar endereços equivalentes conforme a regra existente. Portanto, a interface orienta um novo local, mas perfis legitimamente situados no mesmo endereço não são proibidos pelo domínio.
+
+Na segunda criação, a role `HOST` já existente não é adicionada novamente. A persistência do host e eventual atribuição inicial da role continuam na mesma transação. Build aprovado; teste de escrita e protótipo externo pendentes. Nenhuma migration ou PDF foi gerado.
+
 ## Remoção de bairro dos filtros de host — 27/10/2026
 
 Neighborhood removido de HostFilterDTO, HostFilter, HostFilterMapping e da consulta HostRepository.FilterAsync. Bairro continua opcional no endereço e nos formulários de cadastro/edição, para exibição; não participa da seleção de hosts. Proximidade permanece uma implementação futura. Nenhuma alteração no schema ou migration. O catálogo do protótipo lê o DTO atualizado; ajustada descoberta da pasta da API para aceitar a estrutura atual e a estrutura backend/Projetos - 4. PDFs preservados.
