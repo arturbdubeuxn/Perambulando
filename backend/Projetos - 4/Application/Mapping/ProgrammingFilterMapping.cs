@@ -1,6 +1,6 @@
 using Projetos___4.Application.DTO.Programming;
 using Projetos___4.Application.Mapping.Interfaces;
-using Projetos___4.Domain.Model.Programming;
+using Projetos___4.Domain.Model;
 
 namespace Projetos___4.Application.Mapping;
 

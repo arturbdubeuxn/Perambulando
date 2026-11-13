@@ -7,8 +7,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Projetos___4.Application.Interfaces;
+using Projetos___4.Domain.Model;
 using Projetos___4.Application.DTO.Programming;
-using Projetos___4.Domain.Model.User;
 
 namespace Projetos___4.Presentation.Controllers
 {
@@ -286,7 +286,7 @@ namespace Projetos___4.Presentation.Controllers
         [Authorize]
         public async Task<IActionResult> GetAllTuristProgrammings([FromQuery, Range(1, 100)] int take = 10, [FromQuery, Range(0, int.MaxValue)] int skip = 0)
         {
-            if (!User.HasClaim("typeofuser", ((int)Domain.Model.User.User.TypeofUser.Turist).ToString(System.Globalization.CultureInfo.InvariantCulture)))
+            if (!User.HasClaim("typeofuser", ((int)Domain.Model.User.TypeofUser.Turist).ToString(System.Globalization.CultureInfo.InvariantCulture)))
             {
                 return Forbid();
             }

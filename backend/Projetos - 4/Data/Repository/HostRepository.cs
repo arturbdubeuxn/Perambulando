@@ -2,10 +2,9 @@ using Projetos___4.Domain.Exceptions;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
+using Projetos___4.Domain.Model;
 using Projetos___4.Data.Context;
 using Projetos___4.Domain.Interfaces.Repository;
-using Projetos___4.Domain.Model.Host;
-using Projetos___4.Domain.Model.Programming;
 
 namespace Projetos___4.Data.Repository
 {

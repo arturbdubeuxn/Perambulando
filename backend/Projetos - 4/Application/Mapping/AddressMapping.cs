@@ -1,7 +1,6 @@
 using Projetos___4.Domain.Model;
 using Projetos___4.Application.Mapping.Interfaces;
 using Projetos___4.Application.DTO.Address;
-using Projetos___4.Domain.Model.Address;
 
 namespace Projetos___4.Application.Mapping;
 

@@ -3,8 +3,8 @@ using Microsoft.AspNetCore.Identity;
 using Projetos___4.Application.Interfaces;
 using Projetos___4.Application.Validations.Interfaces;
 using Projetos___4.Domain.Interfaces.Service;
+using Projetos___4.Domain.Model;
 using Projetos___4.Application.DTO.User;
-using Projetos___4.Domain.Model.User;
 
 namespace Projetos___4.Application.AppServices
 {

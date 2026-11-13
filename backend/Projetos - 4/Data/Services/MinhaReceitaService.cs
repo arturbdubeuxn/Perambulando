@@ -2,7 +2,7 @@ using System.Net;
 using System.Text.Json;
 using Projetos___4.Domain.Exceptions;
 using Projetos___4.Domain.Interfaces.Service;
-using Projetos___4.Domain.Model.Company;
+using Projetos___4.Domain.Model;
 
 namespace Projetos___4.Data.Services;
 

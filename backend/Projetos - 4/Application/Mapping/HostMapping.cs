@@ -1,10 +1,7 @@
+using Projetos___4.Domain.Model;
 using Projetos___4.Application.Mapping.Interfaces;
 using Projetos___4.Application.DTO.Host;
 using Projetos___4.Application.DTO.Company;
-using Projetos___4.Domain.Model.Host;
-using Projetos___4.Domain.Model.Programming;
-using Projetos___4.Domain.Model.OpeningDay;
-using Projetos___4.Domain.Model.Company;
 
 namespace Projetos___4.Application.Mapping;
 

@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Projetos___4.Domain.Interfaces.Repository;
-using Projetos___4.Domain.Model.Statistics;
+using Projetos___4.Domain.Model;
 
 namespace Projetos___4.Data.Repository
 {

@@ -1,5 +1,5 @@
 using System.ComponentModel.DataAnnotations;
-using Projetos___4.Domain.Model.Host;
+using Projetos___4.Domain.Model;
 
 namespace Projetos___4.Application.DTO.Host
 {

@@ -1,7 +1,7 @@
+using Projetos___4.Domain.Model;
 using Projetos___4.Domain.Interfaces;
 using Projetos___4.Domain.Interfaces.Repository;
 using Projetos___4.Domain.Interfaces.Service;
-using Projetos___4.Domain.Model.Statistics;
 namespace Projetos___4.Domain.Service;
 public class SubscriptionService : ISubscriptionService
 {

@@ -1,5 +1,5 @@
 using Projetos___4.Application.DTO.Favorite;
-using Projetos___4.Domain.Model.Favorite;
+using Projetos___4.Domain.Model;
 
 namespace Projetos___4.Application.Mapping.Interfaces;
 

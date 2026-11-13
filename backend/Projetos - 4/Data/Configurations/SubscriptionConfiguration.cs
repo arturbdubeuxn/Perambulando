@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-using Projetos___4.Domain.Model.Statistics;
+using Projetos___4.Domain.Model;
 
 namespace Projetos___4.Data.Configurations;
 public class SubscriptionConfiguration : IEntityTypeConfiguration<Subscription>

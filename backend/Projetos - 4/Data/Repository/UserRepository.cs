@@ -1,6 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Projetos___4.Domain.Interfaces;
-using Projetos___4.Domain.Model.User;
+using Projetos___4.Domain.Model;
 
 namespace Projetos___4.Data.Repository
 {

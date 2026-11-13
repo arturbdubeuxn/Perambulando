@@ -5,8 +5,8 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Projetos___4.Application.AppServices;
 using Projetos___4.Application.Interfaces;
+using Projetos___4.Domain.Model;
 using Projetos___4.Application.DTO.User;
-using Projetos___4.Domain.Model.User;
 
 namespace Projetos___4.Presentation.Controllers;
 

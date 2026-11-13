@@ -1,6 +1,5 @@
 using Projetos___4.Domain.Interfaces.Service;
-using Projetos___4.Domain.Model.Host;
-using Projetos___4.Domain.Model.TravelChat;
+using Projetos___4.Domain.Model;
 using Projetos___4.Domain.Validations.Interface;
 
 namespace Projetos___4.Domain.Validations.Validations;

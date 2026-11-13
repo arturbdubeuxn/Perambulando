@@ -15,6 +15,7 @@ using Projetos___4.Data.Services;
 using Projetos___4.Domain.Interfaces;
 using Projetos___4.Domain.Interfaces.Repository;
 using Projetos___4.Domain.Interfaces.Service;
+using Projetos___4.Domain.Model;
 using Projetos___4.Domain.Service;
 using System.Text;
 using static System.Net.Mime.MediaTypeNames;
@@ -27,7 +28,6 @@ using Projetos___4.Application.DTO.OpeningDays;
 using Projetos___4.Application.DTO.Programming;
 using Projetos___4.Application.DTO.User;
 using Projetos___4.Application.DTO.TravelChat;
-using Projetos___4.Domain.Model.User;
 
 
 

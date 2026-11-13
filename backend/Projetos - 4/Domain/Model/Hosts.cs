@@ -1,0 +1,43 @@
+namespace Projetos___4.Domain.Model
+{
+    public class Hosts
+    {
+
+        public int Id { get; set; }
+        public User User { get; set; } = null!;
+        public string UserId { get; set; } = null!;
+
+        public TypeofHost Typeofhost { get; set; }
+
+        public string CNPJ { get; set; } = string.Empty;
+
+        public string LogoUrl { get; set; } = string.Empty;
+
+        public string InstagranUrl { get; set; } = string.Empty;
+
+        public decimal? MinPrice { get; set; }
+        public decimal? MaxPrice { get; set; }
+
+        public string Phone { get; set; } = string.Empty;
+
+        public string Name { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+        public Address Address { get; set; } = null!;
+        public int AddressId { get; set; }
+        public ICollection<HostOpeningDay>? OpeningDays { get; set; }
+        public bool IsActive { get; set; } = true;
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+        public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+
+
+
+        public enum TypeofHost
+        {
+            Productor = 0,
+            Gastronomy = 1,
+            Business = 2
+        }
+
+    }
+}

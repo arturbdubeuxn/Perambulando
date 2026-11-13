@@ -5,7 +5,7 @@ using Microsoft.Extensions.Options;
 using NetTopologySuite.Geometries;
 using Projetos___4.Domain.Exceptions;
 using Projetos___4.Domain.Interfaces.Service;
-using Projetos___4.Domain.Model.Address;
+using Projetos___4.Domain.Model;
 
 namespace Projetos___4.Data.Services;
 

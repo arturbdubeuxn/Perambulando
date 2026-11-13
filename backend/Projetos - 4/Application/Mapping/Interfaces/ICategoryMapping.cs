@@ -1,5 +1,5 @@
 using Projetos___4.Application.DTO.Category;
-using Projetos___4.Domain.Model.Category;
+using Projetos___4.Domain.Model;
 
 namespace Projetos___4.Application.Mapping.Interfaces;
 

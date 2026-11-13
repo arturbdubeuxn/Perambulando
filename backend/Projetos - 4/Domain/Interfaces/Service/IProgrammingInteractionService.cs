@@ -1,4 +1,4 @@
-using Projetos___4.Domain.Model.Programming;
+using Projetos___4.Domain.Model;
 namespace Projetos___4.Domain.Interfaces.Service;
 public interface IProgrammingInteractionService
 {

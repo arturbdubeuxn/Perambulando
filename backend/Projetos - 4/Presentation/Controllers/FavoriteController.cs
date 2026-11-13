@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Projetos___4.Application.Interfaces;
-using Projetos___4.Domain.Model.User;
+using Projetos___4.Domain.Model;
 
 namespace Projetos___4.Presentation.Controllers
 {

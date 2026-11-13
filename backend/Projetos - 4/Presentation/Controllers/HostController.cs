@@ -3,13 +3,13 @@ using Projetos___4.Domain.Exceptions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Projetos___4.Domain.Model;
 using Microsoft.AspNetCore.Identity;
 using Projetos___4.Application.Interfaces;
 using Projetos___4.Domain.Interfaces.Service;
 using Projetos___4.Application.DTO.Host;
 using Projetos___4.Application.DTO.Statistics;
 using Projetos___4.Application.DTO.OpeningDays;
-using Projetos___4.Domain.Model.User;
 
 namespace Projetos___4.Presentation.Controllers
 {

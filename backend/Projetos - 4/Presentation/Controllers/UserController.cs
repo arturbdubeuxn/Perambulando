@@ -3,12 +3,12 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using System.Security.Claims;
+using Projetos___4.Domain.Model;
 using Projetos___4.Application.Interfaces;
 using Projetos___4.Domain.Interfaces.Service;
 using Projetos___4.Application.AppServices;
 using Projetos___4.Domain.Exceptions;
 using Projetos___4.Application.DTO.User;
-using Projetos___4.Domain.Model.User;
 
 namespace Projetos___4.Presentation.Controllers
 {

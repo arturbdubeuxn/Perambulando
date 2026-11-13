@@ -2,7 +2,7 @@ using Projetos___4.Application.Mapping.Interfaces;
 using Projetos___4.Application.DTO;
 using Projetos___4.Application.Interfaces;
 using Projetos___4.Domain.Interfaces.Service;
-using Projetos___4.Domain.Model.Programming;
+using Projetos___4.Domain.Model;
 
 namespace Projetos___4.Application.AppServices
 {

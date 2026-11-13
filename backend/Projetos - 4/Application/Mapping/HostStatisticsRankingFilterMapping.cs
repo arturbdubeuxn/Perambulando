@@ -1,6 +1,6 @@
 using Projetos___4.Application.DTO.Statistics;
 using Projetos___4.Application.Mapping.Interfaces;
-using Projetos___4.Domain.Model.Statistics;
+using Projetos___4.Domain.Model;
 namespace Projetos___4.Application.Mapping;
 
 public class HostStatisticsRankingFilterMapping : IHostStatisticsRankingFilterMapping

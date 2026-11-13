@@ -1,5 +1,4 @@
-using Projetos___4.Domain.Model.Category;
-using Projetos___4.Domain.Model.Programming;
+using Projetos___4.Domain.Model;
 using Projetos___4.Domain.Service;
 
 namespace Projetos___4.Domain.Interfaces.Service
