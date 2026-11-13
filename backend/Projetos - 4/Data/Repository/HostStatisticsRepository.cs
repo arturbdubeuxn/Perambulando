@@ -35,16 +35,9 @@ public class HostStatisticsRepository : IHostStatisticsRepository
             group favorite by favorite.ProgrammingId into grouped
             select new { ProgrammingId = grouped.Key, Count = grouped.LongCount() };
 
-        var roadmapUsages =
-            from usage in Db.RoadmapProgrammingUsages.AsNoTracking()
-            where usage.CreatedAt >= filter.StartDate!.Value && usage.CreatedAt < filter.EndDate!.Value
-            group usage by usage.ProgrammingId into grouped
-            select new { ProgrammingId = grouped.Key, Count = grouped.LongCount() };
 
         var query =
             from programming in Db.Programmings.AsNoTracking()
-            join usage in roadmapUsages on programming.Id equals usage.ProgrammingId into programmingUsages
-            from usage in programmingUsages.DefaultIfEmpty()
             join interaction in interactions on programming.Id equals interaction.ProgrammingId into programmingInteractions
             from interaction in programmingInteractions.DefaultIfEmpty()
             join favorite in favorites on programming.Id equals favorite.ProgrammingId into programmingFavorites
@@ -54,7 +47,6 @@ public class HostStatisticsRepository : IHostStatisticsRepository
             {
                 ProgrammingId = programming.Id,
                 Name = programming.Name,
-                RoadmapInclusions = (long?)usage.Count ?? 0,
                 IsActive = programming.IsActive,
                 DetailViews = (long?)interaction.DetailViews ?? 0,
                 CarouselClicks = (long?)interaction.CarouselClicks ?? 0,
@@ -65,7 +57,6 @@ public class HostStatisticsRepository : IHostStatisticsRepository
 
         var ordered = filter.SortBy switch
         {
-            "roadmapInclusions" => query.OrderByDescending(item => item.RoadmapInclusions),
             "carouselClicks" => query.OrderByDescending(item => item.CarouselClicks),
             "ticketClicks" => query.OrderByDescending(item => item.TicketClicks),
             "nearbyClicks" => query.OrderByDescending(item => item.NearbyClicks),
@@ -94,21 +85,7 @@ public class HostStatisticsRepository : IHostStatisticsRepository
                 NearbyClicks = grouped.LongCount(item => item.Type == ProgrammingInteractionType.NearbyClick)
             };
 
-        var records = await query.ToListAsync();
-        var usages = await Db.RoadmapProgrammingUsages.AsNoTracking()
-            .Where(x => x.Programming.HostId == hostId && x.CreatedAt >= filter.StartDate!.Value && x.CreatedAt < filter.EndDate!.Value)
-            .GroupBy(x => x.CreatedAt.Date).Select(g => new { Date = g.Key, Count = g.LongCount() }).ToListAsync();
-        foreach (var usage in usages)
-        {
-            var row = records.FirstOrDefault(x => x.Date == usage.Date);
-            if (row == null)
-            {
-                row = new HostStatisticsDaily { Date = usage.Date };
-                records.Add(row);
-            }
-            row.RoadmapInclusions = usage.Count;
-        }
-        return records.OrderBy(x => x.Date).ToList();
+        return await query.ToListAsync();
     }
 
     public async Task<HostStatisticsSummary> GetSummaryAsync(int hostId, HostStatisticsFilter filter)
@@ -131,8 +108,6 @@ public class HostStatisticsRepository : IHostStatisticsRepository
         return new HostStatisticsSummary
         {
             HostId = hostId,
-            RoadmapInclusions = await Db.RoadmapProgrammingUsages.LongCountAsync(x => x.Programming.HostId == hostId &&
-                x.CreatedAt >= filter.StartDate!.Value && x.CreatedAt < filter.EndDate!.Value),
             StartDate = filter.StartDate!.Value,
             EndDate = filter.EndDate!.Value,
             DetailViews = counts.Where(item => item.Type == ProgrammingInteractionType.DetailView).Sum(item => item.Count),

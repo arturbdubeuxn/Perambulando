@@ -28,6 +28,7 @@ using Projetos___4.Application.DTO.OpeningDays;
 using Projetos___4.Application.DTO.Programming;
 using Projetos___4.Application.DTO.User;
 using Projetos___4.Application.DTO.TravelChat;
+using Projetos___4.Application.DTO;
 
 
 
@@ -130,12 +131,6 @@ builder.Services.AddScoped<IUserMapping, UserMapping>();
 builder.Services.AddScoped<IHostMapping, HostMapping>();
 builder.Services.AddScoped<IOpeningHoursMapping, OpeningHoursMapping>();
 builder.Services.AddScoped<IHostFilterMapping, HostFilterMapping>();
-builder.Services.AddScoped<IRoadmapRepository, RoadmapRepository>();
-builder.Services.AddScoped<IRoadmapService, RoadmapService>();
-builder.Services.AddScoped<IRoadmapAppService, RoadmapAppService>();
-builder.Services.AddScoped<IRoadmapMapping, RoadmapMapping>();
-builder.Services.AddScoped<IRoadmapValidations, RoadmapValidations>();
-builder.Services.AddScoped<IValidation<RoadmapDTO>, RoadmapValidation>();
 // TravelChat
 builder.Services.AddScoped<ITravelChatAppService, TravelChatAppService>();
 builder.Services.AddScoped<ITravelChatService, TravelChatService>();

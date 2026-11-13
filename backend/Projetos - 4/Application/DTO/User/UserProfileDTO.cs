@@ -1,4 +1,5 @@
 using Projetos___4.Domain.Model;
+using DomainUser = Projetos___4.Domain.Model.User;
 
 namespace Projetos___4.Application.DTO.User;
 
@@ -10,7 +11,7 @@ public class UserProfileDTO
 
     public string Email { get; set; } = string.Empty;
 
-    public User.TypeofUser TypeofUser { get; set; }
+    public DomainUser.TypeofUser TypeofUser { get; set; }
 
     public bool IsPro { get; set; }
 

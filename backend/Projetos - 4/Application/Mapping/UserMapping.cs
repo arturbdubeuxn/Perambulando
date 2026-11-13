@@ -13,7 +13,7 @@ public class UserMapping : IUserMapping
         {
             UserName = dto.Name,
             Email = dto.Email,
-            Typeofuser = dto.TypeofUser!.Value
+            Typeofuser = dto.TypeOfUser!.Value
         };
     }
 
