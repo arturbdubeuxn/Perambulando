@@ -1019,7 +1019,7 @@ export default function CreateEventScreen() {
 
         <View style={styles.bottomNav}>
           <NavItem icon="▦" label="Painel" />
-          <NavItem icon="▣" label="Meus eventos" />
+          <NavItem icon="▣" label="Meus eventos" onPress={() => router.push('/meus_eventos')} />
           <Pressable accessibilityRole="button" style={styles.activeNavItem}>
             <View style={styles.activeNavButton}><Text style={styles.activeNavPlus}>＋</Text></View>
             <Text style={styles.activeNavLabel}>Criar evento</Text>

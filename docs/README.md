@@ -724,3 +724,9 @@ O Logradouro da criação de evento consulta `GET /api/Address/GetAllAddress` co
 ## Rótulo Comércio no frontend — 03/11/2026
 
 O tipo de host e a navegação inferior passaram a exibir `Comércio` no lugar de `Empresa`. O enum enviado à API continua com valor `2`; contratos e banco não mudaram. PDFs não foram regenerados.
+
+## US20 — Painel de gestão do host no frontend — 13/11/2026
+
+A nova rota `/meus_eventos` implementa o painel solicitado para a navegação “Meus eventos”, que passa a abrir a tela e fica visualmente selecionada nela. O painel protege a consulta pela sessão JWT atual, lista e alterna os estabelecimentos ativos do usuário, resume programações ativas, futuras e encerradas e oferece atalhos para criação e administração. São tratados carregamento, falha da API, sessão ausente/expirada, usuário sem estabelecimento e estabelecimento sem programação.
+
+A implementação reutiliza `GetAllHostsbyUserId` e `Host/Details/{hostId}` sem mudar o backend. TypeScript, ESLint direto dos arquivos envolvidos e `git diff --check` foram aprovados. Não houve teste HTTP ou login real, alteração de banco/API/protótipo externo nem geração de PDF. Consulte [Arquitetura frontend e backend](08-arquitetura-frontend-backend.md).

@@ -283,3 +283,11 @@ Escolher uma sugestão preenche os campos e guarda `addressId`; a publicação e
 ## Nomenclatura Comércio no frontend — 03/11/2026
 
 O rótulo visual `Empresa` foi substituído por `Comércio` na opção de tipo de host e na navegação inferior da criação de evento. O valor `2` do enum `TypeofHost` foi preservado; não houve mudança de DTO, serialização, regra do backend ou banco. Os textos genéricos sobre dados empresariais permanecem inalterados.
+
+## US20 — Painel de gestão do host no frontend — 13/11/2026
+
+Implementação: criada a rota Expo Router `/meus_eventos`, acessível pelo item “Meus eventos” da navegação inferior da criação de evento. Nessa rota, o item fica selecionado com fundo, ícone e rótulo em laranja; o botão central de criação permanece como atalho, mas perde o destaque de página ativa. A tela exige o JWT mantido pela sessão web atual antes de consultar dados e apresenta estados próprios para carregamento, sessão ausente/expirada, erro da API e usuário sem estabelecimento.
+
+O painel consome, sem mudança de contrato, `GET /api/Host/GetAllHostsbyUserId` e `GET /api/Host/Details/{hostId}`. Exibe os estabelecimentos ativos vinculados ao usuário, permite alternar entre eles e conserva o ID selecionado no `sessionStorage`. Para o estabelecimento atual, apresenta a quantidade de programações ativas retornadas pela API, futuras e encerradas conforme as datas, além da listagem com situação e dos atalhos para criar ou administrar programações. Usuários sem estabelecimento recebem uma chamada para o cadastro.
+
+Validações realizadas: TypeScript com `tsc --noEmit`, ESLint direto da nova rota e da tela de criação e `git diff --check` aprovados. A validação usou análise estática; não houve login real, requisição HTTP, gravação no banco ou alteração do backend. O armazenamento de sessão continua restrito ao Expo Web, conforme a pendência já documentada. O protótipo externo não foi alterado porque não houve mudança de funcionalidade da API. PDFs não foram regenerados.
