@@ -3,10 +3,10 @@
     public class RoadmapCreateDTO
     {
 
-        public string? Name { get; set; }
+        public string Name { get; set; }
 
         public string? Description { get; set; }
 
-        public List<RoadmapProgrammingDTO> roadmapProgrammingDTO { get; set;} = new List<RoadmapProgrammingDTO>();
+        public List<RoadmapProgrammingCreateDTO> roadmapProgrammingDTO { get; set;} = new List<RoadmapProgrammingCreateDTO>();
     }
 }

@@ -35,6 +35,10 @@ namespace Projetos___4.Data.Context
 
         public DbSet<UserXCategory> UserXCategories => Set<UserXCategory>();
 
+        public DbSet<Roadmap> Roadmaps => Set<Roadmap>();
+
+        public DbSet<RoadmapProgramming> RoadmapProgrammings => Set<RoadmapProgramming>();
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);

@@ -1304,3 +1304,9 @@ O protótipo local na porta 5174 ganhou cadastro/edição de hosts e programaç�
 ## Roadmap — 12/11/2026
 Roteiros personalizados, compartilhamento público, vínculo opcional ao usuário e RoadmapInclusions implementados nas camadas existentes. Contratos e regras detalhados nos documentos 01/02/03/04/06/07 e 10. Migration AddRoadmaps somente gerada, não aplicada; inicialização em Development aplica migrations automaticamente. Não reiniciar antes da revisão. PDFs preservados.
 
+
+### Pitch — 13/11/2026
+Protótipo da porta 5174 ampliado com acesso demonstrativo, perfil/preferências, mapa esquemático de proximidade e busca conversacional local disponível sem login. Seis testes automatizados aprovados e fluxo visual de busca/perfil/seleção conferido. Sem conexão à API ou n8n; sem alteração do backend/banco/migrations. Limites e roteiro de apresentação no README de pitch-perambulando. PDFs preservados.
+
+
+Pitch mobile — 13/11/2026: estilos compartilhados ajustados para celular nas duas jornadas (navegação, formulários, cards, horários, diálogos e painel). Verificação de layouts em 320/390/768px, sem transbordamento horizontal nos pontos medidos; seis testes do protótipo aprovados. Detalhes no README do pitch. Backend e PDFs preservados.

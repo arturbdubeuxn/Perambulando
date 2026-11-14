@@ -542,16 +542,15 @@ namespace Projetos___4.Data.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("Description")
+                        .HasColumnType("text");
+
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean");
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasMaxLength(150)
-                        .HasColumnType("character varying(150)");
-
-                    b.Property<Guid>("ShareId")
-                        .HasColumnType("uuid");
+                        .HasColumnType("text");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -559,48 +558,14 @@ namespace Projetos___4.Data.Migrations
                     b.Property<string>("UserId")
                         .HasColumnType("text");
 
-                    b.Property<Guid>("Version")
-                        .IsConcurrencyToken()
-                        .HasColumnType("uuid");
-
                     b.HasKey("Id");
 
-                    b.HasIndex("ShareId")
-                        .IsUnique();
-
-                    b.HasIndex("UserId", "CreatedAt");
+                    b.HasIndex("UserId");
 
                     b.ToTable("Roadmaps");
                 });
 
-            modelBuilder.Entity("Projetos___4.Domain.Model.RoadmapProgrammingUsage", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int>("ProgrammingId")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("RoadmapId")
-                        .HasColumnType("integer");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ProgrammingId", "CreatedAt");
-
-                    b.HasIndex("RoadmapId", "ProgrammingId")
-                        .IsUnique();
-
-                    b.ToTable("RoadmapProgrammingUsages");
-                });
-
-            modelBuilder.Entity("Projetos___4.Domain.Model.RoadmapStop", b =>
+            modelBuilder.Entity("Projetos___4.Domain.Model.RoadmapProgramming", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -614,7 +579,7 @@ namespace Projetos___4.Data.Migrations
                     b.Property<int?>("HostId")
                         .HasColumnType("integer");
 
-                    b.Property<int>("Position")
+                    b.Property<int>("Order")
                         .HasColumnType("integer");
 
                     b.Property<int?>("ProgrammingId")
@@ -632,21 +597,9 @@ namespace Projetos___4.Data.Migrations
 
                     b.HasIndex("ProgrammingId");
 
-                    b.HasIndex("RoadmapId", "HostId")
-                        .IsUnique();
+                    b.HasIndex("RoadmapId");
 
-                    b.HasIndex("RoadmapId", "Position")
-                        .IsUnique();
-
-                    b.HasIndex("RoadmapId", "ProgrammingId")
-                        .IsUnique();
-
-                    b.ToTable("RoadmapStops", null, t =>
-                        {
-                            t.HasCheckConstraint("CK_RoadmapStops_Period", "\"StartDate\" < \"EndDate\" AND \"Position\" > 0");
-
-                            t.HasCheckConstraint("CK_RoadmapStops_Target", "(\"ProgrammingId\" IS NOT NULL AND \"HostId\" IS NULL) OR (\"ProgrammingId\" IS NULL AND \"HostId\" IS NOT NULL)");
-                        });
+                    b.ToTable("RoadmapProgrammings");
                 });
 
             modelBuilder.Entity("Projetos___4.Domain.Model.Subscription", b =>
@@ -952,45 +905,23 @@ namespace Projetos___4.Data.Migrations
                 {
                     b.HasOne("Projetos___4.Domain.Model.User", "User")
                         .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Restrict);
+                        .HasForeignKey("UserId");
 
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("Projetos___4.Domain.Model.RoadmapProgrammingUsage", b =>
-                {
-                    b.HasOne("Projetos___4.Domain.Model.Programming", "Programming")
-                        .WithMany()
-                        .HasForeignKey("ProgrammingId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Projetos___4.Domain.Model.Roadmap", "Roadmap")
-                        .WithMany()
-                        .HasForeignKey("RoadmapId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Programming");
-
-                    b.Navigation("Roadmap");
-                });
-
-            modelBuilder.Entity("Projetos___4.Domain.Model.RoadmapStop", b =>
+            modelBuilder.Entity("Projetos___4.Domain.Model.RoadmapProgramming", b =>
                 {
                     b.HasOne("Projetos___4.Domain.Model.Hosts", "Host")
                         .WithMany()
-                        .HasForeignKey("HostId")
-                        .OnDelete(DeleteBehavior.Restrict);
+                        .HasForeignKey("HostId");
 
                     b.HasOne("Projetos___4.Domain.Model.Programming", "Programming")
                         .WithMany()
-                        .HasForeignKey("ProgrammingId")
-                        .OnDelete(DeleteBehavior.Restrict);
+                        .HasForeignKey("ProgrammingId");
 
                     b.HasOne("Projetos___4.Domain.Model.Roadmap", "Roadmap")
-                        .WithMany("Stops")
+                        .WithMany("roadmapProgrammings")
                         .HasForeignKey("RoadmapId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -1049,9 +980,10 @@ namespace Projetos___4.Data.Migrations
 
             modelBuilder.Entity("Projetos___4.Domain.Model.Roadmap", b =>
                 {
-                    b.Navigation("Stops");
+                    b.Navigation("roadmapProgrammings");
                 });
 #pragma warning restore 612, 618
         }
     }
 }
+

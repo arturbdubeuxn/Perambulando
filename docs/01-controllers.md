@@ -1347,3 +1347,23 @@ Agregações de favoritos, interações e inclusões são independentes, evitand
 Harness em docs/validacoes/RoadmapChecks.csproj valida regras sem conexão ao banco. Exemplos de todas as rotas no arquivo Projetos - 4.http. Painel prototipo-api sincroniza os contratos e permite selecionar hosts/programações entre páginas, informar horários, ordenar e preparar o POST. Dados só são enviados ao clicar Enviar requisição; JWT é opcional nas duas operações públicas. Compartilhamento de rota da API é JSON, sem nova página pública no Expo. PDFs não foram regenerados.
 
 Limites da verificação: não foram aplicadas migrations nem executadas gravações HTTP/integração PostgreSQL. Testes de transação, concorrência real e execução das agregações no PostgreSQL devem ocorrer após a revisão/aplicação autorizada da migration. Não confundir compilação/testes com banco atualizado.
+
+### Estado do Roadmap em 14/11/2026
+RoadmapMapping e conversão das paradas implementados; contrato do AppService usa RoadmapResponseDTO. O endpoint atual ainda chama um método Create inexistente em ITravelChatAppService, causando CS7036 na compilação. RoadmapService contém NotImplementedException. Esta etapa não implementa o CRUD nem altera rotas: o endpoint ainda não está pronto para teste real. Protótipo sem alteração nesta etapa de mapping; revisar integração ao concluir controller/service. Nenhuma migration aplicada ou PDF atualizado.
+
+## Roadmap — actions adicionadas em 14/11/2026
+Esta seção substitui a pendência anterior da chamada incorreta ao TravelChatAppService. Controller agora injeta IRoadmapAppService. Registro DI inclui appservice/service/repository.
+
+| Verbo | Rota | Acesso | Sucesso |
+|---|---|---|---|
+| POST | /api/Roadmap/Create | Público, JWT opcional | 201, RoadmapResponseDTO e Location dos detalhes |
+| GET | /api/Roadmap/Details/{roadmapId} | Público | 200, RoadmapResponseDTO |
+| GET | /api/Roadmap/GetAllRoadmapsByUserId | Autenticado, usuário do JWT | 200, lista (vazia quando sem roteiros) |
+| PUT | /api/Roadmap/{roadmapId}/Edit | Dono autenticado | 200, RoadmapResponseDTO |
+| PATCH | /api/Roadmap/{roadmapId}/Delete | Dono autenticado | 204, sem corpo |
+
+Create/Edit recebem RoadmapCreateDTO, com roadmapProgrammingDTO contendo os IDs, Order, StartDate/EndDate. Edição substitui as paradas. Erros de argumentos: 400; ausência/inatividade: 404; acesso negado pelo service: 403; ausência de autenticação nas actions protegidas: 401 pelo middleware. Removido AllowAnonymous do controller; somente Create/Details são públicos. Desativação persiste IsActive=false. Repositório carrega paradas e detalhes relacionados para o mapping.
+
+Validação: build com zero erros e 19 avisos; 107 testes do protótipo com API simulada passaram. Não iniciado o backend, não executadas requisições contra banco real, nem gerada/aplicada migration. Exemplos adicionados em backend/Projetos - 4/Projetos - 4.http; painel atualizado para roadmapProgrammingDTO e Order. PDFs preservados.
+
+14/11/2026 — Create/Edit de Roadmap também retornam 400 quando Order não acompanha os horários ou há posições repetidas. Mensagem: A ordem das paradas deve acompanhar os horários, sem posições repetidas.

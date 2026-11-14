@@ -1375,3 +1375,18 @@ Agregações de favoritos, interações e inclusões são independentes, evitand
 Harness em docs/validacoes/RoadmapChecks.csproj valida regras sem conexão ao banco. Exemplos de todas as rotas no arquivo Projetos - 4.http. Painel prototipo-api sincroniza os contratos e permite selecionar hosts/programações entre páginas, informar horários, ordenar e preparar o POST. Dados só são enviados ao clicar Enviar requisição; JWT é opcional nas duas operações públicas. Compartilhamento de rota da API é JSON, sem nova página pública no Expo. PDFs não foram regenerados.
 
 Limites da verificação: não foram aplicadas migrations nem executadas gravações HTTP/integração PostgreSQL. Testes de transação, concorrência real e execução das agregações no PostgreSQL devem ocorrer após a revisão/aplicação autorizada da migration. Não confundir compilação/testes com banco atualizado.
+
+## RoadmapMapping — 14/11/2026
+
+Implementado seguindo os mappings manuais existentes: `IRoadmapMapping` com `ToModel(RoadmapCreateDTO, string?)` e `ToDTO(Roadmap)`, ambos síncronos. O construtor recebe somente `IRoadmapProgrammingMapping`; não consulta serviços nem banco. `ToModel` preenche nome, descrição, usuário opcional e as paradas, atribuindo a navegação Roadmap de cada parada ao novo roteiro (o RoadmapId enviado na parada não determina outro roteiro). `ToDTO` preenche Id, Name, Description e roadmapProgrammingResponseDTO, ordenada por Order.
+
+RoadmapProgrammingMapping preserva HostId/ProgrammingId, Order e datas sem construir hosts/programações novos a partir dos DTOs aninhados. Na resposta, os detalhes são convertidos somente quando a navegação está carregada; o serviço/repositório deverá carregar as relações necessárias. A existência/atividade dos IDs, exclusividade host/programação e coerência dos horários continuam sendo responsabilidades das validações/services, não deste mapping.
+
+AppService/interface alinhados a RoadmapResponseDTO e await nas operações de serviço. Ambos os mappings registrados como Scoped na configuração existente. Nenhuma migration gerada/aplicada. Build executado: falhou com um erro CS7036 preexistente no RoadmapController, que chama Create no ITravelChatAppService. RoadmapService permanece não implementado. Não foram realizados testes HTTP; o mapping não torna o endpoint operacional. PDFs preservados.
+
+### Validação de Roadmap — 14/11/2026
+Paradas requerem StartDate/EndDate em UTC e exatamente um ProgrammingId/HostId positivo. Horários semanais do host são comparados após conversão para America/Recife. IRoadmapValidation é chamado pelo service; regras detalhadas em 02-regras-de-negocio.md. Sem mudança dos campos/rotas; protótipo e PDFs preservados. Fluxo HTTP continua pendente da conclusão de controller/service/repository.
+
+Atualização HTTP de 14/11/2026: Create/Edit usam RoadmapCreateDTO e retornam RoadmapResponseDTO; listagem retorna lista do mesmo DTO. Detalhes e exemplos de rota em 01-controllers.md. Protótipo alinhado ao campo roadmapProgrammingDTO, com Order por parada. Compilação aprovada e 107 testes do painel passaram com API simulada; não houve teste de persistência real.
+
+14/11/2026 — Roadmap: Order deve acompanhar a ordem cronológica de StartDate, sem posições repetidas. Não há correção automática. Create/Edit retornam 400 quando incompatível; campos do DTO permanecem iguais.

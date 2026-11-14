@@ -9,5 +9,6 @@ namespace Projetos___4.Application.Interfaces
         Task<IEnumerable<CategoryResponseDTO>> GetAllCategoriesPrefereces(string userId);
 
         Task<CategoryResponseDTO> GetbyId(int categoryId);
+
     }
 }

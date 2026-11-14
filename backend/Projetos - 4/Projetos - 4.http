@@ -968,3 +968,51 @@ POST {{Projetos___4_HostAddress}}/api/TravelChat/Messages
 Content-Type: application/json
 
 { "text": "Quero passear pelo Recife e tomar um café no sábado." }
+
+### ROADMAP - Criar roteiro (login opcional)
+# Para criar anônimo, remova Authorization. Anônimos não editam/excluem depois.
+# Ajuste o ID e as datas para uma programação ativa existente, dentro do horário dela.
+# @name createRoadmap
+POST {{Projetos___4_HostAddress}}/api/Roadmap/Create
+Authorization: Bearer {{login.response.body.$.accessToken}}
+Content-Type: application/json
+
+{
+  "name": "Meu passeio no Recife",
+  "description": "Roteiro personalizado",
+  "roadmapProgrammingDTO": [
+    { "programmingId": 1, "hostId": null, "order": 1, "startDate": "2026-11-21T12:00:00Z", "endDate": "2026-11-21T13:00:00Z" }
+  ]
+}
+
+### ROADMAP - Detalhes públicos
+# @name roadmapDetails
+GET {{Projetos___4_HostAddress}}/api/Roadmap/Details/{{createRoadmap.response.body.$.id}}
+Accept: application/json
+
+### ROADMAP - Meus roteiros (usuário identificado pelo JWT)
+# @name userRoadmaps
+GET {{Projetos___4_HostAddress}}/api/Roadmap/GetAllRoadmapsByUserId
+Authorization: Bearer {{login.response.body.$.accessToken}}
+Accept: application/json
+
+### ROADMAP - Editar roteiro do usuário autenticado
+# Envie a lista completa de paradas desejadas. Ajuste ID/datas conforme o banco.
+# @name editRoadmap
+PUT {{Projetos___4_HostAddress}}/api/Roadmap/{{createRoadmap.response.body.$.id}}/Edit
+Authorization: Bearer {{login.response.body.$.accessToken}}
+Content-Type: application/json
+
+{
+  "name": "Meu passeio atualizado",
+  "description": "Paradas revisadas",
+  "roadmapProgrammingDTO": [
+    { "programmingId": 1, "hostId": null, "order": 1, "startDate": "2026-11-21T12:00:00Z", "endDate": "2026-11-21T13:00:00Z" }
+  ]
+}
+
+### ROADMAP - Desativar roteiro do usuário autenticado (204 sem corpo)
+# Execute por último: depois disso os detalhes retornam 404.
+# @name deleteRoadmap
+PATCH {{Projetos___4_HostAddress}}/api/Roadmap/{{createRoadmap.response.body.$.id}}/Delete
+Authorization: Bearer {{login.response.body.$.accessToken}}

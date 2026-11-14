@@ -1502,3 +1502,19 @@ Agregações de favoritos, interações e inclusões são independentes, evitand
 Harness em docs/validacoes/RoadmapChecks.csproj valida regras sem conexão ao banco. Exemplos de todas as rotas no arquivo Projetos - 4.http. Painel prototipo-api sincroniza os contratos e permite selecionar hosts/programações entre páginas, informar horários, ordenar e preparar o POST. Dados só são enviados ao clicar Enviar requisição; JWT é opcional nas duas operações públicas. Compartilhamento de rota da API é JSON, sem nova página pública no Expo. PDFs não foram regenerados.
 
 Limites da verificação: não foram aplicadas migrations nem executadas gravações HTTP/integração PostgreSQL. Testes de transação, concorrência real e execução das agregações no PostgreSQL devem ocorrer após a revisão/aplicação autorizada da migration. Não confundir compilação/testes com banco atualizado.
+
+## Validações de roteiro — 14/11/2026
+RoadmapValidations implementa IRoadmapValidation e é injetada no RoadmapService, antes das operações de criação/edição ainda pendentes de persistência. Regras: pelo menos uma parada; início anterior ao fim; ausência de sobreposição (fim igual ao início seguinte permitido); exatamente um ID válido de host ou programação; destinos existentes e ativos; host da programação ativo; visita contida no período da programação; visita direta ao host contida em um intervalo aberto da grade semanal. Usuário null permite anonimato; informado, deve existir e estar ativo via IUserService.GetProfileAsync.
+
+Datas recebidas devem ser UTC (Z). A grade semanal dos hosts é interpretada em America/Recife nesta etapa. A validação consulta o dia local da visita e o anterior para períodos ClosesNextDay, inclusive a transição domingo/segunda; não permite atravessar uma pausa entre intervalos. Programações usam seu próprio período, sem exigir a grade semanal do host. Não valida deslocamento, início futuro ou propriedade nesta etapa. Os objetos enviados pelo cliente não são usados como evidência de disponibilidade; os repositórios existentes fornecem os dados.
+
+Limitação: RoadmapService ainda lança NotImplementedException após validar; repositório vazio e controller com chamada inválida preexistente impedem teste HTTP. Build executado: único erro CS7036 no RoadmapController. Nenhuma migration ou alteração de banco.
+
+Verificação isolada: 17 cenários aprovados executando o código real de RoadmapValidations com contratos e repositórios simulados em um harness temporário, sem banco. Abrange anonimato, usuário ativo/inativo, intervalos, sobreposição, destinos, disponibilidade, pausas, fechamento, grade ausente e madrugada do dia anterior. Não substitui teste integrado da API.
+
+## CRUD de roteiros — 14/11/2026
+As cinco actions usam IRoadmapAppService. A edição aplica nome/descrição e substitui a coleção de paradas na entidade rastreada, preservando autoria/CreatedAt. Desativação exige UserId do dono e persiste IsActive=false; roteiro anônimo não pode ser editado/desativado. Detalhes são públicos por ID. Leituras carregam paradas e dados para o mapping. Build aprovado (19 avisos); sem teste integrado de banco nesta etapa.
+
+### Ordem cronológica das paradas — 14/11/2026
+RoadmapValidations rejeita com ArgumentException (400 nas actions Create/Edit) quando Order não cresce na sequência cronológica de StartDate, inclusive posições repetidas. Não renumera nem altera a lista recebida. A posição dos itens no array JSON não interfere: prevalecem Order e datas. A validação de sobreposição continua ativa e permite término igual ao início seguinte. Não foi acrescentada exigência de numeração consecutiva nesta alteração.
+Verificação isolada: 20 cenários aprovados com código real da validação e repositórios simulados, incluindo sequência invertida sem sobreposição, posição repetida, array embaralhado com Order correto e preservação dos valores enviados. Sem teste HTTP/banco, migration ou PDF.
