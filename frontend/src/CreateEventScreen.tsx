@@ -1018,7 +1018,7 @@ export default function CreateEventScreen() {
         </KeyboardAvoidingView>
 
         <View style={styles.bottomNav}>
-          <NavItem icon="▦" label="Painel" />
+          <NavItem icon="▦" label="Painel" onPress={() => router.push('/painel')} />
           <NavItem icon="▣" label="Meus eventos" />
           <Pressable accessibilityRole="button" style={styles.activeNavItem}>
             <View style={styles.activeNavButton}><Text style={styles.activeNavPlus}>＋</Text></View>
