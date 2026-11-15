@@ -18,6 +18,7 @@ import {
 
 import { FormField } from '../../components/FormField';
 import { colors } from '../../theme/colors';
+import { describeRegisterError, registerUser } from './authApi';
 import { hasErrors, validateRegister } from './registerValidation';
 import type { RegisterErrors, RegisterForm } from './registerValidation';
 
@@ -31,24 +32,50 @@ const emptyForm: RegisterForm = {
   confirmPassword: '',
 };
 
+type SubmitStatus = 'idle' | 'submitting' | 'success' | 'error';
+
 export default function RegisterScreen() {
   const { width: viewportWidth } = useWindowDimensions();
   const [fontsLoaded] = useFonts({ Fredoka_700Bold });
   const [form, setForm] = useState<RegisterForm>(emptyForm);
   const [errors, setErrors] = useState<RegisterErrors>({});
-  const [validated, setValidated] = useState(false);
+  const [status, setStatus] = useState<SubmitStatus>('idle');
+  const [formError, setFormError] = useState('');
+
+  const submitting = status === 'submitting';
 
   const updateField = (field: keyof RegisterForm, value: string) => {
     setForm((current) => ({ ...current, [field]: value }));
     setErrors((current) => ({ ...current, [field]: undefined }));
-    setValidated(false);
+    setFormError('');
+    setStatus((current) => (current === 'submitting' ? current : 'idle'));
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
+    if (submitting) {
+      return;
+    }
+
     const nextErrors = validateRegister(form);
     setErrors(nextErrors);
-    // A chamada à API entra na próxima subtarefa; por ora só validamos.
-    setValidated(!hasErrors(nextErrors));
+    setFormError('');
+    if (hasErrors(nextErrors)) {
+      setStatus('idle');
+      return;
+    }
+
+    setStatus('submitting');
+    try {
+      await registerUser(form);
+      // Não guardamos a senha na tela depois do cadastro.
+      setForm(emptyForm);
+      setStatus('success');
+    } catch (error) {
+      const failure = describeRegisterError(error);
+      setErrors(failure.fieldErrors);
+      setFormError(failure.formError ?? 'Revise os campos destacados.');
+      setStatus('error');
+    }
   };
 
   return (
@@ -156,18 +183,33 @@ export default function RegisterScreen() {
 
             <Pressable
               accessibilityRole="button"
+              accessibilityState={{ disabled: submitting }}
+              disabled={submitting}
               onPress={handleSubmit}
-              style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}
+              style={({ pressed }) => [
+                styles.primaryButton,
+                pressed && styles.pressed,
+                submitting && styles.buttonDisabled,
+              ]}
             >
-              <Text style={styles.primaryButtonText}>Criar conta</Text>
+              <Text style={styles.primaryButtonText}>
+                {submitting ? 'Criando conta...' : 'Criar conta'}
+              </Text>
             </Pressable>
 
-            {validated && (
+            {status === 'success' && (
               <View accessibilityRole="alert" style={styles.notice}>
-                <Text style={styles.noticeTitle}>Dados válidos</Text>
+                <Text style={styles.noticeTitle}>Conta criada</Text>
                 <Text style={styles.noticeText}>
-                  O envio para a API será ligado na próxima etapa da história.
+                  Seu cadastro foi concluído. Agora é só entrar com seu e-mail e senha.
                 </Text>
+              </View>
+            )}
+
+            {status === 'error' && formError !== '' && (
+              <View accessibilityRole="alert" style={styles.errorNotice}>
+                <Text style={styles.errorNoticeTitle}>Cadastro não concluído</Text>
+                <Text style={styles.errorNoticeText}>{formError}</Text>
               </View>
             )}
 
@@ -337,6 +379,27 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 15,
     fontWeight: '800',
+  },
+  buttonDisabled: {
+    opacity: 0.62,
+  },
+  errorNotice: {
+    padding: 15,
+    backgroundColor: colors.errorBackground,
+    borderColor: '#FECACA',
+    borderRadius: 14,
+    borderWidth: 1,
+  },
+  errorNoticeTitle: {
+    color: colors.error,
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  errorNoticeText: {
+    marginTop: 4,
+    color: '#7A271A',
+    fontSize: 11,
+    lineHeight: 16,
   },
   notice: {
     padding: 15,
