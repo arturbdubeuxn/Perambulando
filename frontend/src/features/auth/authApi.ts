@@ -29,6 +29,16 @@ export type RegisterFailure = {
 // o texto que a própria API devolveu.
 const FRIENDLY_MESSAGES: Record<string, string> = {
   DuplicateEmail: 'Este e-mail já está cadastrado.',
+  InvalidEmail: 'Informe um e-mail válido.',
+  // Hoje o backend usa o nome como UserName do Identity: ele precisa ser único
+  // e só aceita letras e números.
+  DuplicateUserName: 'Este nome já está em uso. Tente outro.',
+  InvalidUserName: 'Use apenas letras e números no nome (a API ainda não aceita espaços).',
+  PasswordTooShort: 'A senha é curta demais.',
+  PasswordRequiresDigit: 'A senha precisa ter pelo menos um número.',
+  PasswordRequiresLower: 'A senha precisa ter pelo menos uma letra minúscula.',
+  PasswordRequiresUpper: 'A senha precisa ter pelo menos uma letra maiúscula.',
+  PasswordRequiresNonAlphanumeric: 'A senha precisa ter pelo menos um símbolo.',
 };
 
 function fieldForCode(code: string): keyof RegisterForm | null {

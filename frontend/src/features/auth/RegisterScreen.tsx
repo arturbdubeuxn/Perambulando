@@ -3,7 +3,7 @@ import { useFonts } from 'expo-font';
 import { router } from 'expo-router';
 import type { Href } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Image,
   KeyboardAvoidingView,
@@ -24,6 +24,8 @@ import type { RegisterErrors, RegisterForm } from './registerValidation';
 
 const LOGIN_ROUTE = '/login' as Href;
 const HOST_REGISTER_ROUTE = '/cadastro_host' as Href;
+// Tempo para a pessoa ler o aviso de sucesso antes de ir para o login.
+const REDIRECT_DELAY_MS = 1500;
 
 const emptyForm: RegisterForm = {
   name: '',
@@ -43,6 +45,15 @@ export default function RegisterScreen() {
   const [formError, setFormError] = useState('');
 
   const submitting = status === 'submitting';
+
+  // Depois do cadastro, leva ao login. replace evita que o "voltar" reabra o formulário.
+  useEffect(() => {
+    if (status !== 'success') {
+      return undefined;
+    }
+    const timer = setTimeout(() => router.replace(LOGIN_ROUTE), REDIRECT_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [status]);
 
   const updateField = (field: keyof RegisterForm, value: string) => {
     setForm((current) => ({ ...current, [field]: value }));
@@ -201,7 +212,7 @@ export default function RegisterScreen() {
               <View accessibilityRole="alert" style={styles.notice}>
                 <Text style={styles.noticeTitle}>Conta criada</Text>
                 <Text style={styles.noticeText}>
-                  Seu cadastro foi concluído. Agora é só entrar com seu e-mail e senha.
+                  Seu cadastro foi concluído. Levando você para o login...
                 </Text>
               </View>
             )}
@@ -360,9 +371,11 @@ const styles = StyleSheet.create({
     borderRadius: 11,
   },
   hostButtonText: {
+    paddingHorizontal: 8,
     color: '#FFFFFF',
     fontSize: 13,
     fontWeight: '800',
+    textAlign: 'center',
   },
   primaryButton: {
     minHeight: 52,
