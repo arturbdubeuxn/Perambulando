@@ -12,7 +12,7 @@ type SubscriptionStatus = 'pendente' | 'ativa' | 'vencida' | 'cancelada';
 type PlanId = 'essencial' | 'impulso' | 'destaque';
 const plans: { id: PlanId; name: string; price: string; benefits: string[] }[] = [
   { id: 'essencial', name: 'Essencial', price: 'Grátis', benefits: ['Página do estabelecimento', 'Publicação de programações', 'Resumo de visitas e cliques'] },
-  { id: 'impulso', name: 'Impulso', price: 'R$ 39,90', benefits: ['Tudo do Essencial', 'Destaque nas buscas da cidade', 'Evolução e comparação de resultados', 'Insights de divulgação'] },
+  { id: 'impulso', name: 'Impulso', price: 'R$ 39,90', benefits: ['Tudo do Essencial', 'Destaque nas buscas da cidade', 'Evolução e comparação de resultados', 'Mais espaços de divulgação'] },
   { id: 'destaque', name: 'Destaque', price: 'R$ 79,90', benefits: ['Tudo do Impulso', 'Maior exposição em espaços de destaque', 'Análise por programação', 'Relatórios de desempenho'] },
 ];
 // Cenários de apresentação: nunca representam métricas ou assinaturas do usuário autenticado.
@@ -113,14 +113,25 @@ export default function DashboardScreen() {
             </View>
             <View style={styles.insightCard}>
               <Text style={styles.eyebrow}>IDEIAS PARA CRESCER</Text>
-              <Text style={styles.cardTitle}>Transforme interesse em ação</Text>
-              <Text style={styles.body}>{demo ? 'No exemplo, Jazz no Quintal concentra 60% dos cliques. Experimente divulgar programações semelhantes e compare o próximo período.' : 'Quando houver dados, identifique as programações que mais despertam interesse e use esse aprendizado na próxima divulgação.'}</Text>
+              <Text style={styles.cardTitle}>Seu negócio merece ser visto</Text>
+              <Text style={styles.body}>Leve suas programações para além da sua página. Conheça opções de divulgação para apresentar seu espaço a quem está descobrindo o que fazer na cidade.</Text>
+              <Text style={styles.small}>Vitrine de serviços propostos. A contratação real ainda não está disponível.</Text>
               <View style={styles.divider} />
-              <Text style={styles.eventName}>Muitas visitas, poucos cliques?</Text>
-              <Text style={styles.body}>Revise a imagem, o preço e a clareza do link de ingressos antes de ampliar a divulgação.</Text>
-              <Text style={styles.eventName}>Compare períodos equivalentes</Text>
-              <Text style={styles.body}>Observe a taxa de interesse junto ao volume de visitas. Mais acessos, sozinhos, não significam mais vendas.</Text>
-              <Action label="Conhecer planos de divulgação" onPress={() => setTab('subscription')} />
+              <Text style={styles.eventName}>Sua programação na homepage</Text>
+              <Text style={styles.body}>Apresente seu próximo evento em uma vitrine de destaques na página inicial. Uma nova oportunidade de ser descoberto enquanto o público escolhe seu próximo passeio.</Text>
+              <Action secondary label="Conhecer opções de destaque" onPress={() => setTab('subscription')} />
+              <View style={styles.divider} />
+              <Text style={styles.eventName}>Mais presença com anúncios</Text>
+              <Text style={styles.body}>Amplie seus espaços de divulgação com inserções patrocinadas na plataforma. Coloque sua programação no caminho de quem explora a cidade.</Text>
+              <Action secondary label="Explorar planos de divulgação" onPress={() => setTab('subscription')} />
+              <View style={styles.divider} />
+              <Text style={styles.eventName}>Mostre seu estabelecimento para o mundo</Text>
+              <Text style={styles.body}>Dê protagonismo ao seu espaço em vitrines de estabelecimentos. Apresente sua identidade e convide novos públicos a conhecer sua programação.</Text>
+              <Action secondary label="Conhecer planos para meu espaço" onPress={() => setTab('subscription')} />
+              <View style={styles.divider} />
+              <Text style={styles.eventName}>Uma ocasião especial merece destaque</Text>
+              <Text style={styles.body}>Vai lançar uma programação ou celebrar uma data importante? Conheça os planos para dar mais presença à sua divulgação dentro do Perambulando.</Text>
+              <Action label="Ver planos e benefícios" onPress={() => setTab('subscription')} />
             </View>
           </> : <>
             <View style={styles.card}>
