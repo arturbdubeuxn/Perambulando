@@ -95,3 +95,25 @@ Implementação: imagem `perambulando/postgres-postgis:17` construída a partir 
 Validações: PostgreSQL 17.11; PostGIS 3.6.4 disponível e habilitado; autenticação com a configuração local aprovada; 16 migrations existentes aplicadas; 17 tabelas no schema público; API iniciada em `http://localhost:5014`; `GET /openapi/v1.json` respondeu HTTP 200. A API temporária foi encerrada após a validação. Nenhuma migration, model ou contrato HTTP foi alterado. PDFs não foram regenerados.
 
 Pendência: o volume PostgreSQL 16 anterior foi preservado, mas seus dados não foram migrados para o banco novo. O PostGIS 17 contém o schema criado pelas migrations e inicia sem os registros do banco anterior. Qualquer transferência deve ser feita depois, por backup/restauração compatível entre versões, mediante solicitação explícita.
+
+## Execução conjunta no Docker — 15/11/2026
+
+Implementação: `compose.dev.yaml` na raiz define o projeto `perambulando-dev` com database, backend e frontend. As imagens do backend e frontend são construídas do checkout atual. A API usa .NET 10, escuta em 8080 no container e é publicada em http://localhost:5014; o Expo Web usa Node 24 e é publicado em http://localhost:8081. A API aguarda o banco saudável; o frontend aguarda HTTP 200 no OpenAPI da API por `depends_on: service_healthy`. Essa condição controla a inicialização, mas não desliga o frontend se a API cair depois.
+
+Na raiz do repositório, com Docker Desktop ativo e os arquivos locais de ambiente configurados:
+
+```powershell
+docker compose -f compose.dev.yaml up -d --build
+docker compose -f compose.dev.yaml ps
+docker compose -f compose.dev.yaml logs --tail 60 backend frontend
+```
+
+O banco usa exclusivamente o volume externo existente `perambulando-dev_database_data` (PostgreSQL 17/PostGIS), com porta 5434 no Windows e 5432 na rede interna. Não usar simultaneamente `compose.postgis.yaml`, que referencia outro volume. Não remover volumes. A inicialização desta entrega preservou o container de banco já saudável, usando `up -d --no-build --no-deps backend frontend` após validação explícita do banco; esse comando parcial não é o fluxo normal para iniciar tudo.
+
+As variáveis existentes foram recuperadas dos containers com autorização explícita para `.env.dev.backend` e `.env.dev.database`, ignorados pelo Git, sem exibir seus valores. Os arquivos `.example` contêm apenas modelos para configuração em outra máquina. `env_file` usa formato raw (Compose 2.30 ou posterior). Nunca publicar esses arquivos locais ou a saída completa de `docker compose config`. A conexão interna precisa usar Host=database;Port=5432 e as credenciais do cluster existente. As variáveis POSTGRES não redefinem senhas de um volume inicializado. JWT e Geoapify pertencem somente ao backend; a URL pública da API pertence ao frontend. Os appsettings locais ficam fora da imagem.
+
+O frontend monta a pasta local em /app e mantém node_modules em volume anônimo. Assim, acompanha os arquivos da branch atual, incluindo alterações não commitadas. O backend precisa de rebuild após alterações de código. Após mudança de dependências do frontend, usar `up -d --build --force-recreate --renew-anon-volumes`; o volume externo do banco é preservado.
+
+Validações realizadas: sintaxe do Compose aprovada; duas imagens construídas; publicação .NET concluída sem erros e com dez avisos existentes; lint e TypeScript do frontend aprovados. As 21 migrations do checkout foram comparadas com o histórico do banco e já estavam aplicadas. O teste isolado da imagem nova, sem rede e com configuração fictícia, passou pela verificação de modelos e parou na conexão indisponível. A API reconstruída iniciou e respondeu HTTP 200 no OpenAPI; banco e API saudáveis, frontend iniciado. O erro anterior de modelos pertencia à imagem antiga. Nenhuma migration foi criada ou adicionada ao histórico; a chamada automática MigrateAsync existente em Development permanece no código e requer revisão antes de iniciar branches futuras com migrations pendentes.
+
+Pendências: revisão visual no navegador e teste funcional de consulta de CNPJ pelo formulário. Não foi consultado CNPJ real nesta validação. Nenhum contrato, model, regra de negócio, Program.cs ou CORS foi alterado. Por não haver alteração funcional de API, o protótipo externo foi preservado. PDFs não foram gerados.

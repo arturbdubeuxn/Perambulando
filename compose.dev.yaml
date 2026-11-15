@@ -1,0 +1,54 @@
+name: perambulando-dev
+services:
+  database:
+    build: ./docker/postgres
+    image: perambulando-dev-database
+    env_file:
+      - path: .env.dev.database
+        format: raw
+    ports:
+      - "127.0.0.1:5434:5432"
+    volumes:
+      - database_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+  backend:
+    build: ./backend/Projetos - 4
+    image: perambulando-dev-backend-current
+    env_file:
+      - path: .env.dev.backend
+        format: raw
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+    ports:
+      - "127.0.0.1:5014:8080"
+    depends_on:
+      database:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://localhost:8080/openapi/v1.json"]
+      interval: 5s
+      timeout: 5s
+      start_period: 20s
+      retries: 12
+  frontend:
+    build: ./frontend
+    image: perambulando-dev-frontend-current
+    environment:
+      EXPO_PUBLIC_API_URL: http://localhost:5014
+    ports:
+      - "127.0.0.1:8081:8081"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      backend:
+        condition: service_healthy
+volumes:
+  database_data:
+    external: true
+    name: perambulando-dev_database_data

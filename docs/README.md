@@ -724,3 +724,7 @@ O Logradouro da criação de evento consulta `GET /api/Address/GetAllAddress` co
 ## Rótulo Comércio no frontend — 03/11/2026
 
 O tipo de host e a navegação inferior passaram a exibir `Comércio` no lugar de `Empresa`. O enum enviado à API continua com valor `2`; contratos e banco não mudaram. PDFs não foram regenerados.
+
+## Docker conjunto — 15/11/2026
+
+Criado `compose.dev.yaml` para iniciar banco, API e frontend da branch atual com `docker compose -f compose.dev.yaml up -d --build`. API aguarda banco saudável e frontend aguarda API saudável. Volume existente preservado; arquivos de ambiente locais ignorados pelo Git. Imagens construídas, publicação .NET e lint/TypeScript aprovados; 21 migrations já aplicadas, API com HTTP 200 e frontend iniciado. Teste funcional do CNPJ e revisão visual pendentes. Consulte os registros de 15/11/2026 em [Docker](05-docker.md), [Banco de dados](06-banco-de-dados.md) e [Arquitetura](08-arquitetura-frontend-backend.md). Nenhum contrato ou PDF alterado.
