@@ -135,6 +135,11 @@ builder.Services.AddScoped<IAddressMapping, AddressMapping>();
 builder.Services.AddScoped<ICategoryMapping, CategoryMapping>();
 builder.Services.AddScoped<IUserMapping, UserMapping>();
 builder.Services.AddScoped<IHostMapping, HostMapping>();
+builder.Services.AddScoped<INearbyAppService, NearbyAppService>();
+builder.Services.AddScoped<INearbyMapping, NearbyMapping>();
+builder.Services.AddScoped<INearbyService, NearbyService>();
+builder.Services.AddScoped<INearbyValidations, NearbyValidations>();
+builder.Services.AddScoped<INearbyRepository, NearbyRepository>();
 builder.Services.AddScoped<IHostsPhotosMapping, HostsPhotosMapping>();
 builder.Services.AddScoped<IHostsPhotosService, HostsPhotosService>();
 builder.Services.AddScoped<IHostsPhotosRepository, HostsPhotosRepository>();
@@ -284,6 +289,7 @@ app.UseAuthorization();
 app.UseRateLimiter();
 app.MapControllers();
 app.Run();
+
 
 
 

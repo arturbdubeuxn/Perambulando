@@ -69,6 +69,7 @@ public class HostMapping : IHostMapping
             IsActive = host.IsActive,
             CreatedAt = host.CreatedAt,
             UpdatedAt = host.UpdatedAt
+            
         };
     }
 

@@ -137,6 +137,7 @@ namespace Projetos___4.Data.Repository
             var query =
                 from host in Db.Hosts.Include(h => h.Address).AsNoTracking()
                 where host.IsActive
+                    && (host.Typeofhost == Hosts.TypeofHost.Gastronomy || host.Typeofhost == Hosts.TypeofHost.Business)
                     && (string.IsNullOrEmpty(name) || host.Name.ToLower().Contains(name))
                     && (string.IsNullOrEmpty(city) || host.Address.City.ToUpper() == city)
                     && (types.Count == 0 || types.Contains(host.Typeofhost))

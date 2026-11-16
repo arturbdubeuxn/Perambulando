@@ -361,3 +361,5 @@ Agregações de favoritos, interações e inclusões são independentes, evitand
 Harness em docs/validacoes/RoadmapChecks.csproj valida regras sem conexão ao banco. Exemplos de todas as rotas no arquivo Projetos - 4.http. Painel prototipo-api sincroniza os contratos e permite selecionar hosts/programações entre páginas, informar horários, ordenar e preparar o POST. Dados só são enviados ao clicar Enviar requisição; JWT é opcional nas duas operações públicas. Compartilhamento de rota da API é JSON, sem nova página pública no Expo. PDFs não foram regenerados.
 
 Limites da verificação: não foram aplicadas migrations nem executadas gravações HTTP/integração PostgreSQL. Testes de transação, concorrência real e execução das agregações no PostgreSQL devem ocorrer após a revisão/aplicação autorizada da migration. Não confundir compilação/testes com banco atualizado.
+
+16/11/2026 — Três rotas Nearby exigem autenticação e GetProfileAsync ativo. Coordenadas usadas somente na consulta; nenhum claim de localização adicionado.

@@ -1,0 +1,31 @@
+using Projetos___4.Application.DTO.NearBy;
+using Projetos___4.Application.Mapping.Interfaces;
+using Projetos___4.Domain.Model;
+namespace Projetos___4.Application.Mapping;
+public class NearbyMapping : INearbyMapping
+{
+    public NearbyFilter ToModel(NearbyUserFilterDTO dto)
+    {
+        ArgumentNullException.ThrowIfNull(dto);
+        return new NearbyFilter { Latitude = dto.Latitude, Longitude = dto.Longitude, DistanceRange = dto.DistanceRange, Skip = dto.Skip };
+    }
+    public NearbyFilter ToModel(NearbyDestinationFilterDTO dto)
+    {
+        ArgumentNullException.ThrowIfNull(dto);
+        return new NearbyFilter { Skip = dto.Skip };
+    }
+    public NearbyResponseDTO ToDTO(List<NearbyItem> items, NearbyFilter filter)
+    {
+        ArgumentNullException.ThrowIfNull(items);
+        return new NearbyResponseDTO
+        {
+            Skip = filter.Skip, PageSize = 10, HasMore = items.Count > 10,
+            Items = items.Take(10).Select(item => new NearbyItemResponseDTO
+            {
+                Id = item.Id, Type = item.TargetType == 0 ? "Host" : "Programming",
+                Name = item.Name, ImageUrl = item.ImageUrl, DistanceMeters = item.DistanceMeters,
+                Latitude = item.Latitude, Longitude = item.Longitude
+            }).ToList()
+        };
+    }
+}

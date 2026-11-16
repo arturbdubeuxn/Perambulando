@@ -1036,3 +1036,25 @@ Content-Type: application/json
 ### HOST PHOTOS - Desativar foto pelo ID (204 sem corpo)
 DELETE {{Projetos___4_HostAddress}}/api/Host/DeleteHostPhoto/{{createHostPhoto.response.body.$.id}}
 Authorization: Bearer {{login.response.body.$.accessToken}}
+
+# Ajuste os IDs de origem existentes antes de testar proximidade por destino.
+@NearbyHostId = 1
+@NearbyProgrammingId = 1
+
+### NEARBY - Perto de mim (faixa omitida = 0 a 2 km; 10 itens por página)
+# JWT obrigatório. Faixas: 0 até 2km; 1 >2 até 5km; 2 >5 até 10km; 3 >10 até 20km.
+GET {{Projetos___4_HostAddress}}/api/Nearby/Me?latitude=-8.063&longitude=-34.873&skip=0
+Authorization: Bearer {{login.response.body.$.accessToken}}
+
+### NEARBY - Outra faixa/página
+GET {{Projetos___4_HostAddress}}/api/Nearby/Me?latitude=-8.063&longitude=-34.873&distanceRange=1&skip=10
+Authorization: Bearer {{login.response.body.$.accessToken}}
+
+### NEARBY - Até 2km da programação (exclui somente a origem)
+GET {{Projetos___4_HostAddress}}/api/Nearby/Programming/{{NearbyProgrammingId}}?skip=0
+Authorization: Bearer {{login.response.body.$.accessToken}}
+
+### NEARBY - Até 2km do host
+GET {{Projetos___4_HostAddress}}/api/Nearby/Host/{{NearbyHostId}}?skip=0
+Authorization: Bearer {{login.response.body.$.accessToken}}
+
