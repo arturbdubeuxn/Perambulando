@@ -1,8 +1,8 @@
 import { Fredoka_700Bold } from '@expo-google-fonts/fredoka/700Bold';
 import { useFonts } from 'expo-font';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Image,
   KeyboardAvoidingView,
@@ -28,18 +28,60 @@ const colors = {
   successBackground: '#EFF9F0',
 };
 
+const apiBaseUrl = (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:5014').replace(/\/$/, '');
+const accessTokenStorageKey = 'perambulando.accessToken';
+const hostIdStorageKey = 'perambulando.hostId';
+
+type WritableStorageLike = {
+  getItem: (key: string) => string | null;
+  setItem: (key: string, value: string) => void;
+};
+
+function getWebSessionToken() {
+  if (Platform.OS !== 'web') {
+    return '';
+  }
+
+  const storage = (globalThis as { sessionStorage?: WritableStorageLike }).sessionStorage;
+  return storage?.getItem(accessTokenStorageKey) ?? '';
+}
+
+function storeWebSession(accessToken: string, hostId?: number) {
+  if (Platform.OS !== 'web') {
+    return;
+  }
+
+  const storage = (globalThis as { sessionStorage?: WritableStorageLike }).sessionStorage;
+  storage?.setItem(accessTokenStorageKey, accessToken);
+  if (hostId) {
+    storage?.setItem(hostIdStorageKey, String(hostId));
+  }
+}
+
 type FieldProps = {
   label: string;
   placeholder: string;
-  keyboardType?: 'default' | 'email-address' | 'phone-pad' | 'numeric';
+  value: string;
+  onChangeText: (value: string) => void;
+  keyboardType?: 'default' | 'email-address' | 'phone-pad' | 'numeric' | 'url';
   secureTextEntry?: boolean;
+  multiline?: boolean;
+  editable?: boolean;
+  error?: string;
+  maxLength?: number;
 };
 
 function Field({
   label,
   placeholder,
+  value,
+  onChangeText,
   keyboardType = 'default',
   secureTextEntry = false,
+  multiline = false,
+  editable = true,
+  error,
+  maxLength,
 }: FieldProps) {
   return (
     <View style={styles.fieldGroup}>
@@ -47,14 +89,241 @@ function Field({
       <TextInput
         accessibilityLabel={label}
         autoCapitalize={keyboardType === 'email-address' ? 'none' : 'sentences'}
+        editable={editable}
         keyboardType={keyboardType}
+        maxLength={maxLength}
+        multiline={multiline}
+        onChangeText={onChangeText}
         placeholder={placeholder}
         placeholderTextColor="#9297A3"
         secureTextEntry={secureTextEntry}
-        style={styles.input}
+        style={[
+          styles.input,
+          multiline && styles.textArea,
+          !editable && styles.inputDisabled,
+          error && styles.inputError,
+        ]}
+        textAlignVertical={multiline ? 'top' : 'center'}
+        value={value}
       />
+      {error && <Text style={styles.fieldError}>{error}</Text>}
     </View>
   );
+}
+
+type UserRegistrationDraft = {
+  name: string;
+  email: string;
+  password: string;
+  typeofUser: 0;
+};
+
+type AddressDraft = {
+  city: string;
+  state: string;
+  street: string;
+  number: string;
+  complement: string;
+  neighborhood: string;
+  cep: string;
+};
+
+type HostType = 0 | 1 | 2;
+
+type HostRegistrationDraft = {
+  typeofhost: HostType | null;
+  cnpj: string;
+  logoUrl: string;
+  instagranUrl: string;
+  phone: string;
+  name: string;
+  description: string;
+  address: AddressDraft;
+};
+
+type RegistrationErrors = Partial<{
+  userName: string;
+  email: string;
+  password: string;
+  hostType: string;
+  cnpj: string;
+  phone: string;
+  hostName: string;
+  description: string;
+  logoUrl: string;
+  instagranUrl: string;
+  city: string;
+  street: string;
+  number: string;
+  complement: string;
+  neighborhood: string;
+  cep: string;
+}>;
+
+type PreparedRegistration = {
+  user: UserRegistrationDraft;
+  host: Omit<HostRegistrationDraft, 'typeofhost' | 'address'> & {
+    typeofhost: HostType;
+    address: Omit<AddressDraft, 'state'>;
+  };
+};
+
+type AuthResponse = {
+  accessToken: string;
+};
+
+type CompanyRegistrationResponse = {
+  cnpj: string;
+  legalName: string;
+  tradeName: string;
+  registrationStatus: number;
+  statusDescription: string;
+  checkedAt: string;
+  street: string;
+  number: string;
+  complement: string;
+  neighborhood: string;
+  cep: string;
+  city: string;
+  state: string;
+};
+
+type PostalAddressResponse = {
+  cep: string;
+  street: string;
+  neighborhood: string;
+  city: string;
+  state: string;
+};
+
+type HostCreateResponse = {
+  result: {
+    id: number;
+    addressId: number;
+    name: string;
+  };
+  auth: AuthResponse;
+};
+
+type ExistingHostResponse = {
+  id: number;
+  typeofhost: HostType;
+  name: string;
+  cnpj: string;
+  logoUrl: string;
+  instagranUrl: string;
+  phone: string;
+  description: string;
+  addressId: number;
+  address: Omit<AddressDraft, 'state'> & { id: number };
+};
+
+type HostEditResponse = ExistingHostResponse & {
+  isActive: boolean;
+};
+
+type ApiErrorBody = {
+  title?: string;
+  detail?: string;
+  errors?: Record<string, string[]>;
+};
+
+type SubmissionState = {
+  status: 'idle' | 'submitting' | 'success' | 'error';
+  message: string;
+  hostId?: number;
+  addressId?: number;
+};
+
+type LookupState = {
+  status: 'idle' | 'loading' | 'success' | 'error';
+  message: string;
+};
+
+class ApiRequestError extends Error {
+  status: number;
+  body: ApiErrorBody | null;
+
+  constructor(status: number, body: ApiErrorBody | null) {
+    const validationMessages = body?.errors ? Object.values(body.errors).flat() : [];
+    super(body?.detail || validationMessages.join(' ') || body?.title || 'A requisição falhou.');
+    this.status = status;
+    this.body = body;
+  }
+}
+
+const hostTypes: { label: string; value: HostType }[] = [
+  { label: 'Produtor de eventos', value: 0 },
+  { label: 'Gastronomia', value: 1 },
+  { label: 'Comércio', value: 2 },
+];
+
+const onlyDigits = (value: string) => value.replace(/\D/g, '');
+
+function maskCnpj(value: string) {
+  return onlyDigits(value)
+    .slice(0, 14)
+    .replace(/^(\d{2})(\d)/, '$1.$2')
+    .replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3')
+    .replace(/\.(\d{3})(\d)/, '.$1/$2')
+    .replace(/(\d{4})(\d)/, '$1-$2');
+}
+
+function maskCep(value: string) {
+  return onlyDigits(value).slice(0, 8).replace(/^(\d{5})(\d)/, '$1-$2');
+}
+
+function maskPhone(value: string) {
+  const digits = onlyDigits(value).slice(0, 11);
+  if (digits.length <= 10) {
+    return digits
+      .replace(/^(\d{2})(\d)/, '($1) $2')
+      .replace(/(\d{4})(\d)/, '$1-$2');
+  }
+  return digits
+    .replace(/^(\d{2})(\d)/, '($1) $2')
+    .replace(/(\d{5})(\d)/, '$1-$2');
+}
+
+function isValidCnpj(value: string) {
+  const digits = onlyDigits(value);
+  if (digits.length !== 14 || /^(\d)\1{13}$/.test(digits)) {
+    return false;
+  }
+
+  const calculateDigit = (length: number) => {
+    let sum = 0;
+    let weight = 2;
+    for (let index = length - 1; index >= 0; index -= 1) {
+      sum += Number(digits[index]) * weight;
+      weight = weight === 9 ? 2 : weight + 1;
+    }
+    const remainder = sum % 11;
+    return remainder < 2 ? 0 : 11 - remainder;
+  };
+
+  return Number(digits[12]) === calculateDigit(12) && Number(digits[13]) === calculateDigit(13);
+}
+
+const isValidEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+const isValidUrl = (value: string) => /^https?:\/\/\S+$/i.test(value.trim());
+
+async function apiRequest<T>(path: string, options: RequestInit = {}) {
+  const response = await fetch(`${apiBaseUrl}${path}`, {
+    ...options,
+    headers: {
+      Accept: 'application/json',
+      ...(options.body ? { 'Content-Type': 'application/json' } : {}),
+      ...options.headers,
+    },
+  });
+  const body = (await response.json().catch(() => null)) as T | ApiErrorBody | null;
+
+  if (!response.ok) {
+    throw new ApiRequestError(response.status, body as ApiErrorBody | null);
+  }
+
+  return body as T;
 }
 
 type SectionTitleProps = {
@@ -78,12 +347,562 @@ function SectionTitle({ number, title, description }: SectionTitleProps) {
 }
 
 export default function HostRegistrationScreen() {
+  const params = useLocalSearchParams<{
+    novoHost?: string;
+    sourceHostId?: string;
+    editarHost?: string;
+    hostId?: string;
+  }>();
   const { width: viewportWidth } = useWindowDimensions();
   const [fontsLoaded] = useFonts({ Fredoka_700Bold });
-  const [categoryOpen, setCategoryOpen] = useState(false);
-  const [category, setCategory] = useState('Selecione');
+  const cnpjLookupRequest = useRef(0);
+  const cepLookupRequest = useRef(0);
+  const [hostTypeOpen, setHostTypeOpen] = useState(false);
+  const [legalName, setLegalName] = useState('');
+  const [cnpjLookup, setCnpjLookup] = useState<LookupState>({ status: 'idle', message: '' });
+  const [cepLookup, setCepLookup] = useState<LookupState>({ status: 'idle', message: '' });
+  const [errors, setErrors] = useState<RegistrationErrors>({});
+  const [userRegistered, setUserRegistered] = useState(false);
+  const [existingSessionToken] = useState(getWebSessionToken);
+  const [existingHosts, setExistingHosts] = useState<ExistingHostResponse[]>([]);
+  const [existingHostsLoaded, setExistingHostsLoaded] = useState(false);
+  const [reusedCnpj, setReusedCnpj] = useState(false);
+  const [sourceHostName, setSourceHostName] = useState('');
+  const [sourceCnpjInitialized, setSourceCnpjInitialized] = useState(false);
+  const [editingHostInitialized, setEditingHostInitialized] = useState(false);
+  const [submission, setSubmission] = useState<SubmissionState>({
+    status: 'idle',
+    message: '',
+  });
+  const [userDraft, setUserDraft] = useState<UserRegistrationDraft>({
+    name: '',
+    email: '',
+    password: '',
+    typeofUser: 0,
+  });
+  const [hostDraft, setHostDraft] = useState<HostRegistrationDraft>({
+    typeofhost: null,
+    cnpj: '',
+    logoUrl: '',
+    instagranUrl: '',
+    phone: '',
+    name: '',
+    description: '',
+    address: {
+      city: '',
+      state: '',
+      street: '',
+      number: '',
+      complement: '',
+      neighborhood: '',
+      cep: '',
+    },
+  });
 
-  const categories = ['Bar e restaurante', 'Casa de shows', 'Espaço cultural', 'Outro'];
+  const selectedHostType = hostTypes.find((item) => item.value === hostDraft.typeofhost);
+  const isAddingHostToExistingAccount = Boolean(existingSessionToken) && params.novoHost === '1';
+  const editingHostId = Number(params.hostId ?? 0);
+  const isEditingHost =
+    Boolean(existingSessionToken) && params.editarHost === '1' && editingHostId > 0;
+  const isAuthenticatedHostFlow = isAddingHostToExistingAccount || isEditingHost;
+
+  useEffect(() => {
+    if (!isAuthenticatedHostFlow) {
+      return;
+    }
+
+    let active = true;
+    apiRequest<ExistingHostResponse[]>('/api/Host/GetAllHostsbyUserId', {
+      headers: { Authorization: `Bearer ${existingSessionToken}` },
+    })
+      .then((hostList) => {
+        if (active) {
+          setExistingHosts(hostList);
+          setExistingHostsLoaded(true);
+        }
+      })
+      .catch((error) => {
+        if (active) {
+          setSubmission({
+            status: 'error',
+            message: error instanceof Error ? error.message : 'Não foi possível validar a sessão atual.',
+          });
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [existingSessionToken, isAuthenticatedHostFlow]);
+
+  useEffect(() => {
+    if (!isEditingHost || !existingHostsLoaded || editingHostInitialized) {
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      const host = existingHosts.find((item) => item.id === editingHostId);
+      if (!host) {
+        setSubmission({
+          status: 'error',
+          message: 'O perfil selecionado não foi encontrado ou não pertence à conta atual.',
+        });
+        return;
+      }
+
+      setEditingHostInitialized(true);
+      setSourceHostName(host.name);
+      setHostDraft({
+        typeofhost: host.typeofhost,
+        cnpj: maskCnpj(host.cnpj),
+        logoUrl: host.logoUrl ?? '',
+        instagranUrl: host.instagranUrl ?? '',
+        phone: maskPhone(host.phone ?? ''),
+        name: host.name,
+        description: host.description,
+        address: {
+          city: host.address.city ?? '',
+          state: '',
+          street: host.address.street,
+          number: host.address.number,
+          complement: host.address.complement ?? '',
+          neighborhood: host.address.neighborhood ?? '',
+          cep: maskCep(host.address.cep),
+        },
+      });
+
+      apiRequest<CompanyRegistrationResponse>(
+        `/api/Host/GetByCNPJ?cnpj=${encodeURIComponent(onlyDigits(host.cnpj))}`,
+        { headers: { Authorization: `Bearer ${existingSessionToken}` } },
+      )
+        .then((company) => {
+          setLegalName(company.legalName);
+          setCnpjLookup({ status: 'success', message: 'CNPJ original do perfil mantido e bloqueado para edição.' });
+        })
+        .catch(() => {
+          setCnpjLookup({ status: 'idle', message: '' });
+        });
+    }, 0);
+
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [
+    editingHostId,
+    editingHostInitialized,
+    existingHosts,
+    existingHostsLoaded,
+    existingSessionToken,
+    isEditingHost,
+  ]);
+
+  const resetValidation = () => {
+    setErrors({});
+    setSubmission({ status: 'idle', message: '' });
+  };
+
+  const updateUser = (field: keyof Omit<UserRegistrationDraft, 'typeofUser'>, value: string) => {
+    resetValidation();
+    setUserRegistered(false);
+    setUserDraft((current) => ({ ...current, [field]: value }));
+  };
+
+  const updateHost = (
+    field: Exclude<keyof HostRegistrationDraft, 'typeofhost' | 'address'>,
+    value: string,
+  ) => {
+    resetValidation();
+    setHostDraft((current) => ({ ...current, [field]: value }));
+  };
+
+  const updateAddress = (field: keyof AddressDraft, value: string) => {
+    resetValidation();
+    setHostDraft((current) => ({
+      ...current,
+      address: { ...current.address, [field]: value },
+    }));
+  };
+
+  const lookupCnpj = useCallback(async (cnpj: string, requestId: number) => {
+    if (isAddingHostToExistingAccount && !existingHostsLoaded) {
+      setCnpjLookup({ status: 'error', message: 'Aguarde a validação dos perfis vinculados à sua conta.' });
+      return;
+    }
+
+    setCnpjLookup({ status: 'loading', message: 'Consultando CNPJ...' });
+    try {
+      const company = await apiRequest<CompanyRegistrationResponse>(
+        `/api/Host/GetByCNPJ?cnpj=${encodeURIComponent(cnpj)}`,
+      );
+      if (requestId !== cnpjLookupRequest.current) {
+        return;
+      }
+      if (company.registrationStatus !== 2) {
+        throw new Error(
+          company.statusDescription
+            ? `O CNPJ não está ativo: ${company.statusDescription}.`
+            : 'O CNPJ precisa estar ativo para cadastrar o host.',
+        );
+      }
+
+      const suggestedName = company.tradeName.trim() || company.legalName.trim();
+      const isCnpjReused = existingHosts.some(
+        (host) => onlyDigits(host.cnpj) === onlyDigits(company.cnpj),
+      );
+      cepLookupRequest.current += 1;
+      setCepLookup({ status: 'idle', message: '' });
+      setLegalName(company.legalName);
+      setReusedCnpj(isCnpjReused);
+      setHostDraft((current) => ({
+        ...current,
+        name: suggestedName || current.name,
+        address: isCnpjReused
+          ? {
+              city: '',
+              state: '',
+              street: '',
+              number: '',
+              complement: '',
+              neighborhood: '',
+              cep: '',
+            }
+          : {
+              city: company.city.trim(),
+              state: company.state.trim(),
+              street: company.street.trim(),
+              number: company.number.trim(),
+              complement: company.complement.trim(),
+              neighborhood: company.neighborhood.trim(),
+              cep: maskCep(company.cep),
+            },
+      }));
+      setErrors((current) => ({ ...current, cnpj: undefined }));
+      setCnpjLookup({
+        status: 'success',
+        message: isCnpjReused
+          ? 'CNPJ já usado por esta conta. Informe novamente todos os dados de localização do novo perfil.'
+          : 'CNPJ validado. Dados empresariais e endereço sugerido preenchidos.',
+      });
+    } catch (error) {
+      if (requestId !== cnpjLookupRequest.current) {
+        return;
+      }
+      const message =
+        error instanceof TypeError
+          ? `Não foi possível acessar ${apiBaseUrl}.`
+          : error instanceof Error
+            ? error.message
+            : 'Não foi possível consultar o CNPJ.';
+      setLegalName('');
+      setErrors((current) => ({ ...current, cnpj: message }));
+      setCnpjLookup({ status: 'error', message });
+    }
+  }, [existingHosts, existingHostsLoaded, isAddingHostToExistingAccount]);
+
+  const handleCnpjChange = (value: string) => {
+    resetValidation();
+    const masked = maskCnpj(value);
+    const digits = onlyDigits(masked);
+    const requestId = cnpjLookupRequest.current + 1;
+    cnpjLookupRequest.current = requestId;
+    setLegalName('');
+    setReusedCnpj(false);
+    setCnpjLookup({ status: 'idle', message: '' });
+    setHostDraft((current) => ({ ...current, cnpj: masked }));
+
+    if (digits.length === 14) {
+      if (!isValidCnpj(digits)) {
+        setErrors((current) => ({ ...current, cnpj: 'Informe um CNPJ válido.' }));
+        return;
+      }
+      void lookupCnpj(digits, requestId);
+    }
+  };
+
+  useEffect(() => {
+    if (!isAddingHostToExistingAccount || !existingHostsLoaded || sourceCnpjInitialized) {
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      const sourceHostId = Number(params.sourceHostId ?? 0);
+      const sourceHost = existingHosts.find((host) => host.id === sourceHostId) ?? existingHosts[0];
+      if (!sourceHost) {
+        setSubmission({ status: 'error', message: 'Nenhum perfil existente foi encontrado para reutilizar o CNPJ.' });
+        return;
+      }
+
+      const cnpj = onlyDigits(sourceHost.cnpj);
+      const requestId = cnpjLookupRequest.current + 1;
+      cnpjLookupRequest.current = requestId;
+      setSourceHostName(sourceHost.name);
+      setSourceCnpjInitialized(true);
+      setHostDraft((current) => ({ ...current, cnpj: maskCnpj(cnpj) }));
+      void lookupCnpj(cnpj, requestId);
+    }, 0);
+
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [
+    existingHosts,
+    existingHostsLoaded,
+    isAddingHostToExistingAccount,
+    lookupCnpj,
+    params.sourceHostId,
+    sourceCnpjInitialized,
+  ]);
+
+  const lookupCep = async (cep: string, requestId: number) => {
+    setCepLookup({ status: 'loading', message: 'Consultando CEP...' });
+    try {
+      const address = await apiRequest<PostalAddressResponse>(
+        `/api/Address/GetByCEP?cep=${encodeURIComponent(cep)}`,
+      );
+      if (requestId !== cepLookupRequest.current) {
+        return;
+      }
+
+      setHostDraft((current) => ({
+        ...current,
+        address: {
+          ...current.address,
+          city: address.city.trim(),
+          state: address.state.trim(),
+          street: address.street.trim(),
+          neighborhood: address.neighborhood.trim(),
+          cep: maskCep(address.cep),
+        },
+      }));
+      setErrors((current) => ({ ...current, cep: undefined }));
+      setCepLookup({ status: 'success', message: 'CEP localizado. Endereço preenchido automaticamente.' });
+    } catch (error) {
+      if (requestId !== cepLookupRequest.current) {
+        return;
+      }
+      const message =
+        error instanceof TypeError
+          ? `Não foi possível acessar ${apiBaseUrl}. Preencha o endereço manualmente.`
+          : error instanceof Error
+            ? error.message
+            : 'Não foi possível consultar o CEP. Preencha o endereço manualmente.';
+      setErrors((current) => ({ ...current, cep: message }));
+      setCepLookup({ status: 'error', message });
+    }
+  };
+
+  const handleCepChange = (value: string) => {
+    resetValidation();
+    const masked = maskCep(value);
+    const digits = onlyDigits(masked);
+    const requestId = cepLookupRequest.current + 1;
+    cepLookupRequest.current = requestId;
+    setCepLookup({ status: 'idle', message: '' });
+    setHostDraft((current) => ({
+      ...current,
+      address: { ...current.address, cep: masked },
+    }));
+
+    if (digits.length === 8) {
+      void lookupCep(digits, requestId);
+    }
+  };
+
+  const validateRegistration = (): PreparedRegistration | null => {
+    const nextErrors: RegistrationErrors = {};
+    const normalizedEmail = userDraft.email.trim();
+    const phoneDigits = onlyDigits(hostDraft.phone);
+
+    if (!isAuthenticatedHostFlow) {
+      if (!userDraft.name.trim()) {
+        nextErrors.userName = 'Informe o nome completo.';
+      }
+      if (!isValidEmail(normalizedEmail)) {
+        nextErrors.email = 'Informe um e-mail válido.';
+      }
+      if (
+        userDraft.password.length < 8 ||
+        !/[a-z]/.test(userDraft.password) ||
+        !/[A-Z]/.test(userDraft.password) ||
+        !/\d/.test(userDraft.password) ||
+        !/[^A-Za-z0-9]/.test(userDraft.password)
+      ) {
+        nextErrors.password = 'Use 8 caracteres, com maiúscula, minúscula, número e símbolo.';
+      }
+    }
+    if (!hostDraft.name.trim()) {
+      nextErrors.hostName = 'Informe o nome fantasia.';
+    }
+    if (!isValidCnpj(hostDraft.cnpj)) {
+      nextErrors.cnpj = 'Informe um CNPJ válido.';
+    }
+    if (hostDraft.typeofhost === null) {
+      nextErrors.hostType = 'Selecione um tipo de host.';
+    }
+    if (phoneDigits.length > 0 && phoneDigits.length !== 10 && phoneDigits.length !== 11) {
+      nextErrors.phone = 'Informe um telefone com DDD.';
+    }
+    if (!hostDraft.description.trim()) {
+      nextErrors.description = 'Informe uma descrição da empresa.';
+    }
+    if (hostDraft.logoUrl && !isValidUrl(hostDraft.logoUrl)) {
+      nextErrors.logoUrl = 'Use uma URL iniciada por http:// ou https://.';
+    }
+    if (hostDraft.instagranUrl && !isValidUrl(hostDraft.instagranUrl)) {
+      nextErrors.instagranUrl = 'Use uma URL iniciada por http:// ou https://.';
+    }
+    if (hostDraft.address.city.length > 150) {
+      nextErrors.city = 'A cidade deve ter no máximo 150 caracteres.';
+    }
+    if (reusedCnpj && !hostDraft.address.city.trim()) {
+      nextErrors.city = 'Informe a cidade do novo perfil.';
+    }
+    if (!hostDraft.address.street.trim()) {
+      nextErrors.street = 'Informe o logradouro.';
+    }
+    if (!hostDraft.address.number.trim()) {
+      nextErrors.number = 'Informe o número.';
+    }
+    if (reusedCnpj && !hostDraft.address.neighborhood.trim()) {
+      nextErrors.neighborhood = 'Informe o bairro do novo perfil.';
+    }
+    if (onlyDigits(hostDraft.address.cep).length !== 8) {
+      nextErrors.cep = 'Informe um CEP com oito dígitos.';
+    }
+
+    if (Object.keys(nextErrors).length > 0 || hostDraft.typeofhost === null) {
+      setErrors(nextErrors);
+      return null;
+    }
+
+    const prepared: PreparedRegistration = {
+      user: {
+        name: userDraft.name.trim(),
+        email: normalizedEmail,
+        password: userDraft.password,
+        typeofUser: 0,
+      },
+      host: {
+        typeofhost: hostDraft.typeofhost,
+        cnpj: onlyDigits(hostDraft.cnpj),
+        logoUrl: hostDraft.logoUrl.trim(),
+        instagranUrl: hostDraft.instagranUrl.trim(),
+        phone: hostDraft.phone.trim(),
+        name: hostDraft.name.trim(),
+        description: hostDraft.description.trim(),
+        address: {
+          city: hostDraft.address.city.trim(),
+          street: hostDraft.address.street.trim(),
+          number: hostDraft.address.number.trim(),
+          complement: hostDraft.address.complement.trim(),
+          neighborhood: hostDraft.address.neighborhood.trim(),
+          cep: hostDraft.address.cep,
+        },
+      },
+    };
+
+    setErrors({});
+    return prepared;
+  };
+
+  const submitRegistration = async () => {
+    if (isAuthenticatedHostFlow && !existingHostsLoaded) {
+      setSubmission({ status: 'error', message: 'Não foi possível validar os perfis da conta atual.' });
+      return;
+    }
+
+    const prepared = validateRegistration();
+    if (!prepared) {
+      setSubmission({ status: 'error', message: 'Revise os campos destacados.' });
+      return;
+    }
+
+    setSubmission({ status: 'submitting', message: 'Enviando cadastro...' });
+    let accountCreatedDuringAttempt = false;
+
+    try {
+      let accessToken = existingSessionToken;
+      if (!isAuthenticatedHostFlow) {
+        if (!userRegistered) {
+          try {
+            await apiRequest<{ message: string }>('/api/User/auth/Register', {
+              method: 'POST',
+              body: JSON.stringify(prepared.user),
+            });
+            setUserRegistered(true);
+            accountCreatedDuringAttempt = true;
+          } catch (error) {
+            const duplicateAccount =
+              error instanceof ApiRequestError &&
+              Object.keys(error.body?.errors ?? {}).some((key) => key.startsWith('Duplicate'));
+            if (!duplicateAccount) {
+              throw error;
+            }
+            setUserRegistered(true);
+          }
+        }
+
+        const auth = await apiRequest<AuthResponse>('/api/User/auth/Login', {
+          method: 'POST',
+          body: JSON.stringify({
+            email: prepared.user.email,
+            password: prepared.user.password,
+          }),
+        });
+        accessToken = auth.accessToken;
+        storeWebSession(accessToken);
+      }
+
+      const authorization = { Authorization: `Bearer ${accessToken}` };
+
+      if (isEditingHost) {
+        const updated = await apiRequest<HostEditResponse>(`/api/Host/${editingHostId}/Edit`, {
+          method: 'PUT',
+          headers: authorization,
+          body: JSON.stringify(prepared.host),
+        });
+        storeWebSession(accessToken, updated.id);
+        setSubmission({
+          status: 'success',
+          message: `${updated.name} foi atualizado com sucesso.`,
+          hostId: updated.id,
+          addressId: updated.addressId,
+        });
+        return;
+      }
+
+      const company = await apiRequest<CompanyRegistrationResponse>(
+        `/api/Host/GetByCNPJ?cnpj=${encodeURIComponent(prepared.host.cnpj)}`,
+        { headers: authorization },
+      );
+      setLegalName(company.legalName);
+
+      const created = await apiRequest<HostCreateResponse>('/api/Host/Create', {
+        method: 'POST',
+        headers: authorization,
+        body: JSON.stringify(prepared.host),
+      });
+      storeWebSession(created.auth.accessToken, created.result.id);
+
+      setSubmission({
+        status: 'success',
+        message: `${created.result.name} foi cadastrado com sucesso.`,
+        hostId: created.result.id,
+        addressId: created.result.addressId,
+      });
+    } catch (error) {
+      const baseMessage =
+        error instanceof TypeError
+          ? `Não foi possível acessar ${apiBaseUrl}. Verifique se a API está ativa e se o CORS permite esta origem.`
+          : error instanceof Error
+            ? error.message
+            : 'Não foi possível concluir o cadastro.';
+      const partialMessage = accountCreatedDuringAttempt
+        ? `A conta foi criada, mas o host não foi gravado. ${baseMessage}`
+        : baseMessage;
+      setSubmission({ status: 'error', message: partialMessage });
+    }
+  };
 
   return (
     <View style={styles.viewport}>
@@ -94,7 +913,7 @@ export default function HostRegistrationScreen() {
           <Pressable
             accessibilityLabel="Voltar"
             accessibilityRole="button"
-            onPress={() => router.replace('/')}
+            onPress={() => router.replace(isAuthenticatedHostFlow ? '/meus_eventos' : '/')}
             style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}
           >
             <Text style={styles.backIcon}>‹</Text>
@@ -125,103 +944,357 @@ export default function HostRegistrationScreen() {
             showsVerticalScrollIndicator
           >
             <View style={styles.intro}>
-              <Text style={styles.eyebrow}>CADASTRO HOST</Text>
-              <Text style={styles.pageTitle}>Conte sobre sua empresa</Text>
+              <Text style={styles.eyebrow}>
+                {isEditingHost ? 'AJUSTAR HOST' : isAddingHostToExistingAccount ? 'NOVO HOST' : 'CADASTRO HOST'}
+              </Text>
+              <Text style={styles.pageTitle}>
+                {isEditingHost
+                  ? 'Atualize o perfil selecionado'
+                  : isAddingHostToExistingAccount
+                    ? 'Cadastre outro perfil'
+                    : 'Conte sobre sua empresa'}
+              </Text>
               <Text style={styles.pageSubtitle}>
-                Validaremos os dados antes da primeira publicação.
+                {isEditingHost
+                  ? 'Altere os dados do estabelecimento. O CNPJ original será mantido.'
+                  : isAddingHostToExistingAccount
+                  ? 'O novo perfil ficará vinculado à mesma conta e poderá ser selecionado no painel.'
+                  : 'Validaremos os dados antes da primeira publicação.'}
               </Text>
             </View>
 
-            <View style={styles.card}>
+            {isAuthenticatedHostFlow ? (
+              <View style={styles.existingAccountNotice}>
+                <Text style={styles.existingAccountNoticeTitle}>
+                  {isEditingHost ? 'Editando perfil existente' : 'Usando sua conta atual'}
+                </Text>
+                <Text style={styles.existingAccountNoticeText}>
+                  {isEditingHost
+                    ? `As alterações serão aplicadas somente a ${sourceHostName || 'este perfil'}.`
+                    : 'Não é necessário criar outro login. Você poderá alternar entre todos os perfis no painel.'}
+                </Text>
+              </View>
+            ) : (
+              <View style={styles.card}>
               <SectionTitle
                 description="Seus dados de acesso e contato"
                 number="01"
                 title="Dados pessoais"
               />
 
-              <Field label="Nome completo" placeholder="Nome e sobrenome" />
-              <Field label="E-mail" keyboardType="email-address" placeholder="voce@email.com" />
-              <Field label="Senha" placeholder="Mínimo 8 caracteres" secureTextEntry />
-              <Field label="CPF" keyboardType="numeric" placeholder="000.000.000-00" />
-              <Field label="Telefone" keyboardType="phone-pad" placeholder="(81) 99999-9999" />
-            </View>
+              <Field
+                error={errors.userName}
+                label="Nome completo *"
+                maxLength={256}
+                onChangeText={(value) => updateUser('name', value)}
+                placeholder="Nome e sobrenome"
+                value={userDraft.name}
+              />
+              <Field
+                error={errors.email}
+                keyboardType="email-address"
+                label="E-mail *"
+                maxLength={256}
+                onChangeText={(value) => updateUser('email', value)}
+                placeholder="voce@email.com"
+                value={userDraft.email}
+              />
+              <Field
+                error={errors.password}
+                label="Senha *"
+                maxLength={128}
+                onChangeText={(value) => updateUser('password', value)}
+                placeholder="Mínimo 8 caracteres"
+                secureTextEntry
+                value={userDraft.password}
+              />
+
+              <View style={styles.hostAccountNotice}>
+                <Text style={styles.hostAccountNoticeTitle}>Conta destinada a host</Text>
+                <Text style={styles.hostAccountNoticeText}>
+                  O perfil será vinculado automaticamente à função HOST ao concluir o cadastro da empresa.
+                </Text>
+              </View>
+              </View>
+            )}
 
             <View style={styles.card}>
               <SectionTitle
                 description="Você poderá adicionar outras depois"
-                number="02"
+                number={isAuthenticatedHostFlow ? '01' : '02'}
                 title="Dados empresariais"
               />
 
-              <Field label="Razão social" placeholder="Razão social" />
-              <Field label="Nome fantasia" placeholder="Nome da empresa" />
-              <Field label="CNPJ" keyboardType="numeric" placeholder="00.000.000/0000-00" />
+              <Field
+                editable={!isAuthenticatedHostFlow}
+                error={errors.cnpj}
+                keyboardType="numeric"
+                label={isAuthenticatedHostFlow ? 'CNPJ da conta *' : 'CNPJ *'}
+                maxLength={18}
+                onChangeText={handleCnpjChange}
+                placeholder="00.000.000/0000-00"
+                value={hostDraft.cnpj}
+              />
+              {isAddingHostToExistingAccount && !existingHostsLoaded ? (
+                <Text style={styles.lookupMessage}>Carregando os CNPJs já vinculados à conta...</Text>
+              ) : null}
+              {isAddingHostToExistingAccount && sourceHostName ? (
+                <Text style={styles.fixedCnpjMessage}>
+                  CNPJ herdado de {sourceHostName}. Ele não pode ser alterado neste novo perfil.
+                </Text>
+              ) : null}
+              {isEditingHost && sourceHostName ? (
+                <Text style={styles.fixedCnpjMessage}>
+                  O CNPJ de {sourceHostName} é apenas para consulta e não pode ser alterado.
+                </Text>
+              ) : null}
+              {cnpjLookup.status !== 'idle' && cnpjLookup.status !== 'error' && (
+                <Text
+                  accessibilityRole="alert"
+                  style={[
+                    styles.lookupMessage,
+                    cnpjLookup.status === 'success' ? styles.lookupSuccess : styles.lookupLoading,
+                  ]}
+                >
+                  {cnpjLookup.message}
+                </Text>
+              )}
+              <Field
+                editable={false}
+                label="Razão social"
+                maxLength={256}
+                onChangeText={() => undefined}
+                placeholder="Preenchida após validar o CNPJ"
+                value={legalName}
+              />
+              <Field
+                error={errors.hostName}
+                label="Nome da empresa *"
+                maxLength={150}
+                onChangeText={(value) => updateHost('name', value)}
+                placeholder="Nome da empresa"
+                value={hostDraft.name}
+              />
+              {reusedCnpj ? (
+                <View style={styles.reusedCnpjNotice}>
+                  <Text style={styles.reusedCnpjNoticeTitle}>Mesmo CNPJ, novo local</Text>
+                  <Text style={styles.reusedCnpjNoticeText}>
+                    Os dados de localização foram limpos. Informe CEP, cidade, logradouro, número e bairro do novo perfil.
+                  </Text>
+                </View>
+              ) : null}
 
               <View style={styles.fieldGroup}>
-                <Text style={styles.fieldLabel}>Categoria do negócio</Text>
+                <Text style={styles.fieldLabel}>Tipo de host *</Text>
                 <Pressable
-                  accessibilityLabel="Selecionar categoria do negócio"
+                  accessibilityLabel="Selecionar tipo de host"
                   accessibilityRole="button"
-                  onPress={() => setCategoryOpen((current) => !current)}
+                  onPress={() => setHostTypeOpen((current) => !current)}
                   style={({ pressed }) => [styles.select, pressed && styles.pressed]}
                 >
-                  <Text style={styles.selectText}>{category}</Text>
-                  <Text style={styles.chevron}>{categoryOpen ? '⌃' : '⌄'}</Text>
+                  <Text style={styles.selectText}>{selectedHostType?.label ?? 'Selecione'}</Text>
+                  <Text style={styles.chevron}>{hostTypeOpen ? '⌃' : '⌄'}</Text>
                 </Pressable>
 
-                {categoryOpen && (
+                {hostTypeOpen && (
                   <View style={styles.selectMenu}>
-                    {categories.map((item) => (
+                    {hostTypes.map((item) => (
                       <Pressable
-                        key={item}
+                        key={item.value}
                         onPress={() => {
-                          setCategory(item);
-                          setCategoryOpen(false);
+                          resetValidation();
+                          setHostDraft((current) => ({ ...current, typeofhost: item.value }));
+                          setHostTypeOpen(false);
                         }}
                         style={({ pressed }) => [
                           styles.selectOption,
-                          item === category && styles.selectOptionActive,
+                          item.value === hostDraft.typeofhost && styles.selectOptionActive,
                           pressed && styles.pressed,
                         ]}
                       >
-                        <Text style={styles.selectOptionText}>{item}</Text>
+                        <Text style={styles.selectOptionText}>{item.label}</Text>
                       </Pressable>
                     ))}
                   </View>
                 )}
+                {errors.hostType && <Text style={styles.fieldError}>{errors.hostType}</Text>}
               </View>
 
-              <Field label="Endereço do estabelecimento" placeholder="Rua, número, bairro e cidade" />
+              <Field
+                error={errors.phone}
+                keyboardType="phone-pad"
+                label="Telefone"
+                maxLength={15}
+                onChangeText={(value) => updateHost('phone', maskPhone(value))}
+                placeholder="(81) 99999-9999"
+                value={hostDraft.phone}
+              />
+              <Field
+                error={errors.description}
+                label="Descrição da empresa *"
+                maxLength={2000}
+                multiline
+                onChangeText={(value) => updateHost('description', value)}
+                placeholder="Conte brevemente sobre a empresa"
+                value={hostDraft.description}
+              />
+              <Field
+                error={errors.logoUrl}
+                keyboardType="url"
+                label="URL da logo"
+                maxLength={2048}
+                onChangeText={(value) => updateHost('logoUrl', value)}
+                placeholder="https://..."
+                value={hostDraft.logoUrl}
+              />
+              <Field
+                error={errors.instagranUrl}
+                keyboardType="url"
+                label="Instagram"
+                maxLength={2048}
+                onChangeText={(value) => updateHost('instagranUrl', value)}
+                placeholder="https://instagram.com/..."
+                value={hostDraft.instagranUrl}
+              />
+            </View>
 
-              <Pressable
-                accessibilityRole="button"
-                style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}
-              >
-                <Text style={styles.secondaryButtonText}>＋ Adicionar outro CNPJ / Estabelecimento</Text>
-              </Pressable>
+            <View style={styles.card}>
+              <SectionTitle
+                description="Informe o endereço usado no cadastro do estabelecimento"
+                number={isAuthenticatedHostFlow ? '02' : '03'}
+                title="Endereço"
+              />
+
+              <Field
+                error={errors.cep}
+                label="CEP *"
+                keyboardType="numeric"
+                maxLength={9}
+                onChangeText={handleCepChange}
+                placeholder="00000-000"
+                value={hostDraft.address.cep}
+              />
+              {cepLookup.status !== 'idle' && cepLookup.status !== 'error' && (
+                <Text
+                  accessibilityRole="alert"
+                  style={[
+                    styles.lookupMessage,
+                    cepLookup.status === 'success' ? styles.lookupSuccess : styles.lookupLoading,
+                  ]}
+                >
+                  {cepLookup.message}
+                </Text>
+              )}
+              <Field
+                error={errors.city}
+                label="Cidade"
+                maxLength={150}
+                onChangeText={(value) => updateAddress('city', value)}
+                placeholder="Recife"
+                value={hostDraft.address.city}
+              />
+              <Field
+                editable={false}
+                label="Estado"
+                maxLength={2}
+                onChangeText={() => undefined}
+                placeholder="Preenchido após consultar o CNPJ ou CEP"
+                value={hostDraft.address.state}
+              />
+              <Field
+                error={errors.street}
+                label="Logradouro *"
+                maxLength={300}
+                onChangeText={(value) => updateAddress('street', value)}
+                placeholder="Rua ou avenida"
+                value={hostDraft.address.street}
+              />
+              <Field
+                error={errors.number}
+                label="Número *"
+                maxLength={20}
+                onChangeText={(value) => updateAddress('number', value)}
+                placeholder="77"
+                value={hostDraft.address.number}
+              />
+              <Field
+                error={errors.complement}
+                label="Complemento"
+                maxLength={200}
+                onChangeText={(value) => updateAddress('complement', value)}
+                placeholder="Sala, bloco ou ponto de referência"
+                value={hostDraft.address.complement}
+              />
+              <Field
+                error={errors.neighborhood}
+                label="Bairro"
+                maxLength={150}
+                onChangeText={(value) => updateAddress('neighborhood', value)}
+                placeholder="Bairro do Recife"
+                value={hostDraft.address.neighborhood}
+              />
+
             </View>
 
             <Pressable
               accessibilityRole="button"
-              style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}
+              disabled={submission.status === 'submitting'}
+              onPress={submitRegistration}
+              style={({ pressed }) => [
+                styles.primaryButton,
+                pressed && styles.pressed,
+                submission.status === 'submitting' && styles.buttonDisabled,
+              ]}
             >
-              <Text style={styles.primaryButtonText}>Validar CNPJ</Text>
+              <Text style={styles.primaryButtonText}>
+                {submission.status === 'submitting'
+                  ? 'Enviando...'
+                  : isEditingHost
+                    ? 'Salvar alterações'
+                    : 'Cadastrar host'}
+              </Text>
             </Pressable>
 
-            <View style={styles.securityNotice}>
-              <Text style={styles.securityIcon}>✓</Text>
-              <View style={styles.securityCopy}>
-                <Text style={styles.securityTitle}>Aprovação segura</Text>
-                <Text style={styles.securityDescription}>
-                  Após o cadastro, simularemos a análise da empresa e liberaremos seu painel.
+            {submission.status === 'success' ? (
+              <View accessibilityRole="alert" style={styles.securityNotice}>
+                <Text style={styles.securityIcon}>✓</Text>
+                <View style={styles.securityCopy}>
+                  <Text style={styles.securityTitle}>
+                    {isEditingHost ? 'Host atualizado' : 'Host cadastrado'}
+                  </Text>
+                  <Text style={styles.securityDescription}>
+                    {submission.message} ID do host: {submission.hostId}. ID do endereço:{' '}
+                    {submission.addressId}.
+                  </Text>
+                  {isAuthenticatedHostFlow ? (
+                    <Pressable
+                      accessibilityRole="button"
+                      onPress={() => router.replace('/meus_eventos')}
+                      style={styles.returnToHostsButton}
+                    >
+                      <Text style={styles.returnToHostsButtonText}>Voltar para meus eventos</Text>
+                    </Pressable>
+                  ) : null}
+                </View>
+              </View>
+            ) : submission.status === 'error' ? (
+              <View accessibilityRole="alert" style={styles.errorNotice}>
+                <Text style={styles.errorNoticeTitle}>Cadastro não concluído</Text>
+                <Text style={styles.errorNoticeText}>{submission.message}</Text>
+              </View>
+            ) : (
+              <View style={styles.pendingNotice}>
+                <Text style={styles.pendingNoticeTitle}>
+                  {submission.status === 'submitting' ? 'Cadastro em andamento' : 'Cadastro seguro'}
+                </Text>
+                <Text style={styles.pendingNoticeText}>
+                  {submission.status === 'submitting'
+                    ? submission.message
+                    : 'Validaremos a conta, o CNPJ e o endereço antes de concluir o cadastro.'}
                 </Text>
               </View>
-            </View>
+            )}
 
-            <View style={styles.loginRow}>
-              <Text style={styles.loginText}>Já tem conta? </Text>
-              <Text style={styles.loginLink}>Entrar</Text>
-            </View>
           </ScrollView>
         </KeyboardAvoidingView>
       </View>
@@ -336,6 +1409,16 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     borderWidth: 1,
   },
+  existingAccountNotice: {
+    padding: 16,
+    gap: 5,
+    backgroundColor: '#EAF1FA',
+    borderColor: '#C5D6E8',
+    borderRadius: 16,
+    borderWidth: 1,
+  },
+  existingAccountNoticeTitle: { color: colors.ink, fontSize: 13, fontWeight: '800' },
+  existingAccountNoticeText: { color: colors.muted, fontSize: 11, lineHeight: 17 },
   sectionTitleRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -389,6 +1472,66 @@ const styles = StyleSheet.create({
     borderRadius: 13,
     borderWidth: 1,
   },
+  inputDisabled: {
+    color: colors.muted,
+    backgroundColor: '#F3F0EA',
+  },
+  inputError: {
+    borderColor: '#C62828',
+  },
+  fieldError: {
+    color: '#B42318',
+    fontSize: 11,
+    lineHeight: 15,
+  },
+  lookupMessage: {
+    marginTop: -4,
+    fontSize: 11,
+    lineHeight: 15,
+  },
+  lookupLoading: {
+    color: colors.muted,
+  },
+  lookupSuccess: {
+    color: colors.success,
+  },
+  textArea: {
+    minHeight: 104,
+    paddingTop: 14,
+  },
+  hostAccountNotice: {
+    padding: 13,
+    backgroundColor: '#FFF4EC',
+    borderRadius: 13,
+  },
+  hostAccountNoticeTitle: {
+    color: colors.orange,
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  hostAccountNoticeText: {
+    marginTop: 4,
+    color: colors.muted,
+    fontSize: 11,
+    lineHeight: 16,
+  },
+  reusedCnpjNotice: {
+    padding: 13,
+    gap: 4,
+    backgroundColor: '#FFF4EC',
+    borderColor: '#FFC9A8',
+    borderRadius: 13,
+    borderWidth: 1,
+  },
+  reusedCnpjNoticeTitle: { color: colors.orange, fontSize: 12, fontWeight: '800' },
+  reusedCnpjNoticeText: { color: colors.muted, fontSize: 11, lineHeight: 16 },
+  fixedCnpjMessage: {
+    marginTop: -4,
+    color: colors.ink,
+    fontSize: 10,
+    fontWeight: '700',
+    lineHeight: 15,
+  },
   select: {
     minHeight: 52,
     paddingHorizontal: 14,
@@ -429,22 +1572,6 @@ const styles = StyleSheet.create({
     color: colors.ink,
     fontSize: 13,
   },
-  secondaryButton: {
-    minHeight: 48,
-    paddingHorizontal: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#FFF4EC',
-    borderColor: '#FFD7C2',
-    borderRadius: 13,
-    borderWidth: 1,
-  },
-  secondaryButtonText: {
-    color: colors.orange,
-    fontSize: 12,
-    fontWeight: '700',
-    textAlign: 'center',
-  },
   primaryButton: {
     minHeight: 52,
     alignItems: 'center',
@@ -460,6 +1587,9 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 15,
     fontWeight: '800',
+  },
+  buttonDisabled: {
+    opacity: 0.62,
   },
   securityNotice: {
     padding: 15,
@@ -488,19 +1618,48 @@ const styles = StyleSheet.create({
     fontSize: 11,
     lineHeight: 16,
   },
-  loginRow: {
-    paddingTop: 6,
-    flexDirection: 'row',
+  returnToHostsButton: {
+    minHeight: 38,
+    marginTop: 10,
+    borderRadius: 10,
+    alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: colors.success,
   },
-  loginText: {
-    color: colors.muted,
-    fontSize: 12,
+  returnToHostsButtonText: { color: colors.card, fontSize: 11, fontWeight: '800' },
+  pendingNotice: {
+    padding: 15,
+    backgroundColor: '#FFF4EC',
+    borderRadius: 14,
   },
-  loginLink: {
+  pendingNoticeTitle: {
     color: colors.orange,
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: '800',
+  },
+  pendingNoticeText: {
+    marginTop: 4,
+    color: colors.muted,
+    fontSize: 11,
+    lineHeight: 16,
+  },
+  errorNotice: {
+    padding: 15,
+    backgroundColor: '#FFF1F0',
+    borderColor: '#FECACA',
+    borderRadius: 14,
+    borderWidth: 1,
+  },
+  errorNoticeTitle: {
+    color: '#B42318',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  errorNoticeText: {
+    marginTop: 4,
+    color: '#7A271A',
+    fontSize: 11,
+    lineHeight: 16,
   },
   pressed: {
     opacity: 0.72,

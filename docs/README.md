@@ -70,6 +70,8 @@ Validação da alteração de bairro opcional: build GeoLocation concluído com 
 
 ## Geocodificação via Geoapify — 19/10/2026
 
+Atualização local em 28/10/2026: a chave de desenvolvimento foi configurada no .NET User Secrets associado a `backend/Projetos - 4/Projetos - 4.csproj`. O valor permanece fora do repositório e não é documentado. Foi removida do `Program.cs` a recarga redundante de `appsettings.json`, variáveis de ambiente e argumentos: `WebApplication.CreateBuilder` já adiciona essas fontes e o bloco posterior fazia o valor vazio de `Geoapify:ApiKey` do JSON sobrescrever o User Secrets. Com `ASPNETCORE_ENVIRONMENT=Development`, basta reiniciar a API normalmente; não é necessário redefinir `Geoapify__ApiKey` em cada terminal. Essa configuração vale somente para o usuário Windows e a máquina atuais. Não houve mudança de rota, DTO, autorização, resposta ou persistência; o protótipo externo não precisou de ajuste. PDFs não foram regenerados.
+
 Cadastro de host e programação consulta o Geoapify antes de persistir, após verificar usuário/propriedade. A edição consulta somente se Location for nula ou se Address, AddressNumber, Neighborhood ou CEP mudar. Alterar apenas complemento não consulta. Falha não salva o cadastro/edição nem substitui as coordenadas anteriores; os demais dados rastreados só são alterados após sucesso da geocodificação.
 
 - Entrada HTTP permanece igual: logradouro, número opcional, bairro opcional e CEP; o complemento não participa da busca. Não há novo endpoint de geocodificação nem entrada de coordenadas pelo cliente.
@@ -685,6 +687,85 @@ Diagnóstico confirmado em leitura: GET /api/Programming/Filter?take=10&skip=0 r
 
 A consulta de programações não foi alterada nesta correção: eventos em andamento são permitidos até EndDate; encerrados permanecem fora da busca. As três programações verificadas ainda não haviam iniciado, portanto o resultado único não era causado por datas. 60 testes simulados do protótipo e node --check aprovados; duas consultas HTTP reais de leitura confirmaram os resultados acima. Nenhuma gravação no banco, migration ou reinicialização da API do Visual Studio. Após Ctrl+F5, novos formulários de filtro começam sem host/preços implícitos. PDFs preservados.
 
+## CORS do frontend web local — 27/10/2026
+
+O backend passou a aplicar a política nomeada `FrontendCors`, restrita ao Expo Web local em `http://localhost:8081` e `http://localhost:8082`, com métodos e cabeçalhos permitidos. A política é executada antes da autenticação e autorização. Nenhuma rota, DTO, regra de negócio, model, migration, configuração de banco ou container foi alterada. Consulte [Arquitetura frontend e backend](08-arquitetura-frontend-backend.md). Validação por compilação registrada; teste integrado no navegador permanece pendente. PDFs não foram regenerados.
+
+## Inicialização das roles estruturais — 27/10/2026
+
+Após as migrations, a API passa a garantir com `RoleManager` a existência idempotente de `HOST` e `ADMIN`. O ajuste corrige bancos novos ou esvaziados cuja tabela `AspNetRoles` não possui essas entradas. Criar a role não a atribui a usuários: `HOST` continua vinculada no cadastro transacional do host e `ADMIN` permanece dependente de atribuição explícita. Rotas, DTOs, claims, models, migrations, frontend e protótipo foram preservados. O build normal encontrou o executável bloqueado pela API já aberta; repetido com saída temporária, compilou com zero erros e zero avisos. A API não foi reiniciada e o banco não foi alterado durante esta validação. PDFs não foram regenerados.
+
+## Frontend de criação de programação integrado — 28/10/2026
+
+A rota `/` do Expo Web foi alinhada ao `ProgrammingDTO`: envia nome/descrição, início e término UTC, gratuidade, preços mínimo/máximo, URLs, categorias por ID e endereço estruturado para `POST /api/Programming/{hostId}/Create`. Hosts e categorias são carregados pelos endpoints existentes. O cadastro de host guarda temporariamente, em `sessionStorage`, o JWT atualizado e o host criado para continuidade na mesma aba; não foi criada tela de login nem persistência multiplataforma.
+
+Upload de arquivo e rascunho permanecem indisponíveis por não haver contratos no backend; imagem é informada por URL. `tsc --noEmit` e ESLint direto nos arquivos alterados foram aprovados; rota e bundle web responderam HTTP 200. O wrapper `expo lint` permaneceu sem saída por mais de 90 segundos e foi interrompido, mas a execução direta do ESLint concluiu sem diagnóstico. A API inicialmente retornou lista vazia de categorias; o catálogo local foi preenchido na etapa seguinte. Nenhuma programação foi gravada e o backend/protótipo não foram alterados. PDFs não foram regenerados.
+
+## Catálogo inicial de categorias — 28/10/2026
+
+O banco local `perambulando` no container `perambulando-postgres` recebeu, em transação idempotente, 12 categorias ativas: Música, Gastronomia, Artes e exposições, Teatro, Dança, Cinema, Esportes, Feiras e mercados, Cultura popular, Infantil, Literatura e Negócios e tecnologia. Nomes preexistentes seriam reativados e não duplicados; nesta execução a tabela estava vazia e 12 linhas foram inseridas.
+
+Validação: consulta SQL retornou 12 registros ativos; `GET /api/Category/GetallCategories` respondeu HTTP 200 com os mesmos 12 IDs e nomes. Nenhuma tabela, migration, model, DTO, rota ou código do backend foi alterado. PDFs não foram regenerados.
+
+## Autopreenchimento de CNPJ e CEP no frontend — 03/11/2026
+
+O cadastro Expo de host passou a consultar CNPJ e CEP automaticamente quando os valores ficam completos. CNPJ ativo preenche razão social, nome fantasia e endereço sugerido; CEP preenche cidade, UF auxiliar, logradouro e bairro, preservando número/complemento. `GET /api/Host/GetByCNPJ` e `GET /api/Address/GetByCEP` receberam `AllowAnonymous` para funcionar antes da criação/login da conta; operações de gravação permanecem protegidas e revalidam os dados. Consulte [Controllers](01-controllers.md), [Regras de negócio](02-regras-de-negocio.md), [DTOs](04-dtos.md) e [Arquitetura frontend e backend](08-arquitetura-frontend-backend.md).
+
+Build do backend, TypeScript e ESLint direto da tela aprovados. Teste HTTP temporário bloqueado pela permissão do Event Log no ambiente isolado; `expo lint` sem saída foi interrompido. Protótipo externo indisponível no caminho configurado. Nenhuma migration, gravação ou atualização de PDF. Rate limiting dos dois endpoints públicos permanece pendente para implantação pública.
+
+## CEP primeiro e autopreenchimento na criação de evento — 03/11/2026
+
+A seção “Onde acontece” da tela Expo de criação de evento agora começa pelo CEP. Com JWT de host na sessão, o endereço retornado em `GetAllHostsbyUserId` preenche imediatamente CEP, cidade, logradouro, número, complemento e bairro do host selecionado como sugestão; `GET /api/Address/GetByCEP` completa a UF. Trocar o host troca a sugestão, e editar o CEP consulta novamente cidade/UF/logradouro/bairro, preservando número/complemento. Sem login, hosts e provedor não são consultados. A UF auxiliar não é enviada porque não pertence ao `AddressCreateDTO`. TypeScript, ESLint direto e `git diff --check` aprovados; sem chamada real ao provedor, gravação no banco, mudança de backend/protótipo ou PDF.
+
+## Autocomplete de endereços cadastrados no evento — 03/11/2026
+
+O Logradouro da criação de evento consulta `GET /api/Address/GetAllAddress` com JWT após 300 ms e seis letras/dígitos, apresentando até dez endereços cadastrados. Selecionar uma opção preenche o formulário e faz o POST reutilizar `addressId`; editar qualquer parte do endereço desfaz a seleção e volta a enviar um endereço novo. O endereço sugerido pelo host também preserva o ID existente. TypeScript, ESLint direto e `git diff --check` aprovados; sem alteração do backend, banco, migration, protótipo ou PDF.
+
+## Rótulo Comércio no frontend — 03/11/2026
+
+O tipo de host e a navegação inferior passaram a exibir `Comércio` no lugar de `Empresa`. O enum enviado à API continua com valor `2`; contratos e banco não mudaram. PDFs não foram regenerados.
+
+## US20 — Painel de gestão do host no frontend — 13/11/2026
+
+A nova rota `/meus_eventos` implementa o painel solicitado para a navegação “Meus eventos”, que passa a abrir a tela e fica visualmente selecionada nela. O painel protege a consulta pela sessão JWT atual, lista e alterna os estabelecimentos ativos do usuário, resume programações ativas, futuras e encerradas e oferece atalhos para criação e administração. São tratados carregamento, falha da API, sessão ausente/expirada, usuário sem estabelecimento e estabelecimento sem programação.
+
+A implementação reutiliza `GetAllHostsbyUserId` e `Host/Details/{hostId}` sem mudar o backend. TypeScript, ESLint direto dos arquivos envolvidos e `git diff --check` foram aprovados. Não houve teste HTTP ou login real, alteração de banco/API/protótipo externo nem geração de PDF. Consulte [Arquitetura frontend e backend](08-arquitetura-frontend-backend.md).
+
+## Edição de programação pelo painel — 13/11/2026
+
+As programações listadas em `/meus_eventos` agora são clicáveis e abrem `/editar_evento` com o formulário preenchido pelos detalhes da programação. O modo de edição mantém o host original, permite ajustar os campos suportados por `ProgrammingDTO`, restaura os dados carregados e salva em `PUT /api/Programming/{hostId}/Edit/{programmingId}`. Após sucesso, o usuário pode retornar ao painel atualizado; “Meus eventos” permanece destacado na navegação durante a edição.
+
+TypeScript, ESLint direto e resposta HTTP 200 da nova rota no Expo local foram validados. A leitura real dos detalhes da programação 2 (“festa na arvore”) confirmou os campos necessários ao preenchimento, sem escrita. Não houve PUT real, gravação no banco, alteração de backend/protótipo externo ou geração de PDF. Detalhes em [Arquitetura frontend e backend](08-arquitetura-frontend-backend.md).
+
+## Múltiplos hosts por conta e CNPJ reutilizável — 13/11/2026
+
+O painel `/meus_eventos` ganhou o card destacado “Novo host” ao lado dos estabelecimentos existentes. O cadastro aberto por esse card reutiliza o JWT atual e não solicita outra conta. CNPJs diferentes são aceitos normalmente; ao reutilizar um CNPJ já presente na conta, a interface limpa a localidade e exige o preenchimento do novo CEP, cidade, logradouro, número e bairro antes de enviar.
+
+No backend, o CNPJ pode se repetir entre hosts do mesmo `UserId`, mas continua retornando 409 quando pertence a outro proprietário. A atribuição da role `HOST` tornou-se idempotente para permitir o segundo cadastro. Não houve mudança de rota, DTO, entidade, schema ou migration. TypeScript, ESLint e build .NET foram aprovados; nenhum POST ou dado real foi criado. Reinício da API, teste HTTP de escrita e atualização do protótipo externo permanecem pendentes; o caminho exigido para o protótipo não existe neste computador. PDFs não foram regenerados. Consulte [Controllers](01-controllers.md), [Regras de negócio](02-regras-de-negocio.md) e [Arquitetura frontend e backend](08-arquitetura-frontend-backend.md).
+
+### Correção: novo host sem escolha de outro CNPJ — 13/11/2026
+
+A regra anterior foi restringida: apenas o primeiro host define o CNPJ da conta. O card “Novo host” reaproveita o CNPJ do perfil selecionado, mostra-o como somente leitura e exige os novos dados de localização. O backend rejeita CNPJ diferente para host adicional, mesmo fora da interface, e continua bloqueando uso por outro proprietário. TypeScript, ESLint e build .NET aprovados; sem POST real, migration, atualização do protótipo externo ou PDF. Reinicie a API para carregar a regra. Consulte [Controllers](01-controllers.md), [Regras de negócio](02-regras-de-negocio.md) e [Arquitetura frontend e backend](08-arquitetura-frontend-backend.md).
+
+## Confirmação de exclusão de programação no painel — 13/11/2026
+
+Os cards de `/meus_eventos` agora exibem uma lixeira vermelha no canto inferior direito. Ela abre um modal de confirmação com cancelar ou excluir; a confirmação chama o PATCH de desativação já existente, trata falhas dentro do modal e remove o item da lista após sucesso. O restante do card continua abrindo a edição. TypeScript e ESLint foram aprovados; nenhum PATCH real foi executado e nenhum dado foi desativado durante a validação. Backend, protótipo e PDFs foram preservados. Consulte [Arquitetura frontend e backend](08-arquitetura-frontend-backend.md).
+
+## Administração dos dados do host — 13/11/2026
+
+O botão “Administrar” do perfil selecionado em `/meus_eventos` abre o formulário preenchido daquele host. Tipo, nome, contato, descrição, mídias e endereço podem ser ajustados; o CNPJ aparece bloqueado. O salvamento usa o PUT de edição existente, e o backend passou a rejeitar também chamadas diretas que tentem trocar o CNPJ. Não houve mudança de rota, DTO, entidade ou migration. TypeScript, ESLint e build .NET foram aprovados; nenhum PUT real foi executado. O protótipo externo está indisponível no caminho configurado e os PDFs foram preservados. Consulte [Controllers](01-controllers.md), [Regras de negócio](02-regras-de-negocio.md) e [Arquitetura frontend e backend](08-arquitetura-frontend-backend.md).
+
+### Scroll lateral dos perfis — 13/11/2026
+
+A lista de hosts do painel passou a explicitar a rolagem horizontal, com indicador e orientação de arraste. O gesto lateral funciona de forma aninhada no mobile, e o Expo Web também aceita arrastar a faixa com o mouse. Nenhum arquivo ou contrato do backend foi alterado nesta etapa. Consulte [Arquitetura frontend e backend](08-arquitetura-frontend-backend.md).
+
+## Página de perfil do usuário — 13/11/2026
+
+O avatar “A” dos cabeçalhos agora abre `/perfil`. A página usa o endpoint de perfil já existente para exibir nome, e-mail, tipo de usuário, plano, data de cadastro e ID da conta, com tratamento de carregamento, autenticação ausente e erro. A senha permanece protegida e não é exibida. TypeScript, ESLint e a rota web foram validados. Nenhum arquivo do backend foi alterado nesta etapa; PDFs foram preservados. Consulte [Arquitetura frontend e backend](08-arquitetura-frontend-backend.md).
+
+## CNPJ antes do nome fantasia — 16/11/2026
+
+O formulário de host agora inicia os dados empresariais pelo CNPJ e apresenta razão social e nome fantasia em seguida. O comportamento de consulta e autopreenchimento foi preservado. Mudança exclusiva do frontend, sem alterações no backend ou em contratos. Consulte [Arquitetura frontend e backend](08-arquitetura-frontend-backend.md).
 
 ## US17 — primeira etapa preparada em 27/10/2026
 

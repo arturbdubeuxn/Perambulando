@@ -163,7 +163,7 @@ namespace Projetos___4.Presentation.Controllers
             }
         }
 
-        [Authorize]
+        [AllowAnonymous]
         [HttpGet("GetByCNPJ")]
         public async Task<IActionResult> GetByCNPJ([FromQuery] string cnpj)
         {

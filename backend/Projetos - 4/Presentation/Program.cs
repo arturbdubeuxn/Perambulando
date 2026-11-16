@@ -33,6 +33,9 @@ using Projetos___4.Application.DTO;
 
 
 var builder = WebApplication.CreateBuilder(args);
+
+const string FrontendCorsPolicy = "FrontendCors";
+
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
@@ -47,15 +50,31 @@ builder.Services.AddRateLimiter(options =>
                 AutoReplenishment = true
             }));
 });
+
 if (builder.Environment.IsDevelopment())
 {
-    builder.Configuration.AddJsonFile("appsettings.json", optional: true, reloadOnChange: false);
+    builder.Configuration.AddJsonFile(
+        "appsettings.json",
+        optional: true,
+        reloadOnChange: false);
+
     builder.Configuration.AddEnvironmentVariables();
     builder.Configuration.AddCommandLine(args);
 }
 
-
 builder.Services.AddControllers();
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy(FrontendCorsPolicy, policy =>
+    {
+        policy
+            .WithOrigins(
+                "http://localhost:8081",
+                "http://localhost:8082")
+            .AllowAnyHeader()
+            .AllowAnyMethod();
+    });
+});
 
 builder.Services.AddDbContext<Context>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"),
@@ -278,16 +297,37 @@ if (app.Environment.IsDevelopment())
     await context.Database.MigrateAsync();
 }
 
+var requiredRoles = new[] { "HOST", "ADMIN" };
+
+await using (var roleScope = app.Services.CreateAsyncScope())
+{
+    var roleManager = roleScope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
+
+    foreach (var roleName in requiredRoles)
+    {
+        if (!await roleManager.RoleExistsAsync(roleName))
+        {
+            var result = await roleManager.CreateAsync(new IdentityRole(roleName));
+            if (!result.Succeeded)
+            {
+                throw new InvalidOperationException($"Não foi possível criar a role {roleName}.");
+            }
+        }
+    }
+}
+
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
 }
 app.UseHttpsRedirection(); 
 app.UseRouting();
-app.UseAuthentication(); 
-app.UseAuthorization();  
+app.UseCors(FrontendCorsPolicy);
+app.UseAuthentication();
+app.UseAuthorization();
 app.UseRateLimiter();
 app.MapControllers();
+// Removed duplicate middleware registrations
 app.Run();
 
 

@@ -16,17 +16,18 @@ namespace Projetos___4.Data.Repository
             Db = db;
         }
 
-        public Task<bool> CnpjExistsAsync(string cnpj, int excludedHostId = 0)
+        public Task<bool> CnpjExistsForAnotherUserAsync(string cnpj, string ownerUserId, int excludedHostId = 0)
         {
             return Db.Hosts.AnyAsync(host => host.Id != excludedHostId &&
+                host.UserId != ownerUserId &&
                 host.CNPJ.Trim().Replace(".", "").Replace("/", "").Replace("-", "").ToUpper() == cnpj);
         }
 
         private async Task CheckCnpjForSaveAsync(Hosts host)
         {
-            if (await CnpjExistsAsync(host.CNPJ, host.Id))
+            if (await CnpjExistsForAnotherUserAsync(host.CNPJ, host.UserId, host.Id))
             {
-                throw new CnpjException(CnpjFailure.Duplicate, "Já existe um host cadastrado com este CNPJ.");
+                throw new CnpjException(CnpjFailure.Duplicate, "Este CNPJ já está vinculado a outro proprietário.");
             }
         }
 

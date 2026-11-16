@@ -44,12 +44,22 @@ namespace Projetos___4.Domain.Service
             return company;
         }
 
-        private async Task<string> ValidateHostCnpjAsync(string cnpj, int hostId, string? previousCnpj = null)
+        private async Task<string> ValidateHostCnpjAsync(string cnpj, string ownerUserId, int hostId, string? previousCnpj = null)
         {
             var normalized = _cnpjValidations.ValidateCnpj(cnpj);
-            if (await _hostRepository.CnpjExistsAsync(normalized, hostId))
+            if (hostId == 0)
             {
-                throw new CnpjException(CnpjFailure.Duplicate, "Já existe um host cadastrado com este CNPJ.");
+                var ownerHosts = await _hostRepository.GetAllHostsbyUserId(ownerUserId);
+                if (ownerHosts.Any() && !ownerHosts.Any(existingHost =>
+                    existingHost.CNPJ.Trim().Replace(".", "").Replace("/", "").Replace("-", "").ToUpperInvariant() == normalized))
+                {
+                    throw new CnpjException(CnpjFailure.Invalid, "Novos hosts devem usar o mesmo CNPJ já vinculado a esta conta.");
+                }
+            }
+
+            if (await _hostRepository.CnpjExistsForAnotherUserAsync(normalized, ownerUserId, hostId))
+            {
+                throw new CnpjException(CnpjFailure.Duplicate, "Este CNPJ já está vinculado a outro proprietário.");
             }
             var previous = previousCnpj?.Trim().Replace(".", "").Replace("/", "").Replace("-", "").ToUpperInvariant();
             if (previous != normalized)
@@ -84,26 +94,37 @@ namespace Projetos___4.Domain.Service
                 throw new InvalidOperationException("User not found.");
             }
 
-            if (host.OpeningDays != null)
-            {
-                if (host.Typeofhost != Hosts.TypeofHost.Gastronomy && host.Typeofhost != Hosts.TypeofHost.Business)
-                {
-                    throw new ArgumentException("O funcionamento semanal está disponível somente para hosts de gastronomia e comércio.");
-                }
-                _openingHoursValidations.ValidateWeek(host.OpeningDays.ToList());
-                if (host.OpeningDays.Any(day => day.Id != 0 || day.HostId != 0 ||
-                    day.Periods.Any(period => period.Id != 0 || period.HostOpeningDayId != 0)))
-                {
-                    throw new ArgumentException("Informe somente novos dias e períodos para o cadastro do host.");
-                }
-            }
+if (host.OpeningDays != null)
+{
+    if (host.Typeofhost != Hosts.TypeofHost.Gastronomy &&
+        host.Typeofhost != Hosts.TypeofHost.Business)
+    {
+        throw new ArgumentException(
+            "O funcionamento semanal está disponível somente para hosts de gastronomia e comércio.");
+    }
 
-            host.CNPJ = await ValidateHostCnpjAsync(host.CNPJ, 0);
+    _openingHoursValidations.ValidateWeek(host.OpeningDays.ToList());
+
+    if (host.OpeningDays.Any(day => day.Id != 0 || day.HostId != 0 ||
+        day.Periods.Any(period =>
+            period.Id != 0 || period.HostOpeningDayId != 0)))
+    {
+        throw new ArgumentException(
+            "Informe somente novos dias e períodos para o cadastro do host.");
+    }
+}
+
+host.CNPJ = await ValidateHostCnpjAsync(host.CNPJ, userId, 0);
             host.Address = await _addressService.AddAddress(host.AddressId, host.Address, userId);
             host.AddressId = host.Address.Id;
 
             var result = await _hostRepository.Create(host, async () =>
             {
+                    if (await _userManager.IsInRoleAsync(user, "HOST"))
+                    {
+                        return;
+                    }
+
                     var roleResult = await _userManager.AddToRoleAsync(user, "HOST");
                     if (!roleResult.Succeeded)
                     {
@@ -154,7 +175,14 @@ namespace Projetos___4.Domain.Service
                 return null;
             }
 
-            host.CNPJ = await ValidateHostCnpjAsync(host.CNPJ, existing.Id, existing.CNPJ);
+            var normalizedSubmittedCnpj = _cnpjValidations.ValidateCnpj(host.CNPJ);
+            var normalizedExistingCnpj = _cnpjValidations.ValidateCnpj(existing.CNPJ);
+            if (normalizedSubmittedCnpj != normalizedExistingCnpj)
+            {
+                throw new CnpjException(CnpjFailure.Invalid, "O CNPJ do host não pode ser alterado.");
+            }
+
+            host.CNPJ = await ValidateHostCnpjAsync(host.CNPJ, existing.UserId, existing.Id, existing.CNPJ);
             var address = await _addressService.AddAddress(host.AddressId, host.Address, userId);
 
             existing.Typeofhost = host.Typeofhost;

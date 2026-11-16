@@ -1,5 +1,7 @@
 # Perambulando — Documentação dos endpoints
 
+Atualização: 03/11/2026.
+
 > Atualização de 21/10/2026: a refatoração de Address está preparada no código e aguarda revisão **antes da migration**. O banco ainda tem o schema anterior. Consulte a [revisão dos contratos e da transferência de dados](validacoes/refatoracao-address-revisao-2026-10-21.md); as descrições antigas de endereço neste arquivo representam a versão anterior.
 
 
@@ -37,7 +39,7 @@ Conferido em 19/10/2026 a partir dos controllers, DTOs e serviços salvos do pro
 | Programming | PATCH | `/api/Programming/{hostId}/Delete/{programmingId}` | ADMIN ou HOST e dono do host |
 | Category | GET | `/api/Category/GetallCategories` | Público |
 | Category | PUT | `/api/Category/EditCategoryToUser` | Autenticado |
-| Address | GET | `/api/Address/GetAllAddress?search=...&limit=10` | Autenticado; código aguardando migration |
+| Address | GET | `/api/Address/GetAllAddress?search=...` | Autenticado |
 
 ## UserController
 
@@ -164,6 +166,8 @@ Tipos: `0` = Productor (Produtor); `1` = Gastronomy (Gastronomia); `2` = Busines
 O DTO de cadastro ainda não possui atributos que exijam os campos ou validem o enum. AddressNumber é opcional, string de até 20 caracteres, e AddressComplement é opcional, string de até 200 caracteres. Não há validação formal de CNPJ/CEP no DTO; a geocodificação exige logradouro e CEP e pode rejeitar endereços não localizados. O host é salvo sem exigir programações.
 
 O serviço atribui a role `HOST` ao usuário, caso necessário. A resposta contém um JWT atualizado, evitando repetir o login.
+
+As roles estruturais `HOST` e `ADMIN` são garantidas de forma idempotente na inicialização da API, antes de os endpoints receberem requisições. Isso evita a falha de infraestrutura causada por uma tabela `AspNetRoles` vazia; não modifica o corpo, a autorização nem a resposta deste endpoint.
 
 Retornos: `201` com `{"result":{"id":10,"addressId":7,"name":"Minha empresa"},"auth":{"accessToken":"JWT","tokenType":"Bearer","expiresAt":"..."}}`; `401` para usuário ausente/inativo; `500` para as falhas tratadas de cadastro ou atribuição de role. Se a atribuição da role falhar, a transação desfaz o cadastro do host e do endereço novo.
 
@@ -413,7 +417,7 @@ Validação adicional no PostgreSQL — 20/10/2026: oito verificações com Cont
 
 **Estado atual do código:** endereço normalizado na entidade Address (tabela planejada Addresses), com Street, Number, Complement, Neighborhood, CEP e Location. Hosts/Programming usam AddressId e navegação. **O banco ainda usa o modelo anterior: nenhuma migration ou transferência de dados foi executada.** As seções anteriores desta documentação registram o funcionamento anterior e não substituem o novo contrato descrito nesta seção.
 
-GET /api/Address/GetAllAddress?search=Cais&limit=10 exige JWT, sem role específica; retorna somente endereços próprios ou publicados por programações/hosts ativos. Abaixo de três letras/dígitos retorna []; limite 1–20. Host/programação recebem exatamente AddressId ou objeto AddressCreateDTO (Street/Number obrigatórios, bairro/complemento opcionais, CEP válido). Detalhes retornam endereço aninhado; os campos antigos na raiz foram retirados. IDs inacessíveis retornam 404; seleção inválida retorna 400; mantidos 422/503 da geocodificação.
+GET /api/Address/GetAllAddress?search=Cais exige JWT, sem role específica. A implementação atual retorna até dez endereços da tabela `Addresses` cujo logradouro contém o texto sem diferenciar caixa ou cujo CEP contém a sequência pesquisada; abaixo de seis letras/dígitos retorna `[]`. O endpoint atual não recebe `limit` nem aplica filtro por autoria/publicação. Host/programação recebem exatamente AddressId ou objeto AddressCreateDTO (Street/Number obrigatórios, bairro/complemento opcionais, CEP válido). Detalhes retornam endereço aninhado; os campos antigos na raiz foram retirados. ID inexistente retorna erro na resolução; seleção inválida retorna 400; mantidos 422/503 da geocodificação.
 
 O serviço de endereços resolve seleção/equivalência e coordena a geocodificação; não salva isoladamente. Inclusão de endereço e host/programação ocorre no mesmo SaveChanges. Trocar o endereço muda o vínculo e preserva o registro anterior. Location/índice GiST passam a Address. Autoria usa FK opcional SetNull na exclusão de usuário, preservando o endereço; os vínculos de host/programação usam Restrict. NormalizedKey tem índice não único; duplicidade simultânea continua possível.
 
@@ -646,6 +650,8 @@ Esta atualização substitui o bloqueio de compilação anteriormente registrado
 
 Conferidos os contratos: Create retorna HostCreatedDTO; GetByIdAsync retorna HostDetailsDTO; EditHostAsync retorna HostResponseDTO; GetAllHostsbyUserId retorna coleção de HostResponseDTO. Essas quatro operações já mapeavam os dados do serviço para DTOs.
 
+Atualização em 13/11/2026: `PUT /api/Host/{hostId}/Edit` mantém o mesmo verbo, rota, autorização e `HostDTO`, mas a regra de domínio agora recusa a troca do CNPJ do host. O identificador deve ser reenviado sem alteração; os demais campos continuam editáveis. Uma tentativa de mudança retorna ProblemDetails pelo tratamento de `CnpjException`, sem persistir o host ou resolver um novo endereço.
+
 DeleteHostAsync era o único método do AppService que ainda retornava Hosts. Agora retorna HostResponseDTO ou null, com o mesmo mapeamento explícito de campos permitidos e AddressDetailsDTO. IHostAppService foi atualizado e não referencia entidades do domínio nos retornos. Não foi criado um DTO adicional. Os serviços e repositórios continuam trabalhando com entidades internamente.
 
 O controller de exclusão continua retornando HTTP 204 sem corpo no sucesso, 404 para host indisponível e 401 para usuário não autenticado. O DTO da exclusão é o retorno interno do AppService, não um novo corpo HTTP. Cadastro mantém result/auth; contratos dos demais endpoints preservados.
@@ -703,12 +709,12 @@ Os atributos de rota, os DTOs e os tratamentos HTTP foram conferidos no código.
 
 
 ## Consulta ViaCEP — 24/10/2026
-Implementado GET /api/Address/GetByCEP?cep=50030-220, com JWT obrigatório. Fluxo: AddressController -> AddressAppService -> AddressService -> IPostalCodeService/ViaCepService. Formato validado no serviço; aceita oito dígitos ou hífen após o quinto dígito. Retorno PostalAddressDTO: cep, street, neighborhood, city, state. Sem número ou complemento do imóvel.
-Respostas: 200 encontrado, 400 formato inválido, 401 sem autenticação, 404 quando o ViaCEP confirma ausência e 503 por timeout, HTTP malsucedido ou resposta inválida. Timeout de oito segundos; cancelamento da requisição propagado. Consulta não grava no banco nem aciona a Geoapify. O formulário permite preencher manualmente se a consulta falhar e mantém número/complemento.
+Implementado GET /api/Address/GetByCEP?cep=50030-220, público (`AllowAnonymous`) desde 03/11/2026 para permitir o preenchimento anterior ao cadastro/login. Fluxo: AddressController -> AddressAppService -> AddressService -> IPostalCodeService/ViaCepService. Formato validado no serviço; aceita oito dígitos ou hífen após o quinto dígito. Retorno PostalAddressDTO: cep, street, neighborhood, city, state. Sem número ou complemento do imóvel.
+Respostas: 200 encontrado, 400 formato inválido, 404 quando o ViaCEP confirma ausência e 503 por timeout, HTTP malsucedido ou resposta inválida. Timeout de oito segundos; cancelamento da requisição propagado. Consulta não grava no banco nem aciona a Geoapify. O formulário permite preencher manualmente se a consulta falhar e mantém número/complemento.
 Escopo desta etapa: preenchimento assistido nos quatro formulários de criar/editar host/programação. Cidade e UF são exibidos na consulta, ainda não persistidos em Address nem enviados à geocodificação. A inclusão dessas colunas e seu uso pela Geoapify continuam pendentes de etapa própria, com revisão da migration. PostalAddress é um resultado de consulta, não uma entidade mapeada no EF. Não há migration nesta entrega.
 Validações executadas: build sem erros (sete avisos CS8618 existentes), node --check, 44 testes do protótipo com API simulada e dez verificações do adaptador C# com HttpMessageHandler simulado (sucesso, ausência, resposta inválida, HTTP 429/500, falha de rede e timeout). Nenhum cadastro real foi criado nos testes. PDFs não regenerados.
 
-Verificação local adicional: API iniciada; GET GetByCEP sem JWT retornou 401. Consulta direta ao ViaCEP para 01001000 retornou Praça da Sé, São Paulo/SP. Painel respondeu HTTP 200. O cadastro real com JWT não foi executado nesta validação.
+Verificação histórica de 24/10/2026, anterior à abertura do GET em 03/11/2026: a API iniciada retornou 401 sem JWT. Consulta direta ao ViaCEP para 01001000 retornou Praça da Sé, São Paulo/SP. Painel respondeu HTTP 200. O cadastro real com JWT não foi executado naquela validação.
 
 ## Endereço no protótipo — 25/10/2026
 A consulta ViaCEP ocorre automaticamente 400 ms após preencher um CEP válido, sem botão. Número e complemento são preservados; preenchimento manual continua disponível. Criar/editar programação oferece “Usar endereço do host”: consulta GET /api/Host/Details/{hostId} com JWT e reutiliza addressId, sem criar endereço duplicado. Respostas são descartadas se host, CEP ou seleção mudarem durante a consulta. Nenhuma alteração de contrato da API ou banco. Validação: node --check e 47 testes com API simulada aprovados. PDFs não regenerados.
@@ -716,7 +722,7 @@ A consulta ViaCEP ocorre automaticamente 400 ms após preencher um CEP válido, 
 
 ## Consulta e validação de CNPJ — 25/10/2026
 Integração Minha Receita nas camadas existentes: HostController -> HostAppService -> HostService -> ICompanyRegistrationService/MinhaReceitaService. ICnpjValidations/CnpjValidations normalizam e validam formato e dígitos verificadores numéricos e alfanuméricos, sem converter o identificador em número. Os DTOs de cadastro/edição exigem CNPJ e formato compatível. Nenhuma pasta nova de produção foi criada.
-GET /api/Host/GetByCNPJ?cnpj=33683111000280 exige JWT e retorna CompanyRegistrationDTO: cnpj, legalName, tradeName, registrationStatus, statusDescription, checkedAt (UTC da consulta), street, number, complement, neighborhood, cep, city e state. Nenhum dado de sócios é devolvido. Consulta bem-sucedida retorna 200 inclusive para situação não ativa; o formulário informa a situação. Falhas: 400 formato/DV inválido, 404 não localizado na base consultada, 503 indisponibilidade, limite, timeout ou resposta inválida. CheckedAt não representa atualização da base oficial nem é persistido.
+GET /api/Host/GetByCNPJ?cnpj=33683111000280 é público (`AllowAnonymous`) desde 03/11/2026 para permitir a validação anterior ao cadastro/login e retorna CompanyRegistrationDTO: cnpj, legalName, tradeName, registrationStatus, statusDescription, checkedAt (UTC da consulta), street, number, complement, neighborhood, cep, city e state. Nenhum dado de sócios é devolvido. Consulta bem-sucedida retorna 200 inclusive para situação não ativa; o formulário informa a situação. Falhas: 400 formato/DV inválido, 404 não localizado na base consultada, 503 indisponibilidade, limite, timeout ou resposta inválida. CheckedAt não representa atualização da base oficial nem é persistido.
 Criar host e alterar CNPJ exigem consulta com situacao_cadastral=2 antes de geocodificar ou salvar. Cadastro duplicado retorna 409; empresa não ativa retorna 422. Edição sem mudança do CNPJ normalizado dispensa nova consulta externa, mas valida formato/DV e duplicidade. O próprio host é excluído da busca de duplicados. Hosts inativos continuam reservando o CNPJ. Não há validação externa na desativação. Falhas da consulta não salvam o host. Registros legados não foram corrigidos ou excluídos automaticamente.
 O repositório repete a verificação de duplicidade dentro da transação, sob pg_advisory_xact_lock(721904, 1), utilizado no cadastro e alteração do CNPJ. Isso serializa essas gravações entre instâncias desta API. Não existe índice único novo: gravações externas que ignorem o lock não são protegidas. Uma restrição única no banco exige auditoria/normalização dos registros legados e revisão de migration; permanece melhoria pendente. A transação existente de cadastro com role HOST foi preservada.
 Protótipo: consulta automática após 500 ms ao completar o CNPJ. Resultados de consultas antigas são ignorados. Nome e endereço são sugestões aplicadas somente por botões de confirmação; não sobrescrevem o formulário automaticamente. Cidade/UF são exibidas mas seguem fora da persistência de Address. A consulta não comprova representação da empresa pelo usuário. Minha Receita é uma base secundária e pode estar desatualizada; ausência não comprova inexistência definitiva.
@@ -914,6 +920,35 @@ Diagnóstico confirmado em leitura: GET /api/Programming/Filter?take=10&skip=0 r
 
 A consulta de programações não foi alterada nesta correção: eventos em andamento são permitidos até EndDate; encerrados permanecem fora da busca. As três programações verificadas ainda não haviam iniciado, portanto o resultado único não era causado por datas. 60 testes simulados do protótipo e node --check aprovados; duas consultas HTTP reais de leitura confirmaram os resultados acima. Nenhuma gravação no banco, migration ou reinicialização da API do Visual Studio. Após Ctrl+F5, novos formulários de filtro começam sem host/preços implícitos. PDFs preservados.
 
+## Autopreenchimento de CNPJ e CEP no Expo — 03/11/2026
+
+`GET /api/Host/GetByCNPJ` e `GET /api/Address/GetByCEP` passam a aceitar consulta sem JWT para que o cadastro de host possa validar e preencher dados antes de criar a conta. Somente esses dois GETs receberam `AllowAnonymous`; criação, edição, listagens privadas e demais operações continuam autenticadas. Os verbos, parâmetros, DTOs e códigos de domínio/provedor foram preservados.
+
+Na rota Expo `/cadastro_host`, completar um CNPJ localmente válido difantasiaspara a consulta. CNPJ não ativo é recusado na interface; quando ativo, razão social, nome fantasia e endereço sugerido são preenchidos. Completar oito dígitos do CEP consulta o ViaCEP e preenche cidade, UF auxiliar, logradouro e bairro, preservando número e complemento. Respostas atrasadas são descartadas quando o valor muda. Cidade integra o `AddressCreateDTO`; UF permanece apenas visual porque o contrato persistido não possui `State`.
+
+Validações: `tsc --noEmit` e ESLint direto da tela aprovados; build do backend aprovado em saída temporária, com um aviso `NETSDK1194` causado pelo uso de `--output` na solução e zero erros. O build normal ficou impedido pelos binários da API já em execução. O teste HTTP temporário foi impedido pelo logger de Event Log sem permissão no ambiente isolado; a autorização foi conferida pelos atributos compilados/código. `expo lint` permaneceu sem saída e foi interrompido. O protótipo externo não existe no caminho indicado neste computador e não pôde ser alterado; o `.http` foi alinhado. Nenhuma migration, gravação no banco ou PDF foi gerado. Como os dois endpoints agora encaminham consultas públicas a provedores externos, limitação de frequência permanece uma pendência operacional antes de exposição pública.
+
+## Múltiplos hosts e reutilização de CNPJ pelo proprietário — 13/11/2026
+
+`POST /api/Host/Create` mantém JWT obrigatório e o mesmo `HostDTO`, mas a verificação de duplicidade passa a considerar o proprietário. O mesmo usuário autenticado pode cadastrar vários hosts com CNPJs diferentes ou reutilizar um CNPJ já vinculado à própria conta. Se o CNPJ estiver vinculado a outro usuário, a API continua retornando ProblemDetails 409, agora com o detalhe “Este CNPJ já está vinculado a outro proprietário.” A edição usa o proprietário real do host para aplicar a mesma regra, inclusive quando realizada por ADMIN.
+
+Ao criar o segundo host, a atribuição da role `HOST` é idempotente: se o usuário já possui a role, a criação prossegue sem tentar adicioná-la novamente. Rotas, verbos, DTOs, respostas de sucesso, validação na base de CNPJ, geocodificação e transação foram preservados. Não há índice único de CNPJ nem mudança de schema; nenhuma migration foi necessária.
+
+Validação: backend compilado em saída temporária com zero erros e dez avisos preexistentes. Não foi realizado POST real, para não criar dados de teste no banco principal. A API em execução precisa ser reiniciada para carregar a nova regra. O protótipo obrigatório não existe em `C:/Users/Artur/Documents/ChatGPT/Perambulando/prototipo-api` neste computador e permaneceu pendente. PDFs não foram regenerados.
+
+### Correção: novo host deve reutilizar CNPJ da conta — 13/11/2026
+
+Esta regra substitui a possibilidade descrita acima de cadastrar um CNPJ diferente para a mesma conta. Em `POST /api/Host/Create`, se o usuário ainda não possui host ativo, o primeiro CNPJ continua livre, sujeito às validações existentes. A partir do segundo host, o CNPJ enviado deve coincidir com um CNPJ já pertencente a um host ativo do mesmo usuário; caso contrário, retorna ProblemDetails 400 com o detalhe “Novos hosts devem usar o mesmo CNPJ já vinculado a esta conta.”
+
+O mesmo CNPJ continua bloqueado para outro proprietário com 409. Rota, verbo e `HostDTO` não mudaram. A regra é aplicada no domínio e não depende do campo bloqueado no frontend. Build em saída temporária aprovado com zero erros e dez avisos preexistentes; nenhum POST real, migration ou PDF foi gerado. O protótipo externo segue indisponível.
+
+## Autocomplete de endereços na criação de evento Expo — 03/11/2026
+
+O campo Logradouro da seção “Onde acontece” espera 300 ms após cada alteração e, a partir de seis letras/dígitos, consulta `GET /api/Address/GetAllAddress?search=...` com o JWT da sessão. Exibe até dez opções com logradouro, número, bairro, cidade e CEP. Consultas antigas são descartadas quando o texto muda.
+
+Selecionar uma opção preenche o endereço e mantém seu `addressId`; o POST de programação envia somente `addressId`, reutilizando o registro. Alterar CEP, cidade, logradouro, número, complemento ou bairro depois da escolha remove o ID e faz o formulário voltar a enviar um novo objeto `address`. O endereço inicialmente sugerido pelo host selecionado também usa o ID existente. Nenhuma rota, DTO, repositório, migration ou banco foi alterado.
+
+Validação: TypeScript, ESLint direto e `git diff --check` aprovados. Não houve chamada autenticada real, publicação de evento, gravação no banco, alteração do protótipo externo ou regeneração de PDFs.
 
 ## US17 — primeira etapa preparada em 27/10/2026
 

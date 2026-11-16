@@ -333,6 +333,11 @@ Protótipo inclui Cidade nos quatro formulários de cadastro/edição de host/pr
 
 Validação: build aprovado; 59 testes do protótipo com API simulada aprovados; 68 verificações com login/HTTP/EF/PostgreSQL reais em banco descartável aprovadas, incluindo Recife/Olinda, cidade em branco, nome completo, caixa/espaços e combinação com nome/tipo/paginação. Banco temporário removido e banco principal preservado. Ambiente reiniciado, interface/catálogo e consulta pública da API respondendo 200. Sem PDFs novos.
 
+## Catálogo inicial de categorias — 28/10/2026
+
+Foram inseridas no banco local `perambulando` 12 categorias ativas para programação: Música, Gastronomia, Artes e exposições, Teatro, Dança, Cinema, Esportes, Feiras e mercados, Cultura popular, Infantil, Literatura e Negócios e tecnologia. A operação usou uma transação idempotente: nomes equivalentes, ignorando caixa e espaços nas extremidades, são reativados em vez de duplicados.
+
+Resultado desta execução: tabela inicialmente vazia, 12 inserções, todas com `IsActive = true`. A consulta direta e `GET /api/Category/GetallCategories` confirmaram as 12 entradas. Não houve mudança de schema, migration, model ou código do backend. PDFs preservados.
 
 ## US17 — primeira etapa preparada em 27/10/2026
 

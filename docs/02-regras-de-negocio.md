@@ -3,7 +3,7 @@
 > Atualização de 21/10/2026: a refatoração de Address está preparada no código e aguarda revisão **antes da migration**. O banco ainda tem o schema anterior. Consulte a [revisão dos contratos e da transferência de dados](validacoes/refatoracao-address-revisao-2026-10-21.md); as descrições antigas de endereço neste arquivo representam a versão anterior.
 
 
-Perambulando | Atualização: 20/10/2026
+Perambulando | Atualização: 03/11/2026
 
 Este documento descreve o código atual de controllers, app services, serviços e repositórios. Uma pendência registrada aqui não significa que a regra já tenha sido implementada.
 
@@ -36,7 +36,11 @@ Uma conta pode ter vários hosts. O cadastro associa `host.UserId` ao usuário a
 
 Após cadastrar, o serviço atribui a role HOST se necessário. A resposta traz JWT atualizado para que a interface possa usar as funcionalidades protegidas sem novo login.
 
-A criação do host e a atribuição da role não formam uma operação atômica no código atual. Se o host for salvo e a role falhar, a action retorna erro informando essa situação. A role HOST deve existir previamente; não há criação dessa role no fluxo de cadastro.
+A criação do host e a atribuição da role formam uma operação atômica no fluxo atual: se a atribuição falhar, host e endereço novo são desfeitos. As roles estruturais `HOST` e `ADMIN` são verificadas na inicialização da API e criadas pelo `RoleManager` quando ausentes; o fluxo de cadastro apenas atribui `HOST` ao usuário correspondente.
+
+### Inicialização das roles estruturais — 27/10/2026
+
+Depois das migrations, a inicialização da API consulta o ASP.NET Core Identity e garante, de forma idempotente, a existência de `HOST` e `ADMIN`. A criação da role não concede permissão a nenhum usuário: `HOST` continua sendo atribuída somente depois do cadastro transacional do host, e `ADMIN` exige atribuição administrativa explícita. Falha ao criar uma role impede a inicialização, evitando que a API aceite cadastros em um banco incompleto.
 
 ## 4. Gestão do host
 
@@ -444,8 +448,8 @@ Ajustada a responsabilidade do auxiliar: GetLinksToAdd(currentCategories, links)
 Rotas, DTOs, autenticação, respostas e lógica de persistência foram preservados; .http e protótipo continuam compatíveis. Nenhuma pasta ou migration criada. Build CategoryHelpers sem restore aprovado: zero erros e sete avisos CS8618 preexistentes; git diff --check aprovado. Não houve teste CRUD, reinício da API ou acesso ao banco real nesta etapa. PDFs preservados.
 
 ## Consulta ViaCEP — 24/10/2026
-Implementado GET /api/Address/GetByCEP?cep=50030-220, com JWT obrigatório. Fluxo: AddressController -> AddressAppService -> AddressService -> IPostalCodeService/ViaCepService. Formato validado no serviço; aceita oito dígitos ou hífen após o quinto dígito. Retorno PostalAddressDTO: cep, street, neighborhood, city, state. Sem número ou complemento do imóvel.
-Respostas: 200 encontrado, 400 formato inválido, 401 sem autenticação, 404 quando o ViaCEP confirma ausência e 503 por timeout, HTTP malsucedido ou resposta inválida. Timeout de oito segundos; cancelamento da requisição propagado. Consulta não grava no banco nem aciona a Geoapify. O formulário permite preencher manualmente se a consulta falhar e mantém número/complemento.
+Implementado GET /api/Address/GetByCEP?cep=50030-220, público (`AllowAnonymous`) desde 03/11/2026 para permitir o preenchimento anterior ao cadastro/login. Fluxo: AddressController -> AddressAppService -> AddressService -> IPostalCodeService/ViaCepService. Formato validado no serviço; aceita oito dígitos ou hífen após o quinto dígito. Retorno PostalAddressDTO: cep, street, neighborhood, city, state. Sem número ou complemento do imóvel.
+Respostas: 200 encontrado, 400 formato inválido, 404 quando o ViaCEP confirma ausência e 503 por timeout, HTTP malsucedido ou resposta inválida. Timeout de oito segundos; cancelamento da requisição propagado. Consulta não grava no banco nem aciona a Geoapify. O formulário permite preencher manualmente se a consulta falhar e mantém número/complemento.
 Escopo desta etapa: preenchimento assistido nos quatro formulários de criar/editar host/programação. Cidade e UF são exibidos na consulta, ainda não persistidos em Address nem enviados à geocodificação. A inclusão dessas colunas e seu uso pela Geoapify continuam pendentes de etapa própria, com revisão da migration. PostalAddress é um resultado de consulta, não uma entidade mapeada no EF. Não há migration nesta entrega.
 Validações executadas: build sem erros (sete avisos CS8618 existentes), node --check, 44 testes do protótipo com API simulada e dez verificações do adaptador C# com HttpMessageHandler simulado (sucesso, ausência, resposta inválida, HTTP 429/500, falha de rede e timeout). Nenhum cadastro real foi criado nos testes. PDFs não regenerados.
 
@@ -455,7 +459,7 @@ A consulta ViaCEP ocorre automaticamente 400 ms após preencher um CEP válido, 
 
 ## Consulta e validação de CNPJ — 25/10/2026
 Integração Minha Receita nas camadas existentes: HostController -> HostAppService -> HostService -> ICompanyRegistrationService/MinhaReceitaService. ICnpjValidations/CnpjValidations normalizam e validam formato e dígitos verificadores numéricos e alfanuméricos, sem converter o identificador em número. Os DTOs de cadastro/edição exigem CNPJ e formato compatível. Nenhuma pasta nova de produção foi criada.
-GET /api/Host/GetByCNPJ?cnpj=33683111000280 exige JWT e retorna CompanyRegistrationDTO: cnpj, legalName, tradeName, registrationStatus, statusDescription, checkedAt (UTC da consulta), street, number, complement, neighborhood, cep, city e state. Nenhum dado de sócios é devolvido. Consulta bem-sucedida retorna 200 inclusive para situação não ativa; o formulário informa a situação. Falhas: 400 formato/DV inválido, 404 não localizado na base consultada, 503 indisponibilidade, limite, timeout ou resposta inválida. CheckedAt não representa atualização da base oficial nem é persistido.
+GET /api/Host/GetByCNPJ?cnpj=33683111000280 é público (`AllowAnonymous`) desde 03/11/2026 para permitir a validação anterior ao cadastro/login e retorna CompanyRegistrationDTO: cnpj, legalName, tradeName, registrationStatus, statusDescription, checkedAt (UTC da consulta), street, number, complement, neighborhood, cep, city e state. Nenhum dado de sócios é devolvido. Consulta bem-sucedida retorna 200 inclusive para situação não ativa; o formulário informa a situação. Falhas: 400 formato/DV inválido, 404 não localizado na base consultada, 503 indisponibilidade, limite, timeout ou resposta inválida. CheckedAt não representa atualização da base oficial nem é persistido.
 Criar host e alterar CNPJ exigem consulta com situacao_cadastral=2 antes de geocodificar ou salvar. Cadastro duplicado retorna 409; empresa não ativa retorna 422. Edição sem mudança do CNPJ normalizado dispensa nova consulta externa, mas valida formato/DV e duplicidade. O próprio host é excluído da busca de duplicados. Hosts inativos continuam reservando o CNPJ. Não há validação externa na desativação. Falhas da consulta não salvam o host. Registros legados não foram corrigidos ou excluídos automaticamente.
 O repositório repete a verificação de duplicidade dentro da transação, sob pg_advisory_xact_lock(721904, 1), utilizado no cadastro e alteração do CNPJ. Isso serializa essas gravações entre instâncias desta API. Não existe índice único novo: gravações externas que ignorem o lock não são protegidas. Uma restrição única no banco exige auditoria/normalização dos registros legados e revisão de migration; permanece melhoria pendente. A transação existente de cadastro com role HOST foi preservada.
 Protótipo: consulta automática após 500 ms ao completar o CNPJ. Resultados de consultas antigas são ignorados. Nome e endereço são sugestões aplicadas somente por botões de confirmação; não sobrescrevem o formulário automaticamente. Cidade/UF são exibidas mas seguem fora da persistência de Address. A consulta não comprova representação da empresa pelo usuário. Minha Receita é uma base secundária e pode estar desatualizada; ausência não comprova inexistência definitiva.
@@ -694,6 +698,26 @@ HostRepository.FilterAsync implementado em sintaxe LINQ de consulta (from/where/
 Take <= 0 e Skip < 0 lançam ArgumentException. City preenchido lança ArgumentException explicativa: Address não possui cidade persistida. Não houve alteração de model/schema ou migration. A action HostFilter iniciada pelo usuário permanece como está: falta revisar binding por query e tratamento de ArgumentException para HTTP 400 antes de considerar o fluxo HTTP concluído. O catálogo automático do protótipo deve acompanhar o contrato salvo; nenhum formulário ou contrato foi modificado nesta tarefa de repositório.
 
 Validação: build aprovado com zero erros e dez avisos existentes; sem teste HTTP ou consulta ao banco real. PDFs preservados.
+
+## Propriedade do CNPJ entre múltiplos hosts — 13/11/2026
+
+Um usuário pode possuir N hosts ativos e pode reutilizar o mesmo CNPJ em mais de um deles. A duplicidade é permitida somente quando todos pertencem ao mesmo `UserId`; um CNPJ encontrado em host de outro proprietário bloqueia cadastro ou alteração com conflito 409. A regra considera também hosts inativos de outro usuário, preservando o vínculo de propriedade. Para ADMIN, a edição compara com o `UserId` do host, não com o ID do administrador que executou a operação.
+
+Cada host continua possuindo `AddressId` próprio. O frontend, ao identificar reutilização do CNPJ na conta, limpa toda a sugestão de localidade e solicita CEP, cidade, logradouro, número e bairro para o novo perfil; complemento permanece opcional. A API continua aceitando um endereço novo ou um `AddressId` válido e pode deduplicar endereços equivalentes conforme a regra existente. Portanto, a interface orienta um novo local, mas perfis legitimamente situados no mesmo endereço não são proibidos pelo domínio.
+
+Na segunda criação, a role `HOST` já existente não é adicionada novamente. A persistência do host e eventual atribuição inicial da role continuam na mesma transação. Build aprovado; teste de escrita e protótipo externo pendentes. Nenhuma migration ou PDF foi gerado.
+
+### Correção da regra de identidade empresarial — 13/11/2026
+
+Esta seção substitui a afirmação anterior de que a mesma conta poderia cadastrar CNPJs diferentes. O primeiro host define o CNPJ empresarial da conta. Todo host adicional deve reutilizar um CNPJ já presente entre os hosts ativos do mesmo `UserId`; um identificador empresarial diferente é rejeitado antes da resolução do endereço e da persistência. A proteção contra uso do CNPJ por outro proprietário permanece.
+
+O novo host possui nome, tipo, descrição, contatos, imagem e endereço próprios. No frontend, o CNPJ é herdado do perfil selecionado e fica somente leitura. A localidade sugerida pelo CNPJ é descartada, exigindo novo CEP, cidade, logradouro, número e bairro; complemento permanece opcional. Edição de hosts existentes não foi alterada nesta correção. Build aprovado; teste de escrita pendente e nenhuma migration aplicada.
+
+### CNPJ imutável na edição do host — 13/11/2026
+
+Na edição de um host existente, o CNPJ normalizado enviado deve ser igual ao CNPJ já persistido. `HostService.EditHostAsync` valida os dois identificadores e rejeita qualquer diferença com erro de CNPJ inválido antes da resolução/geocodificação do endereço e da gravação. A regra vale inclusive para requisições feitas fora do frontend; o formulário apenas reforça a restrição mantendo o campo desabilitado.
+
+Os demais dados do host continuam editáveis conforme o contrato atual: tipo, nome, descrição, telefone, logo, Instagram e endereço. A autorização e a verificação de propriedade permanecem anteriores à comparação do CNPJ. Não houve mudança de DTO, rota, entidade, schema ou migration. Build e análise estática aprovados; PUT real pendente para preservar os dados existentes.
 
 ## Remoção de bairro dos filtros de host — 27/10/2026
 
