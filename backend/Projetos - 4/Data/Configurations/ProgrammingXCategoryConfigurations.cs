@@ -9,6 +9,9 @@ public class ProgrammingXCategoryConfigurations : IEntityTypeConfiguration<Progr
     public void Configure(EntityTypeBuilder<ProgrammingXCategory> builder)
     {
         builder.ToTable("ProgrammingXCategories");
+        builder.HasOne(link => link.Programming)
+            .WithMany(programming => programming.ProgrammingXCategories)
+            .HasForeignKey(link => link.ProgrammingId);
         builder.HasIndex(link => new { link.ProgrammingId, link.CategoryId }).IsUnique();
     }
 }

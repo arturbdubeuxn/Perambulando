@@ -1,7 +1,5 @@
 using Microsoft.AspNetCore.Identity;
-using Projetos___4.Application.DTO;
 using Projetos___4.Domain.Model;
-using Projetos___4.Application.AppServices;
 
 namespace Projetos___4.Domain.Interfaces.Service
 {
@@ -21,6 +19,8 @@ namespace Projetos___4.Domain.Interfaces.Service
         Task<IEnumerable<Hosts>> GetAllHostsbyUserId(string userId);
 
         Task<List<Hosts>> FilterAsync(HostFilter filter);
+
+        Task<Hosts?> HostVerification(int hostId, string userId);
 
 
     }

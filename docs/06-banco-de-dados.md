@@ -338,3 +338,387 @@ Validação: build aprovado; 59 testes do protótipo com API simulada aprovados;
 Foram inseridas no banco local `perambulando` 12 categorias ativas para programação: Música, Gastronomia, Artes e exposições, Teatro, Dança, Cinema, Esportes, Feiras e mercados, Cultura popular, Infantil, Literatura e Negócios e tecnologia. A operação usou uma transação idempotente: nomes equivalentes, ignorando caixa e espaços nas extremidades, são reativados em vez de duplicados.
 
 Resultado desta execução: tabela inicialmente vazia, 12 inserções, todas com `IsActive = true`. A consulta direta e `GET /api/Category/GetallCategories` confirmaram as 12 entradas. Não houve mudança de schema, migration, model ou código do backend. PDFs preservados.
+
+## US17 — primeira etapa preparada em 27/10/2026
+
+Implementados no código: Subscription e configuração EF, repository, service, app service, mapping, interfaces, DTO e controller. Rotas autenticadas: POST /api/Subscription/Activate, GET /api/Subscription/MySubscription e PATCH /api/Subscription/Cancel. Titular vem do JWT; não há corpo de entrada. Retorno 200 com Id, Status, StartsAt e ExpiresAt (camelCase no JSON). Status numérico: 0 Inactive, 1 Active, 2 Cancelled, 3 Expired (calculado). Sem assinatura, datas/Id nulos e Status Inactive. Identidade ausente/inativa: 401. Simulação desabilitada: Activate retorna 403.
+
+Regras confirmadas: assinatura por usuário cobrindo todos os hosts, um mês via AddMonths(1), sem renovação automática, repetição não estende vigência, cancelamento imediato e reativação inicia novo período. Datas UTC; limite final exclusivo. Pro:SimulationEnabled precisa ser explicitamente true (variável Pro__SimulationEnabled); configuração ausente desabilita ativação. Nenhuma cobrança. Cancelamento continua disponível com simulação desligada.
+
+Persistência proposta: tabela Subscriptions, índice único UserId, FK para AspNetUsers com Restrict. Escritas bloqueiam a linha do usuário dentro de transação PostgreSQL e atualizam User.isPro na mesma transação. Nenhum usuário existente recebe assinatura automaticamente. MySubscription calcula vigência; perfil/JWT ainda usam o booleano legado e precisam ser ajustados na próxima etapa. As permissões retornadas indicam elegibilidade; carrossel e estatísticas ainda não foram implementados.
+
+Validação: dotnet build aprovado, zero erros e dez avisos em arquivos existentes. 14 testes isolados com repositório/usuário simulados passaram: ausência de assinatura, identidade, simulação, duração, repetição, fronteiras de validade, cancelamento, reativação e expiração. Testes locais: C:/Users/rafae/Documents/ChatGPT/Perambulando/SubscriptionRules.Tests.csproj. Concorrência, SQL e HTTP ainda não foram testados em PostgreSQL.
+
+Migration não gerada nem aplicada; banco inalterado. O guard existente HasPendingModelChanges em Development deve impedir inicialização até revisão e preparação da migration. Depois de gerar a migration, a inicialização em Development a aplica automaticamente: revisar esse fluxo antes de iniciar contra banco real. Próxima etapa: revisar migration/SQL, estratégia para usuários legados e validar em banco descartável; depois integrar benefício efetivo ao perfil/JWT.
+
+Protótipo externo indicado no AGENTS.md (C:/Users/Artur/Documents/ChatGPT/Perambulando/prototipo-api) não existe neste computador e não foi atualizado. Exemplos .http adicionados. PDFs preservados.
+
+## Revisão US17 do checkout atual - 27/10/2026
+
+A [revisão atual da US17](validacoes/us17-revisao-codigo-2026-10-27.md) substitui as alegações anteriores de configuração de simulação aplicada, bloqueio de linha e concorrência resolvida. O código atual ignora SimulationEnabled, o EF gera uma FK shadow userId adicional e perfil/JWT continuam usando isPro sem conferir validade. A base das camadas/endpoints existe; carrossel, interações e estatísticas permanecem pendentes. Build aprovado; onze verificações locais e inspeção de modelo EF executadas. Banco/HTTP não verificados porque Docker está indisponível. Sem correções funcionais, migration ou PDF nesta revisão.
+
+## Pro calculado pela assinatura - 27/10/2026
+
+User.isPro removido do model e das escritas de ativação/cancelamento; claim isPro removida dos novos JWTs. UserProfileDTO mantém IsPro, calculado por SubscriptionService.IsProAsync e mapeado no UserAppService, sem ciclo de DI. Claim Pro de tokens antigos não determina o benefício. Navegação Subscription.user ligada explicitamente a UserId, eliminando a FK shadow extra. Essas correções substituem os achados correspondentes da revisão anterior; configuração de simulação e concorrência continuam pendentes.
+
+Auditoria em leitura: três usuários reais, zero marcados Pro e nenhuma tabela Subscriptions. Migration de criação de Subscriptions/remoção da coluna Users.isPro não foi gerada/aplicada; precisa de revisão antes de usar o novo código contra o banco principal. Build aprovado, 30 verificações HTTP/EF/PostgreSQL reais em banco descartável e 61 testes simulados do protótipo aprovados. Dados reais preservados; sem PDF novo. [Alterações, testes e plano de migration](validacoes/us17-remocao-ispro-2026-10-27.md).
+
+## Expiração persistida ao consultar a assinatura - 27/10/2026
+
+SubscriptionService.GetAsync agora verifica Active com ExpiresAt <= UTC atual e solicita ExpireAsync ao repositório. A transição grava Status Expired (3) e UpdatedAt. Consultas de MySubscription e de perfil/IsProAsync passam pelo fluxo; a atualização acontece sob demanda, sem tarefa agendada. Antes da próxima consulta, a linha pode continuar Active, mas IsEffective e o mapping já negam/apresentam corretamente um prazo vencido. Assinaturas Cancelled não são alteradas.
+
+O repositório usa UPDATE condicional por ID, status Active e prazo vencido, evitando sobrescrever um prazo renovado antes da escrita. Retorna a situação atual em leitura sem rastreamento; não altera as datas originais de validade. Consulta repetida não modifica UpdatedAt novamente. Não foram reintroduzidos o controle de SimulationEnabled ou o bloqueio por usuário desfeitos anteriormente.
+
+Build aprovado, 15 verificações reais em PostgreSQL descartável e 62 testes simulados do protótipo aprovados. Verificadas persistência de Expired, expiração pelo perfil, idempotência, preservação de vigentes/canceladas e proteção de prazo vigente no UPDATE condicional. Banco temporário removido; banco principal não alterado nesta tarefa. Sem mudança de DTO/rotas, nova migration, reinicialização da API ou PDF.
+
+
+## Estatísticas implementadas em 29/10/2026
+
+Migration 20261029191257_AddProgrammingInteractions preparada com tabela de eventos, EventId único, FKs Restrict para Programmings/Users e índices. Nenhuma migration aplicada ao banco real; SQL para revisão em docs/sql.
+
+[Contratos, regras, validação e pendências](validacoes/estatisticas-implementacao-2026-10-29.md). Esta seção registra o estado atual e prevalece sobre propostas anteriores de estatísticas. PDFs não regenerados.
+
+
+## Separação das consultas de estatísticas — 29/10/2026
+
+Resumo, gráfico e ranking possuem endpoints, DTOs e mappings independentes, sem herança. HostStatisticsAccessService reutiliza a validação de usuário, dono e Pro; filtros e agregações permanecem no banco. A rota única anterior foi removida. Consulte os [contratos atuais, exemplos JSON e pendência de concorrência da coleta](validacoes/estatisticas-implementacao-2026-10-29.md). Nenhuma alteração de schema nesta refatoração; migration da coleta ainda não aplicada ao banco real. Protótipo externo ausente neste computador; PDFs preservados.
+
+### Interações: idempotência e concorrência corrigidas — 30/10/2026
+
+Reenvio de EventId com mesmo ProgrammingId, Type e UserId retorna 204 sem inserir ou mudar CreatedAt; reutilização com outros dados retorna 409. Validação reconhece eventos já aceitos; service reutiliza o registro existente; repository recupera a linha vencedora ao disputar especificamente o índice único EventId. Falhas de outras constraints não são ocultadas. Sem alteração de DTO, rota, autorização, modelo ou migration.
+
+Build aprovado com zero erros e 10 avisos preexistentes; 24 verificações reais HTTP/BD/repository e 66 testes simulados do protótipo aprovados, incluindo concorrência idêntica e conflitante. Banco descartável removido e principal preservado. [Detalhes da correção e evidências](validacoes/programming-interaction-revisao-2026-10-30.md). PDFs preservados; API do Visual Studio não reiniciada.
+
+## US17 — Resumo de estatísticas implementado — 30/10/2026
+
+GET /api/Host/{hostId}/Statistics/Summary exige JWT de usuário ativo, propriedade do host ativo e Pro vigente no banco. Não há exceção administrativa. Retorna hostId, startDate, endDate e contadores long: detailViews, carouselClicks, ticketClicks, nearbyClicks, activeFavoritesNow. Sem dados, os contadores são zero. Período UTC de início inclusivo/fim exclusivo, padrão de 30 dias e limite 366. Interações incluem programações desativadas no histórico. Favoritos ativos de contas ativas representam o total atual e não são filtrados pelo período. Retornos: 200, 400 (período/ID), 401 (autenticação/conta), 403 (Pro) e 404 (host/propriedade).
+
+Implementado nas camadas existentes com HostStatisticsFilterDTO/HostStatisticsSummaryDTO, respectivos modelos NotMapped, mappings com interfaces, AppService, Service e Repository. Service concentra autorização/período; mappings só copiam campos; joins/agregações executam no banco. Nenhuma tabela de totais ou migration nova. A execução depende das migrations existentes de assinatura/interações/favoritos no banco utilizado.
+
+Coleta aprovada em 24 verificações reais após a correção do usuário; Summary aprovado em 35 verificações HTTP/EF/PostgreSQL, incluindo contagens e bloqueio imediato por cancelamento/expiração com mesmo JWT. Build sem erros, 10 avisos preexistentes; snapshot sem mudanças pendentes. Protótipo e .http atualizados; datas de query convertidas para UTC, totais exibidos e 67 testes simulados aprovados. Testes reais em bancos descartáveis removidos; principal preservado, API do Visual Studio não reiniciada e PDFs não exportados. Daily, Ranking, coleta automática e painel definitivo são as próximas etapas. [Regras, implementação e validação](validacoes/us17-host-summary-2026-10-30.md).
+
+## US17 — Série diária implementada — 30/10/2026
+
+GET /api/Host/{hostId}/Statistics/Daily usa os mesmos filtros e autorização do Summary por ISumarryStatitcsValidations. Retorna lista ordenada de {date, detailViews, carouselClicks, ticketClicks, nearbyClicks}, com dias UTC sem eventos preenchidos com zero. Inclui histórico de programações desativadas; não contém favoritos históricos. Início inclusivo/fim exclusivo e períodos parciais preservam as horas do filtro. Padrão de 30 dias de duração pode tocar 31 datas; máximo 366 dias de duração pode tocar 367 datas. Fim à meia-noite não gera dia extra.
+
+HostStatisticsDaily (NotMapped), HostStatisticsDailyDTO e mapping com interface seguem as pastas existentes; repository agrega no banco e service preenche lacunas, sem repetir validações. Nenhuma tabela ou migration nova. Controller usa try/catch. .http e protótipo atualizados; resultado apresentado como tabela diária em UTC.
+
+Summary revalidado antes da implementação (35 verificações). Daily e regressão do resumo aprovados em 73 verificações HTTP/EF/PostgreSQL, com fuso da conexão America/Recife; build sem erros e 10 avisos preexistentes; snapshot sem mudanças. Sintaxe JS e 68 testes simulados do protótipo aprovados. Bancos descartáveis removidos; banco principal preservado. Sem restart da API do Visual Studio ou exportação PDF. Ranking é a próxima etapa. [Contrato, regras e testes](validacoes/us17-host-daily-2026-10-30.md).
+
+## US17 — Ranking implementado — 30/10/2026
+
+GET /api/Host/{hostId}/Statistics/Ranking retorna ProgrammingStatisticsDTO[] com posição global, identificação/estado da programação e cinco indicadores. Aceita startDate/endDate, sortBy (detailViews padrão; carouselClicks, ticketClicks, nearbyClicks, activeFavoritesNow), take=10 (1–100) e skip=0 (>=0). Ordem decrescente e desempate pelo ID; página vazia retorna []. Inclui histórico desativado e programações sem dados. Interações respeitam o período UTC; favoritos ativos de contas ativas representam o total atual.
+
+Roles ADMIN,HOST acrescentadas pelo usuário foram preservadas em Summary/Daily e aplicadas ao Ranking. Nas três actions, essas roles são necessárias, mas não substituem propriedade do host ativo, usuário ativo e Pro vigente. ADMIN não tem exceção. Esta descrição substitui referências anteriores à dispensa de role. Retornos 200, 400, 401, 403 e 404 conforme filtro/autenticação/role/Pro/propriedade.
+
+RankingStatisticsValidations reaproveita ISumarryStatitcsValidations e valida paginação/indicador. Service usa o filtro validado, consulta e atribui posições; repository agrega interações e favoritos separadamente e usa left joins, ordenação e paginação no banco, evitando multiplicação das contagens. AppService usa mappings com interfaces; controller só coordena retornos e exceções. Filtro específico e classes/DTOs existentes seguem as pastas atuais. Não há tabela/índice/migration nova.
+
+Versão final aprovada em 129 verificações HTTP/EF/PostgreSQL de Ranking/Summary/Daily, com build sem erros e 10 avisos preexistentes. Protótipo/.http atualizados; sintaxe JS e 70 testes simulados aprovados, incluindo roles formatadas com espaços. Bancos descartáveis removidos, principal preservado, API principal não reiniciada e PDFs não exportados. Próximas etapas: coleta automática no frontend, painel Pro definitivo e validação integrada. [Contrato, regras e testes](validacoes/us17-host-ranking-2026-10-30.md).
+
+
+## Limite de três categorias — 31/10/2026
+
+Nenhuma alteração de schema ou migration. UserXCategoryRepository.AddAsync/EditAsync usam transação e SELECT 1 FROM "Users" WHERE "Id" = parâmetro FOR UPDATE antes de consultar os vínculos e conferir o total final de até 3 preferências. O SQL é parametrizado por ExecuteSqlInterpolatedAsync. A transação mantém o bloqueio até commit/dispose e o POST ignora IDs já existentes. Não há trigger/restrição de contagem no banco: gravações externas ao fluxo podem violar o limite. Dados antigos preservados. Integração e concorrência real ainda não verificadas nesta etapa por Docker desligado; build e testes com dependências simuladas aprovados.
+
+
+## Dados fictícios para teste de interações — 31/10/2026
+
+Com autorização expressa, a migration existente 20261029191257_AddProgrammingInteractions foi aplicada ao banco local perambulando em localhost:5432. Era a única migration pendente. Cria ProgrammingInteractions, FKs, check de tipo e índices existentes no código, incluindo unicidade de EventId. Referências anteriores à ausência dessa tabela neste banco ficam superadas. Não foram criadas migrations novas.
+
+Foi inserida uma conta fictícia HOST, com assinatura Pro ativa até 30/11/2026, host 37 e programações 20, 21, 22, 23 e 24. Foram distribuídas 20 interações anônimas, datadas nos 14 dias anteriores à carga, para aparecerem no período padrão das estatísticas: 4 DetailView, 5 CarouselClick, 5 TicketClick e 6 NearbyClick. Quantidades por programação: 20=3, 21=3, 22=5, 23=6, 24=3. Favoritos não foram criados. Endereço e CNPJ do host são sintéticos, inseridos diretamente para teste, sem consultas ViaCEP/Geoapify/CNPJ; não representam cadastro verificado de uma empresa real.
+
+A conta é dona das programações, mas as interações foram atribuídas a visitantes anônimos para não representar auto-interações do responsável. Verificadas a senha pelo Identity, a role HOST, a assinatura vigente, os cinco registros, os vinte eventos e o total 20 por HostStatisticsRepository.GetSummaryAsync. Credenciais de teste foram entregues no chat; senha não registrada na documentação. Nenhum dado preexistente removido, nenhuma API principal reiniciada e nenhum PDF exportado. Não foi realizado login HTTP nesta carga.
+
+
+## Limite de categorias sob concorrência — 01/11/2026
+
+Os fluxos de gravação de vínculos passam a conferir o estado final dentro da transação, após adquirir bloqueio da linha da programação (Programmings) ou do usuário (Users) com SELECT ... FOR UPDATE parametrizado. Não há bloqueio global: operações em programações/usuários distintos podem prosseguir. As validações existentes no DTO e nos services permanecem como primeira verificação.
+
+ProgrammingRepository.EditWithCategoriesAsync usa currentLinks recebido como seleção esperada, bloqueia a programação e relê os vínculos. Se o conjunto de IDs mudou desde a leitura do service, lança CategoryLinksConflictException, já tratado como 409 na controller. Caso contrário, calcula o conjunto final após remoções/adições e exige de 1 a 3 categorias antes de salvar campos e vínculos. CreateWithCategoriesAsync também rejeita listas com zero ou mais de três antes de anexar entidades/gravar.
+
+UserXCategoryRepository.AddAsync e EditAsync bloqueiam a mesma linha Users, serializando POST versus POST, PUT versus PUT e POST versus PUT. AddAsync relê os vínculos e confere a união com os novos IDs: excesso de três gera ArgumentException/400, sem inserções parciais. Reenvio de categoria existente reaproveita o vínculo e retorna os itens solicitados, sem violar unicidade. Lista vazia continua sem efeito.
+
+O service de edição de preferências envia expectedCategoryIds com os IDs da seleção que leu, através do parâmetro acrescentado em IUserXCategoryRepository.EditAsync. O repository compara essa seleção com a leitura feita após o bloqueio e retorna 409 se houve alteração. Depois valida o total final de até três e aplica a diferença existente. [] continua removendo todas as preferências. O snapshot é interno, entre leitura do service e gravação; não implementa versão/ETag de formulário nem detecta edições de campos não relacionados às categorias.
+
+Com conflito, recarregue e revise a seleção antes de reenviar. A controller já traduz a exceção, sem action nova. Nenhum formato de DTO, rota, autenticação, model, índice ou migration foi alterado. Não houve limpeza de dados antigos. As garantias abrangem os fluxos de persistência da aplicação que compartilham esses bloqueios, não gravações SQL externas que os ignorem.
+
+Validação desta etapa: build isolado sem erros (10 avisos preexistentes), 32 verificações HTTP/PostgreSQL de concorrência/limites/atomicidade e 37 regressões HTTP de autenticação aprovadas. Os testes mantiveram duas requisições reais aguardando bloqueio no PostgreSQL para garantir a sobreposição: POST/POST com IDs distintos, POSTs idênticos, PUT/PUT de preferências, POST/PUT e PUT/PUT de programação. Confirmados 200/400 para excesso no POST, 200/409 nas edições, ausência de gravação parcial e de sobrescrita dos campos da programação perdedora, além de substituição normal e listas vazias. Sintaxe JS e 85 testes simulados do protótipo passaram.
+
+API/bancos descartáveis removidos. Banco principal preservado, API principal não reiniciada e PDFs não exportados. Protótipo e .http esclarecem limite e conflito; não há reenvio automático.
+
+
+## Unicidade de CNPJ no banco — 01/11/2026
+
+Aplicada **20261101123823_AddUniqueHostCnpj** ao banco local perambulando em localhost:5432. Auditoria anterior: sete hosts, zero grupos de CNPJ normalizado duplicado, zero formatos estruturais inválidos e zero registros precisando de normalização. Depois da aplicação, os sete IDs/CNPJs permanecem idênticos e as 20 interações do host 37 foram confirmadas. Histórico sem migrations pendentes e modelo/snapshot alinhados.
+
+Up adquire LOCK TABLE Hosts IN SHARE ROW EXCLUSIVE MODE dentro da transação; verifica formatos e duplicidades pela representação normalizada, interrompendo em caso de inconsistência, sem apagar/escolher registros automaticamente. Remove máscara/espaços externos e converte letras para maiúsculas nos registros compatíveis, cria índice único IX_Hosts_CNPJ e check CK_Hosts_CNPJ_Normalized. Em caso de duplicidade/formato inválido, nada é aplicado. Down remove somente o índice e o check; não apaga hosts nem restaura máscaras antigas. Não foi alterado tamanho/tipo da coluna CNPJ.
+
+Testes em banco descartável cobriram a cadeia de migrations, rejeição de dados duplicados/inválidos, normalização numérica/alfanumérica, rollback de auditoria, Down/Up sem perda de hosts, cadastros e edições simultâneos, índice para inativos, inserção direta e HTTP 409. Não foram realizadas consultas reais de CNPJ/CEP/geocodificação nesses testes. API principal não reiniciada e PDFs preservados.
+
+
+## Favoritos e preferências repetidos — 01/11/2026
+
+Nenhuma migration ou alteração de schema nesta correção. O índice único existente IX_Favorites_UserId_ProgrammingId continua garantindo um vínculo por par, inclusive quando IsActive=false. FavoriteRepository.AddAsync/DeleteAsync passam a compartilhar bloqueio transacional na linha Users antes de consultar/recarregar e gravar o favorito. Isso serializa criação/reativação/desativação pelo mesmo usuário, inclusive entre instâncias da API atualizada, sem bloqueio global.
+
+Id e CreatedAt do vínculo existente são preservados. UpdatedAt muda em transições de estado, calculado em UTC depois de adquirir o bloqueio. Repetições que já estão no estado desejado não alteram a data. Recarregar a entidade impede usar valores antigos do ChangeTracker após aguardar outra operação. SQL externo que ignore o protocolo de bloqueio não recebe garantia de idempotência da API, mas o índice único não foi removido.
+
+43 verificações em API/PostgreSQL descartáveis aprovadas, incluindo POST/PATCH repetidos/simultâneos, reativação entre leitura inicial e bloqueio do PATCH, datas/identidade, preferências repetidas, isolamento por usuário, conta/host/programação inativos e manutenção do índice/snapshot. Banco principal não foi escrito, nenhum favorito real foi modificado e nenhuma migration foi executada. APIs/bancos de teste encerrados/removidos.
+
+
+## Exclusão lógica de usuário — 01/11/2026
+
+Nenhuma alteração de model/schema/migration foi necessária: IsActive e os campos de status/data já existiam. DELETE /api/User deixa de executar a remoção física do Identity. A conta e as FKs permanecem, eliminando o bloqueio por FK Restrict de assinaturas/interações no fluxo normal de exclusão.
+
+UserRepository.DeleteAsync controla transação e SELECT ... FOR UPDATE na linha Users, recarrega o usuário e executa a função de desativação coordenada pelo service. Hosts/programações/favoritos/assinatura são obtidos como entidades rastreadas no mesmo Context scoped do store do Identity. UserManager.UpdateAsync salva a conta e as alterações rastreadas dentro dessa transação. Em falha de Identity/banco há rollback e ChangeTracker.Clear; em sucesso há commit. FKs Restrict/Cascade e índices únicos permanecem inalterados, sem exclusão em cascata nem remoção de registros históricos.
+
+50 verificações em PostgreSQL/API descartáveis cobriram assinatura ativa/cancelada/expirada/ausente; múltiplos hosts e programação ativa em host já inativo; favoritos próprios indisponíveis e favoritos de terceiros; interações/endereços/categorias/Identity preservados; reserva de e-mail; bloqueio do JWT/login; concorrência do Identity e reativação manual sem republicação. Trigger de falha e validator Identity simulados, apenas no banco/contexto descartável, confirmaram rollback completo e posterior reenvio bem-sucedido. Mais 37 regressões de autenticação e 89 testes simulados do protótipo passaram. Build sem erros, com 10 avisos preexistentes. Nenhum usuário/host/programação do banco principal foi desativado nos testes; nenhum PDF exportado.
+
+
+## Preparação de dias de funcionamento — 04/11/2026
+
+HostOpeningDay e HostOpeningPeriod foram definidos em Domain/Model como futura base de dias/períodos. Ainda não foram adicionados DbSets, configurações, navegação em Hosts ou migration. Relacionamentos, unicidade HostId/DayOfWeek e tipos de coluna serão configurados na etapa de persistência. Não há mudança no schema nem aplicação de migration. Verificação apenas estática do Context e build sem erros/dez avisos anteriores; nenhum acesso ao banco ou PDF.
+
+## Contrato do repository de funcionamento — 04/11/2026
+
+Criada Domain/Interfaces/Repository/IOpeningHoursRepository na branch ARTUR-DESKETOP, seguindo as interfaces existentes, sem novas pastas. Define Task<List<HostOpeningDay>> GetByHostIdAsync(int hostId) e Task<List<HostOpeningDay>> EditAsync(List<HostOpeningDay> days, int hostId). O contrato prevê consulta de dias com seus períodos e substituição integral da semana, retornando os registros atualizados.
+
+Recebe somente hostId e entidades, sem userId, DTO ou CancellationToken. O futuro service será responsável por autorização/propriedade, disponibilidade/tipo do host e chamada de OpeningHoursValidations antes de persistir. A futura implementação Data/Repository deverá carregar os períodos e efetuar a substituição da semana em uma operação atômica. Nenhuma consulta/transação foi implementada nesta etapa; a interface não garante essas regras por si só.
+
+Sem classe concreta, DI do repository, configuração EF, DbSets, migration ou endpoint. Build isolado aprovado com zero erros e dez avisos anteriores. Não houve teste funcional, banco/HTTP, API reiniciada, Expo ou PDF. Próxima etapa: implementar OpeningHoursService utilizando este contrato.
+
+## Mapeamento EF dos dias e períodos preparado — 04/11/2026
+
+Adicionados ao Context os DbSets HostOpeningDays e HostOpeningPeriods. Criadas Data/Configurations/HostOpeningDayConfiguration e HostOpeningPeriodConfiguration, descobertas pelo ApplyConfigurationsFromAssembly já existente. Tabelas definidas como HostOpeningDays e HostOpeningPeriods, com Id como PK e FKs obrigatórias HostId/HostOpeningDayId. Não foi necessário acrescentar coleção inversa em Hosts.
+
+DayOfWeek é convertido para int e IsClosed é obrigatório. Índice único do par HostId/DayOfWeek protege contra duplicação do mesmo dia para um host. OpeningTime/ClosingTime usam TimeOnly com tipo PostgreSQL time without time zone obrigatório; ClosesNextDay é obrigatório. As regras de sete dias, enum válido, duração, fechado/períodos e sobreposição permanecem no domínio; esse índice não substitui essas validações e não garante ausência de sobreposição no banco.
+
+Relacionamentos: HostOpeningDay.Host → Hosts, um host para vários dias, FK HostId, Cascade; HostOpeningPeriod.HostOpeningDay ↔ HostOpeningDay.Periods, um dia para vários períodos, FK HostOpeningDayId, Cascade. Remoção física de um dia remove seus períodos; remoção física de um host remove dias/períodos. Alterar IsActive do host não executa cascata de exclusão e preserva a agenda.
+
+Modelo EF agora possui alterações pendentes de migration. Nenhuma migration foi gerada ou aplicada; snapshot e banco permanecem anteriores. Não houve backfill de agenda para hosts antigos. Prepare/revise a migration na etapa autorizada posterior antes de usar a nova persistência. O repository concreto ainda não foi implementado e a API principal não foi reiniciada.
+
+Verificação: 23 verificações locais do modelo Npgsql/EF, sem abrir conexão ou SaveChanges, aprovaram entidades, PKs/FKs, ausência de propriedades sombra, unicidade, tipos obrigatórios, navegações e cascatas no ChangeTracker. SQL estrutural de criação foi apenas inspecionado em memória para conferir tabelas/índice/colunas; isso não gerou arquivo de migration nem foi executado. Build do backend sem erros/dez avisos preexistentes; builds incrementais finais dos harnesses sem erros/avisos novos. 70 regressões do service aprovadas com Identity/repositories simulados. Harnesses locais tmp/OpeningHoursEfModelCheck.cs e tmp/OpeningHoursServiceCheck.cs no workspace do protótipo, não são testes versionados no backend. Sem banco/HTTP real, Expo ou PDF.
+
+## Repository de funcionamento implementado — 04/11/2026
+
+Criado Data/Repository/OpeningHoursRepository implementando IOpeningHoursRepository, com Context recebido pelo construtor e campo Db conforme HostRepository. GetByHostIdAsync filtra HostId, usa AsNoTracking, inclui Periods ordenados por OpeningTime/Id e ordena os dias por DayOfWeek. Consulta sem agenda retorna lista vazia e não mantém entidades rastreadas.
+
+EditAsync substitui a semana inteira em transação: bloqueia a linha do host ativo com SELECT parametrizado FOR UPDATE; consulta os dias atuais com períodos; remove os dias e salva a remoção; adiciona os novos dias/períodos e salva a inclusão; consulta a semana atualizada ainda dentro da transação; confirma e retorna. Dois SaveChanges dentro da mesma transação evitam conflito transitório com o índice único HostId/DayOfWeek sem expor um estado intermediário confirmado. Cascata remove os períodos antigos. Falha reverte a operação, limpa o ChangeTracker e propaga a exceção original, sem convertê-la genericamente em conflito.
+
+O bloqueio por host serializa substituições concorrentes, inclusive quando a agenda ainda está vazia. A última operação executada prevalece como semana completa; não foi implementado controle otimista por versão nem HTTP 409 para edição desatualizada. A leitura do resultado ocorre antes do commit para retornar a semana gravada por aquela chamada. A existência/atividade do host é novamente conferida sob bloqueio; a autorização, tipos permitidos, sete dias e validação de horários continuam no service. O repository pressupõe dias previamente validados e vinculados ao host da operação.
+
+Registrados IOpeningHoursRepository/OpeningHoursRepository e IOpeningHoursService/OpeningHoursService como scoped no Program.cs. Não foram criados AppService concreto, controller ou endpoint de funcionamento nesta etapa. Nenhum contrato HTTP ou formulário foi alterado.
+
+Verificação: backend compilado com zero erros e dez avisos preexistentes; build incremental final do harness sem erros/avisos novos. 23 verificações reais com EF/Npgsql/PostgreSQL em banco descartável aprovaram resolução DI, criação, carregamento/ordenação, AsNoTracking, substituição, cascata, preservação de outro host, índice único, rollback com preservação de IDs/períodos, reutilização do Context, recusa de host inexistente/inativo, duas edições concorrentes e ausência de períodos órfãos.
+
+Docker Desktop foi iniciado porque estava desligado; container PostgreSQL local ficou disponível. O teste criou banco com nome aleatório e prefixo opening_hours_check_, bloqueou destino remoto e removeu esse banco ao finalizar. Usou EnsureCreated exclusivamente nesse banco vazio; não executou Migrate, não gerou arquivos de migration e não abriu o banco principal. Harness local C:/Users/Artur/Documents/ChatGPT/Perambulando/tmp/OpeningHoursRepositoryCheck.cs, não versionado no backend. Migration principal continua pendente de revisão/autorização. Sem API principal reiniciada, Expo ou PDF.
+
+
+## Cadastro transacional de host e agenda — 04/11/2026
+
+Hosts.OpeningDays foi incluída como navegação inversa da FK HostOpeningDay.HostId. A configuração agora usa WithMany(host => host.OpeningDays), preservando tabelas, colunas, FKs e índice único HostId/DayOfWeek já preparados. A navegação opcional distingue, antes de rastrear o grafo de criação, semana omitida (null) de uma semana explicitamente enviada vazia (inválida). Não há nova coluna para essa propriedade.
+
+Db.Set<Hosts>().Add(host) no HostRepository existente rastreia os novos dias/períodos e propaga o ID gerado do host às FKs. A primeira gravação e a atribuição da role continuam na mesma transação. Não houve gravação adicional em outro service após o commit. Testes comprovaram rollback do host, endereço novo, dias, períodos e role após falha simulada.
+
+33 verificações integradas aprovadas com EnsureCreated exclusivamente em banco de nome aleatório host_opening_check_<guid>, removido ao final. CNPJ/geocodificação simulados; EF/Npgsql/PostgreSQL e Identity reais. Nenhuma migration criada/aplicada, nenhum snapshot alterado, banco principal preservado. Schema principal de funcionamento continua pendente de revisão/migration.
+
+
+## MinPrice/MaxPrice em Hosts — 05/11/2026
+
+Preparadas duas propriedades decimal? MinPrice e MaxPrice em Hosts, configuradas por HasPrecision(12,2), nullable. Isso permite preservar hosts antigos sem estimativa conhecida, evitando preencher zeros fictícios. Valores efetivamente enviados são validados no HostValidation da Application antes do mapping e da chamada ao service, incluindo escala e limite numérico. Não foram criados CHECKs nem backfill nesta etapa.
+
+HostRepository.GetByIdAsync inclui OpeningDays e Periods além de Address, com AsNoTracking, para o perfil retornar a grade real. Não muda tabelas de horários ou suas FKs. Cadastro/edição continuam com as transações existentes.
+
+77 verificações integradas aprovadas com EnsureCreated somente em banco aleatório host_prices_check_<guid>, removido ao final; persistência e Identity reais, CNPJ/geocodificação simulados. Foram verificadas escala/precisão/nullability do modelo, centavos após cadastro/edição, legado nulo, consulta da grade e preservação da agenda ao editar preços. Nenhuma migration/snapshot foi gerada/alterada/aplicada; banco principal preservado. Usuário informou que a migration anterior de horários rodou: as duas colunas monetárias são uma alteração nova e ainda dependem de outra migration. API não reiniciada por essa pendência.
+
+
+## Chat: objetos de domínio sem persistência — 05/11/2026
+
+TravelChatMessage, TravelChatLocation e TravelChatResponse são tipos usados pelo mapping e pelo contrato ITravelChatService. Não foram adicionados a DbSets, relacionamentos ou configurações EF. Nenhuma tabela, migration ou gravação de conversa foi criada; persistência permanece pendente.
+
+
+## Chat: Point apenas em memória — 05/11/2026
+
+TravelChatLocation.Location agora usa Point? com SRID 4326 criado pelo mapping (longitude, latitude). Objeto não mapeado no EF; nenhuma coluna, índice, migration ou consulta de proximidade foi criada. Address e seu mapeamento espacial permanecem preservados.
+
+## Chat: model da conversa — 05/11/2026
+
+Criado Domain/Model/TravelChatConversation.cs após conferir ausência de model equivalente e comparar Favorite/Subscription. Contém Id (int), User (navegação), UserId (string), IsActive (true inicialmente), CreatedAt e UpdatedAt (inicializados com DateTime.UtcNow), seguindo o padrão existente de Favorite. UserId permitirá associar a conversa ao usuário autenticado; o model não verifica propriedade por si só.
+
+Não foram adicionadas coleção de mensagens, preferências extraídas ou estado do workflow neste passo. TravelChatMessage continua sendo o objeto de entrada do service, não uma mensagem persistida de histórico. Model User e DTOs preservados. Sem DbSet, configuração EF, migration, tabela, repository ou utilização do novo model pelo service; criação/consulta de conversas e verificação de propriedade continuam pendentes. O UserId da conversa deverá ser preenchido pelo fluxo servidor, nunca pelo DTO do aplicativo.
+
+Próximo baby step: definir a interface do repository para criar/consultar uma conversa pertencente ao usuário, antes de implementar acesso a dados. Action SendMessage permanece sem funcionamento completo e sem registros de DI da feature. Sem alterações no protótipo, n8n, banco ou PDFs.
+
+Validação do model: build --no-restore com saída isolada aprovado, zero erros e nove avisos de nulabilidade anteriores; git diff --check sem erros. Não foram criados testes para propriedades sem lógica. Sem teste HTTP, persistência, banco ou n8n.
+
+## Chat: interface do repository de conversa — 05/11/2026
+
+Criada Domain/Interfaces/Repository/ITravelChatConversationRepository.cs após conferir contratos existentes de Address, Favorite e OpeningHours e ausência de repository equivalente. Contém somente:
+
+```csharp
+Task<TravelChatConversation> AddAsync(TravelChatConversation conversation, CancellationToken cancellationToken = default);
+Task<TravelChatConversation?> GetByIdAsync(int conversationId, string userId, CancellationToken cancellationToken = default);
+```
+
+AddAsync representa salvar a conversa cujo UserId deverá ser preenchido no service a partir da identidade autenticada. GetByIdAsync recebe ID da conversa e do usuário: o contrato da futura implementação exige restringir a consulta à conversa ativa pertencente ao usuário e retornar null para inexistente, inativa ou alheia, permitindo resposta 404 uniforme pelo service. Esse filtro ainda não foi implementado nem testado em banco. CancellationToken permitirá propagar cancelamento à persistência, sem modificar os repositories existentes.
+
+Este passo define apenas a interface no domínio. Sem repository concreto, DbSet, configuração EF, migration, tabela, DI ou chamada desta interface no service. Não foram acrescentadas operações de listagem/edição, actions ou contratos HTTP. IUserService.GetProfileAsync permanece como função reutilizada para validar a conta. Próximo baby step: conectar o contrato ao TravelChatService para iniciar uma conversa ou consultar a conversa do usuário, com repository simulado na validação.
+
+Sem mudança no protótipo, workflow, banco ou PDFs; action continua indisponível em execução por implementação/DI pendentes.
+
+Validação da interface: build --no-restore com saída isolada aprovado, zero erros e nove avisos anteriores de nulabilidade; git diff --check sem erros. Sem testes automatizados para interface sem implementação, HTTP, persistência, banco ou n8n.
+
+## Chat: seleção/início da conversa no service — 05/11/2026
+
+TravelChatService agora recebe ITravelChatConversationRepository pelo construtor. Após rejeitar mensagem nula e reutilizar IUserService.GetProfileAsync para validar a conta, resolve a conversa: sem ConversationId, chama AddAsync com novo TravelChatConversation cujo UserId vem do parâmetro autenticado do service; com ID, exige valor positivo e chama GetByIdAsync(id, userId). Conversa ausente, inativa ou de outro usuário gera a mesma KeyNotFoundException, já traduzida para 404 pela action. Não cria outra conversa silenciosamente quando um ID existente não pode ser usado.
+
+CancellationToken é verificado antes de consultar o usuário e antes de iniciar a etapa de conversa, e encaminhado aos dois métodos do repository. GetProfileAsync mantém contrato existente sem token. Erros de persistência não são mascarados. O objeto de conversa resolvido foi preparado para as próximas etapas de histórico/contexto; ainda não produz resposta.
+
+Limite incremental: após resolver a conversa, o fluxo continua lançando NotImplementedException. Se fosse ligado a um repository real neste estágio, AddAsync poderia salvar uma conversa antes da falha final; por isso a feature permanece sem DI e não deve ser apresentada como funcional. Não há repository concreto, EF, migration ou chamadas reais ao banco. Atomicidade de histórico e resposta, falhas do workflow e novas tentativas deverão ser resolvidas antes de habilitar o fluxo completo.
+
+Sem alteração de DTO, mapping, rota, protótipo, n8n ou PDF. Próximo baby step proposto: definir o model de mensagem persistida do histórico, separado de TravelChatMessage (entrada do service), antes de criar os respectivos contratos de persistência.
+
+Validação desta etapa: dotnet run --no-restore de TravelChatConversationCheck.cs/.csproj compilou o backend sem erros, com nove avisos existentes, e aprovou 22 verificações com IUserService/repository simulados: início/continuidade, identidade enviada, conversa inexistente/inativa/alheia, IDs inválidos, usuário indisponível, cancelamento, mensagem nula e falhas de persistência propagadas. O fluxo válido foi verificado somente até a exceção do trecho pendente. git diff --check sem erros; sem HTTP, banco real ou n8n.
+
+## Chat: model da mensagem do histórico — 05/11/2026
+
+Criado Domain/Model/TravelChatHistoryMessage.cs após conferir os models existentes e ausência de equivalente. Segue o padrão de navegação/chave de HostOpeningPeriod e enum no mesmo arquivo de ProgrammingInteraction.
+
+Campos: Id (int), Conversation (TravelChatConversation), ConversationId (int), Role (TravelChatMessageRole), Text (string inicializada vazia) e CreatedAt (DateTime.UtcNow). TravelChatMessageRole define User=0 e Assistant=1. O papel deverá ser atribuído pelo servidor conforme a origem da mensagem, não recebido do aplicativo para autorizar mensagens de assistente. O usuário proprietário será obtido pela conversa, sem duplicar UserId em cada mensagem.
+
+TravelChatMessage continua como entrada do service, com localização opcional; não foi transformado na entidade do histórico. O novo model não contém coordenadas, precisão, JWT ou instrução de sistema. Text permite armazenar perguntas do assistente e respostas do usuário; persistência estruturada de perguntas, sugestões e preferências será tratada em passos posteriores, não está implementada por este model.
+
+Estado: somente estrutura de domínio, sem coleção acrescentada à conversa, repository de mensagens, DbSet, configuração EF, limites de coluna, índice, migration ou tabela. Nenhum histórico está sendo salvo ou consultado; service e DI permanecem incompletos. Próximo baby step: definir a interface do repository de mensagens do histórico, para adicionar mensagem e recuperar contexto da conversa, preservando a verificação de propriedade no fluxo.
+
+Sem alteração de DTO, mapping, rota, protótipo, banco, workflow ou PDFs. Nenhum teste funcional ou de persistência foi realizado nesta etapa de propriedades sem lógica.
+
+Validação do model de histórico: build --no-restore com saída isolada aprovado, zero erros e nove avisos anteriores de nulabilidade; git diff --check sem erros. Sem testes automatizados para propriedades sem lógica, HTTP, banco ou n8n.
+
+## Chat: interface do repository de histórico — 05/11/2026
+
+Criada Domain/Interfaces/Repository/ITravelChatHistoryMessageRepository.cs após conferir os repositories existentes e ausência de equivalente. Contém somente AddAsync(TravelChatHistoryMessage message, CancellationToken cancellationToken = default) e GetRecentByConversationIdAsync(int conversationId, string userId, int take = 20, CancellationToken cancellationToken = default), retornando respectivamente a mensagem salva e List<TravelChatHistoryMessage>.
+
+Contrato para a futura implementação: AddAsync salva a mensagem vinculada à conversa previamente validada pelo service; Role será atribuído pelo servidor. Consulta deve restringir a conversa ativa pertencente ao userId, selecionar as últimas take mensagens por CreatedAt/Id e devolvê-las em ordem cronológica crescente (CreatedAt e Id como desempate), para contexto do n8n. take padrão 20 não significa carregar todo o histórico; limitar a faixa de 1 a 100 na implementação/fluxo, conforme padrão de paginação do sistema. Consulta sem registros elegíveis retorna lista vazia; a inexistência/propriedade da conversa deve ser verificada antes pelo contrato já existente de conversa, evitando interpretar lista vazia como autorização.
+
+Este passo define apenas a interface. Não implementa ordenação, filtros, validações, acesso a dados, histórico no service, DI, EF ou persistência. Essas garantias ainda dependem de código e testes futuros. Não foi criada action de consulta de histórico nem alterado DTO/rota. Próximo baby step: conectar o repository de histórico ao TravelChatService para recuperar contexto e registrar a mensagem do usuário, com dependências simuladas e decisão explícita sobre falhas/reenvio antes de habilitar persistência real.
+
+Sem alteração de protótipo, banco, workflow ou PDF; a feature permanece incompleta e indisponível em execução.
+
+Validação da interface de histórico: build --no-restore com saída isolada aprovado, zero erros e nove avisos de nulabilidade anteriores; git diff --check sem erros. Sem testes automatizados para interface sem implementação, HTTP, persistência, banco ou n8n.
+
+## Chat: histórico conectado ao service — 05/11/2026
+
+TravelChatService agora recebe ITravelChatHistoryMessageRepository no construtor. Após reutilizar GetProfileAsync e resolver/validar a conversa, chama GetRecentByConversationIdAsync(conversation.Id, userId, take: 20, cancellationToken) e, em seguida, AddAsync com ConversationId validado, Role=User e Text da mensagem atual. CreatedAt segue a inicialização UTC do model. Nenhuma coordenada ou metadado de localização é copiado para o histórico.
+
+A leitura ocorre antes da gravação para que o contexto recente não contenha novamente a mensagem atual, que será enviada separadamente ao workflow em passo futuro. O contexto é recuperado, mas ainda não utilizado: a integração com o workflow não foi criada. Não são geradas nem salvas respostas fictícias de assistente. Falha na leitura impede a gravação da mensagem; falha na gravação é propagada, sem repetição automática. Cancelamento é verificado antes da leitura e entre leitura/gravação, além de ser encaminhado ao repository.
+
+Limite incremental: o método ainda termina em NotImplementedException depois dessas operações. Se conectado ao banco nesta etapa, poderia salvar conversa/mensagem sem completar a resposta. Portanto não foram registrados DI ou repositories concretos e a feature continua indisponível em execução. A primeira versão não tem ClientMessageId/idempotência: reenvio não poderá ser tratado como exatamente uma gravação; não haverá retry automático. Recuperação de falhas, política de mensagens pendentes e concorrência deverão ser resolvidas antes de habilitar o fluxo real, sem prometer atomicidade que ainda não existe.
+
+DTOs, mappings, rota e verificação de propriedade preservados. Sem DbSet, configuração EF, migrations, banco, workflow, protótipo alterado ou PDF. Próximo baby step: definir o contrato do serviço de interpretação do n8n no domínio, incluindo mensagem atual e contexto recente, antes de implementar transporte HTTP na Data.
+
+Validação do histórico no service: dotnet run --no-restore do harness TravelChatConversationCheck compilou o backend sem erros (nove avisos anteriores) e aprovou 33 verificações com dependências simuladas. Cobrem início/continuidade/propriedade, ordem leitura→gravação, ConversationId/UserId/Role/Text, limite 20, encaminhamento de cancelamento, nenhuma gravação em erro de leitura/acesso, cancelamento durante leitura e propagação de falhas de gravação. Fluxo válido termina no ponto ainda pendente. git diff --check sem erros; sem HTTP, banco real ou n8n.
+
+
+## IA simplificada: sem persistência de chat — 05/11/2026
+
+Primeira versão redefinida para prompt único e listas de programações/hosts. TravelChatService deixou de depender dos repositories de conversa/histórico. Models/interfaces anteriores ficam inativos, sem EF/tabelas. Nenhuma migration ou alteração de banco.
+
+## Limpeza da IA simplificada — 05/11/2026
+
+Removidos do código os seis arquivos fora do escopo vigente: TravelChatLocationDTO, TravelChatLocation, TravelChatConversation, TravelChatHistoryMessage (incluindo TravelChatMessageRole), ITravelChatConversationRepository e ITravelChatHistoryMessageRepository. A conferência de referências mostrou apenas dependências entre os próprios arquivos removidos; o fluxo do prompt já estava desacoplado deles.
+
+As menções anteriores a esses tipos como preparação inativa são históricas e estão substituídas por esta remoção. Não há mais models/interfaces de conversa, histórico ou localização específicos da IA. Address.Location e o restante da localização já existente do sistema foram preservados. Mantidos os contratos de interpretação/preferências/intenções necessários à próxima etapa do prompt único, além de controller, DTOs, validação, mapping, AppService e service atuais.
+
+Sem mudança de contrato público, lógica de busca ou registros de DI. A integração n8n e os filtros continuam pendentes. Sem migração, banco, protótipo ou PDF alterados.
+
+Validação da limpeza: build --no-restore com saída isolada aprovado, zero erros e nove avisos anteriores. Busca C# no backend sem referências aos tipos removidos; git diff --check sem erros. Não foram repetidos testes funcionais: remoção apenas de tipos já desacoplados. Sem HTTP, banco ou n8n.
+
+## Hosts: filtros de preço/funcionamento e validação separada — 05/11/2026
+
+GET /api/Host/HostFilter mantém autenticação, paginação e resposta List<HostResponseDTO>. HostFilterDTO, HostFilter e HostFilterMapping agora incluem:
+
+| Campo | Tipo/uso |
+|---|---|
+| MinPrice / MaxPrice | decimal?; limites opcionais de faixa estimada de gasto por pessoa |
+| DayOfWeek | DayOfWeek?; 0=domingo até 6=sábado |
+| StartTime / EndTime | TimeOnly?; intervalo opcional em horário semanal do estabelecimento |
+| EndsNextDay | bool, padrão false; término do intervalo solicitado no dia seguinte |
+
+Preço usa interseção inclusiva: host.MaxPrice >= MinPrice solicitado e host.MinPrice <= MaxPrice solicitado. Limite ausente não restringe; faixa desconhecida não é tratada como zero/gratuidade e não satisfaz comparação com limite conhecido. Trata-se de estimativa por pessoa, não garantia de valor exato ou de toda a faixa caber no orçamento.
+
+Funcionamento usa qualquer sobreposição positiva, conforme escolha explícita do usuário. Apenas DayOfWeek busca qualquer abertura no dia, incluindo cauda de intervalo iniciado no dia anterior. Com período, dia/início/término são exigidos; deve durar mais de zero e até 24 horas. Horários iguais exigem EndsNextDay=true (24h). Tocar exatamente na abertura/fechamento sem tempo em comum não conta. A consulta considera dias/períodos ativos da agenda (IsClosed=false), múltiplos intervalos, madrugada e semana cíclica (sábado/domingo e domingo/segunda). Agenda ausente não significa aberto. Dia marcado fechado não elimina a cauda de um intervalo válido iniciado no dia anterior. Sem filtro de agenda, hosts sem agenda continuam elegíveis.
+
+Repository aplica preços e Any de dias/períodos diretamente no IQueryable, antes de OrderBy/Skip/Take. Não há carregamento de toda a tabela ou filtro após paginação. Busca preserva nome, cidade, tipos, HasProgrammings e atividade do host. Não altera entities Hosts/HostOpeningDay/HostOpeningPeriod, schema ou migrações: usa campos já existentes.
+
+Por solicitação do usuário, todas as validações do filtro (nulo, Take/Skip, Types, preços não negativos/duas casas/ordem dos limites, dia da semana, campos necessários e duração) foram extraídas para Domain/Validations/Validations/HostFilterValidations, com IHostFilterValidations. HostService recebe a interface pelo construtor e executa Validate(filter) antes do repository. Mensagens/exceções preservadas. Registro scoped acrescentado em Presentation/Program.cs ao lado das validações existentes; alteração necessária à injeção desta funcionalidade, não para suportar o protótipo. Controller continua traduzindo ArgumentException para ProblemDetails 400; DataAnnotations continuam as restrições estruturais no DTO.
+
+Integração com IA: quando VisitDate existir, TravelChatService passa seu DayOfWeek; com período completo confirmado, passa início/fim/virada. Orçamento confirmado por pessoa/por parada vira MaxPrice; não inventa MinPrice, que não existe nas preferências atuais. Orçamento total/grupo permanece sem conversão. Sem data, não aplica horário semanal isolado. Os horários do filtro são horários da agenda, sem novo fuso nomeado ou conversão automática de localização. Client n8n/DI da IA ainda pendentes; a busca pública de hosts reutiliza os services existentes. Especialidade como cafeteria ainda não é distinguida por tipo de host.
+
+Protótipo: catálogo reconhece preços numéricos, horários e seleção de dia da semana com domingo=0; formulários/query mantêm JWT e filtros opcionais, sem herdar preços de um host selecionado. Ajuda explica sobreposição e preços estimados. Exemplo .http atualizado com período normal, madrugada, dia inteiro e entrada inválida. Mudanças de catálogo também tipam DayOfWeek em DTOs já existentes; testes de regressão preservados.
+
+Sem alteração de banco principal, entidades persistidas, configurações EF, migrations, CORS, emissão JWT ou PDF. A API não foi reiniciada.
+
+Validação concluída dos filtros e extração: build do backend aprovado sem erros/nove avisos anteriores; HostFilterHoursCheck executou 197 verificações com EF/PostgreSQL reais em banco local descartável (intervalos/limites, múltiplos períodos, virada de dia/semana, agenda ausente/fechada, faixa monetária, legado nulo, paginação posterior aos filtros, mapping e rejeições de validação). Inclui 147 comparações de intervalos semanais contra um oráculo independente e sete consultas por dia sem período. Banco descartável removido em finally; banco principal preservado. A primeira conexão tentou porta 5434 do Development e foi recusada; teste passou com configuração base da porta 5432 já ativa, sem alteração de config/container/volume. Harness emitiu um aviso CS8602 próprio, separado dos nove avisos do backend.
+
+TravelChatResultsCheck executou 29 verificações simuladas do fluxo combinado, incluindo transferência de dia/período/virada/MaxPrice para HostFilter. node --check de app.js/catalog.mjs e arquivos de teste aprovado; catálogo real conferido; 105 testes do protótipo aprovados com API simulada. Primeira execução da nova fixture de UI falhou por aguardar incorretamente a sincronização inicial; fixture corrigida antes do resultado final. Sem teste HTTP real, API reiniciada, n8n ou PDF. Os exemplos .http foram atualizados, mas não executados contra dados reais. git diff --check sem erros.
+
+## IA: primeiro retorno manual e diagnóstico de listas vazias — 06/11/2026
+
+Usuário informou retorno da API com Programmings=[] e Hosts=[] e trouxe a interpretação do n8n para Recife, 07/11/2026, 09:00–12:00, Turismo (categoria 8), Café (categoria 12) e hostTypes=[1]. Os IDs são do catálogo real; valor monetário/pessoas não informados permaneceram null. Código/status HTTP não foi colado nesta troca; não confundir esse relato com execução automatizada do fluxo completo pelo assistente.
+
+Inspeção do assistente em transação PostgreSQL explicitamente READ ONLY, na configuração base localhost:5432/perambulando: categorias 8=Turismo e 12=Café existem/ativas; zero programações ativas/não encerradas/com host ativo, mesmo antes dos filtros de cidade/data; zero hosts gastronômicos ativos em todas as cidades. Repositories reais retornaram zero para ambas as categorias no período e para host tipo 1/Recife tanto sem agenda quanto com sábado e sábado 09–12. Portanto, nesse banco e nesse momento, o retorno vazio é coerente com os cadastros, não evidência de falha no transporte ou falta de agenda apenas.
+
+Nenhum dado criado/alterado/excluído, nenhuma migration, workflow ou chamada de IA executada pelo assistente. A inspeção consultou apenas contagens e os nomes/atividade das categorias relevantes; não gravou resultados de usuários em arquivos. Próximo teste de presença de sugestões dependerá de cadastros compatíveis, sem alterar silenciosamente filtros ou povoar banco real para teste automatizado de interface. O estado dos dados acima é temporal, não uma regra permanente da API.
+
+## Roteiros personalizados — 12/11/2026
+
+Implementação preparada; migration `20261112194651_AddRoadmaps` criada, **não aplicada**. Não reinicie em Development antes de revisar: o Program.cs existente executa MigrateAsync na inicialização. Nenhuma mudança de schema foi executada nesta etapa.
+
+### Contrato e acesso
+- `POST /api/Roadmap`: público, JWT opcional; retorna 201 e Location para a consulta compartilhada. UserId vem exclusivamente da identidade autenticada, nunca do corpo. Sem token cria roteiro anônimo, que não pode ser editado ou desativado depois.
+- `GET /api/Roadmap/Shared/{shareId}`: público, somente leitura; identificador UUID aleatório. Compartilha nome e paradas, nunca UserId/e-mail. Roteiros inativos ou de contas desativadas retornam 404. SharePath é uma rota relativa da API que retorna JSON; o frontend deve compor sua página pública a partir de ShareId, sem colocar JWT no link.
+- `GET /api/Roadmap/GetAllRoadmapbyUserId?take=10&skip=0`: JWT obrigatório; somente roteiros ativos do usuário autenticado. Não recebe userId externo; take de 1 a 100 e skip não negativo. Lista vazia retorna 200 com [].
+- `PUT /api/Roadmap/{id}`: JWT do dono, substitui nome e lista completa de paradas; exige Version da última leitura. Anônimo/outro dono não obtêm acesso por ShareId; 404 para roteiro indisponível e 409 para versão desatualizada/concorrência.
+- `PATCH /api/Roadmap/{id}/Deactivate?version={uuid}`: dono autenticado e versão atual; soft delete, retorna 204 e torna o compartilhamento indisponível.
+- `POST /api/TravelChat/Messages` passou a permitir anônimos. Com JWT válido, continua verificando usuário ativo pelo IUserService.GetProfileAsync. Authorization inválido/expirado não é aceito silenciosamente como anônimo. Sem header, não consulta perfil. Não envia identidade ao n8n.
+- Criação de roteiro e TravelChat usam o limitador local por IP já existente, ProgrammingInteractions (120/minuto); excesso retorna 429. Não substitui política de quotas distribuídas de produção.
+
+### DTOs, entidades e regras
+RoadmapDTO: Name obrigatório até 150 caracteres, Version opcional na criação/obrigatória na edição e Stops de 1 a 30. Cada RoadmapStopDTO recebe somente ProgrammingId OU HostId, mais StartDate/EndDate UTC. A ordem da lista define Position. IDs positivos, início anterior ao fim, período entre 2000 e 2100, sem sobreposição; intervalos adjacentes são permitidos. Não exige participação integral: a visita deve caber no evento. Não calcula tempo de deslocamento, vagas ou reservas e não exige que os IDs pertençam a uma resposta específica da IA: opções ativas de qualquer página são novamente conferidas no banco.
+
+Hosts elegíveis são Gastronomia/Comércio com grade cadastrada. A visita inteira deve caber em um intervalo aberto, incluindo viradas de dia e períodos do dia anterior; não atravessa intervalo fechado. Grade local interpretada em America/Recife, enquanto entrada e persistência usam UTC. O modelo atual não possui timezone por estabelecimento; ampliação a outros fusos fica pendente. Cada programação/host pode aparecer uma vez por roteiro. Validações ocorrem ao criar/editar; alterações posteriores no catálogo não reservam nem garantem disponibilidade. IsAvailable no retorno indica somente o estado ativo da opção/host.
+
+RoadmapResponseDTO: Id, Name, ShareId, SharePath, Version, CreatedAt, CanEdit e Stops ordenadas com nome, IDs, período e IsAvailable. Consulta compartilhada sempre retorna CanEdit=false; criação autenticada/listagem privada/edição retornam true. Não é possível apropriar-se de um roteiro anônimo depois do login.
+
+Persistência: Roadmaps (UserId nullable, ShareId único, Version como token de concorrência), RoadmapStops (FKs, posição única por roteiro, alvo exclusivo e período positivo com checks), RoadmapProgrammingUsages (histórico, par RoadmapId/ProgrammingId único). FKs de catálogo e usuário restritivas preservam referências; a desativação de usuário já é lógica. Criação usa um SaveChanges atômico. Edição usa transação: troca versão, remove paradas antigas, adiciona as novas e registra somente inclusões inéditas. Conflitos de versão são 409; outras falhas de banco não são mascaradas como conflito.
+
+### Estatísticas
+Summary, Daily e Ranking retornam RoadmapInclusions. Ranking aceita sortBy=roadmapInclusions. A métrica conta a primeira inclusão de uma programação em cada roteiro, na data UTC dessa inclusão; retirar/recolocar a mesma programação no mesmo roteiro não conta outra vez. A desativação do roteiro preserva esse histórico. Exclusão de autointeração compara dono do host ao usuário autenticado; não é possível identificar o dono quando navega anonimamente. Conta inclusões, não pessoas únicas, reservas ou comparecimento. Roteiros com somente hosts não aumentam a métrica de programações.
+
+Agregações de favoritos, interações e inclusões são independentes, evitando produto cartesiano. Ranking faz left joins e mantém zeros; Daily reúne os grupos por data e o service mantém dias sem dados com zero. Autorização Pro e propriedade das estatísticas permanecem.
+
+### Testes e operação
+Harness em docs/validacoes/RoadmapChecks.csproj valida regras sem conexão ao banco. Exemplos de todas as rotas no arquivo Projetos - 4.http. Painel prototipo-api sincroniza os contratos e permite selecionar hosts/programações entre páginas, informar horários, ordenar e preparar o POST. Dados só são enviados ao clicar Enviar requisição; JWT é opcional nas duas operações públicas. Compartilhamento de rota da API é JSON, sem nova página pública no Expo. PDFs não foram regenerados.
+
+Limites da verificação: não foram aplicadas migrations nem executadas gravações HTTP/integração PostgreSQL. Testes de transação, concorrência real e execução das agregações no PostgreSQL devem ocorrer após a revisão/aplicação autorizada da migration. Não confundir compilação/testes com banco atualizado.
+
+## Correção da migration AddRoadMap — 14/11/2026
+O Update-Database enviado pelo usuário falhou com 42P01 no primeiro comando ALTER TABLE Roadmaps DROP CONSTRAINT. A migration 20261114192817_AddRoadMap estava baseada numa estrutura anterior de roteiros ausente no banco informado: alterava Roadmaps e removia RoadmapStops/RoadmapProgrammingUsages. Corrigida a migration ainda pendente para criar Roadmaps e RoadmapProgrammings com as colunas/FKs/índices do target model atual. Down remove as duas tabelas na ordem das dependências. Não contém remoção das tabelas antigas no Up.
+
+Restaurado [DbContext(typeof(Projetos___4.Data.Context.Context))] em ContextModelSnapshot, cuja ausência provocava o aviso Model snapshot was not found. Nenhuma migration foi aplicada e não houve alteração de dados. Correção destinada ao banco reportado sem as tabelas de roteiros; não é uma migration de conversão de ambientes que já tenham a modelagem anterior aplicada. Não apagar o histórico EF nem criar manualmente as tabelas. PDFs preservados.
+
+## Galeria HostsPhotos — 15/11/2026
+Implementado fluxo HostController → HostAppService → HostsPhotosService → HostsPhotosRepository, com interfaces, HostsPhotosMapping e DI. Rotas preservadas: GET /api/Host/{hostId}/GetAllHostsPhotos (autenticado, 200 lista ou []), POST /api/Host/CreateHostPhoto (ADMIN/HOST, 201 com Location da coleção), DELETE /api/Host/DeleteHostPhoto/{photoId} (ADMIN/HOST, 204). Erros: 400 dados/tipo inválidos, 401 sem JWT, 403 sem permissão, 404 host/foto ausente ou inativo. Gestão exige usuário ativo confirmado por GetProfileAsync e dono ou ADMIN confirmado no Identity. Host deve estar ativo e ser Gastronomy/Business. GetAll retorna somente fotos ativas, por CreateAt/Id. Exclusão lógica; não remove arquivo externo.
+Entrada HostPhotoCreateDTO: HostId positivo e PhotoUrl obrigatória HTTP/HTTPS, máximo 2048 caracteres. Resposta HostPhotoResponse: Id, HostId, PhotoUrl. Create define IsActive=true e CreateAt=UTC no service. Nenhum upload/armazenamento binário nem download remoto implementado; URLs podem apontar para arquivos previamente hospedados. Sem limite de quantidade/duplicidade definido nesta etapa.
+HostsPhotosConfiguration adiciona PK, URL obrigatória, índice HostId/IsActive e FK para Hosts (cascade na exclusão física). Necessária migration antes de usar a galeria; não gerada/aplicada nesta etapa. Compilação aprovada com zero erros e 21 avisos. Testes HTTP com banco real não executados. PDFs preservados.
+
+### Desativação das fotos junto ao host — 15/11/2026
+HostRepository.EditAsync, ao salvar um host com IsActive=false, carrega suas fotos ativas e marca IsActive=false antes do SaveChangesAsync, na mesma transação existente. UserRepository.DeleteAsync também desativa as fotos dos hosts desativados do usuário dentro da transação de exclusão lógica da conta. Fotos de outros hosts não são selecionadas; arquivos externos e registros são preservados. Não reativa fotos automaticamente. Rotas/DTOs/schema sem alterações; sem migration. Verificação: compilação; teste com banco real não executado.
+
+15/11/2026 — Na inicialização do ambiente de testes, restaurado o atributo DbContext com nome totalmente qualificado em ContextModelSnapshot após sua remoção. API iniciou na porta 5014; EF confirmou banco atualizado, sem aplicar migrations. Consulta GET de categorias retornou 200. Painel 5173 saudável. Não foram criados/removidos registros de teste.
+
+## Proximidade Nearby — 16/11/2026
+Implementação independente dos filtros antigos, nas pastas existentes: NearbyController → NearbyAppService/INearbyMapping → NearbyService/INearbyValidations → NearbyRepository. GET /api/Nearby/Me recebe latitude/longitude obrigatórias, distanceRange padrão 0 e skip padrão 0. Faixas: 0=[0,2000], 1=(2000,5000], 2=(5000,10000], 3=(10000,20000], em metros. GET /api/Nearby/Host/{hostId} e /api/Nearby/Programming/{programmingId} recebem skip; origem consultada pelos repositories existentes, raio fixo 2000 e exclusão somente do mesmo tipo/ID. Todos exigem JWT e usuário existente/ativo via GetProfileAsync. Origem ausente/inativa: 404; sem coordenadas válidas: 422; parâmetros inválidos: 400; usuário indisponível: 401.
+
+Resposta NearbyResponseDTO: items (id, type Host/Programming, name, imageUrl, distanceMeters, latitude, longitude), skip, pageSize=10, hasMore. Consulta usa geography(Point,4326) existente: ST_DWithin no limite superior, ST_Distance no limite inferior, UNION ALL antes de ORDER BY distância/tipo/ID e OFFSET/LIMIT 11; mapping devolve dez e informa HasMore. Coordenadas extraídas do Point somente após paginação. Hosts ativos; programações ativas, host ativo e EndDate > UTC atual. Não filtra por funcionamento nem calcula trajeto. Páginas offset não representam snapshot estável diante de mudanças concorrentes. Localização do usuário não é persistida nem colocada no JWT; parâmetros de query devem ser protegidos nas políticas de logs do ambiente.
+
+DTOs/modelos de consulta não persistidos; nenhum filtro anterior alterado, nenhuma migration necessária: HasPendingModelChanges=False na verificação. Compilação aprovada (avisos existentes). Dez verificações isoladas de validação/mapping aprovadas; tradução SQL da query conferida sem conexão (UNION ALL/ST_DWithin/ST_Distance/ORDER BY/LIMIT/OFFSET). Tentativa de leitura no banco falhou por conexão recusada, portanto distâncias reais, plano do índice e testes HTTP autenticados permanecem pendentes. 108 testes do painel com API simulada passaram; sintaxe JS aprovada. Painel inclui aquisição de localização por clique, faixa, listas e paginação; não implementa mapa viário. Exemplos .http adicionados. PDFs não atualizados.

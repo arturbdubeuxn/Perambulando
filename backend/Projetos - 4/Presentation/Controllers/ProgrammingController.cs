@@ -1,13 +1,14 @@
 using System.ComponentModel.DataAnnotations;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.RateLimiting;
 using Projetos___4.Domain.Exceptions;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.EntityFrameworkCore;
-using Npgsql;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using Projetos___4.Application.DTO;
 using Projetos___4.Application.Interfaces;
 using Projetos___4.Domain.Model;
+using Projetos___4.Application.DTO.Programming;
 
 namespace Projetos___4.Presentation.Controllers
 {
@@ -15,14 +16,62 @@ namespace Projetos___4.Presentation.Controllers
     [ApiController]
     public class ProgrammingController : Controller
     {
+        private readonly IProgrammingInteractionAppService _programmingInteractionAppService;
         private readonly IProgrammingAppService _programmingAppService;
         private readonly UserManager<User> _userManager;
-        public ProgrammingController(IProgrammingAppService programmingAppService, UserManager<User> userManager)
+        public ProgrammingController(IProgrammingAppService programmingAppService, UserManager<User> userManager, IProgrammingInteractionAppService programmingInteractionAppService)
         {
+            _programmingInteractionAppService = programmingInteractionAppService;
             _programmingAppService = programmingAppService;
             _userManager = userManager;
         }
 
+
+        [AllowAnonymous]
+        [HttpPost("{programmingId:int}/Interactions")]
+        [EnableRateLimiting("ProgrammingInteractions")]
+        public async Task<IActionResult> AddInteraction([FromRoute] int programmingId, [FromBody] ProgrammingInteractionDTO dto)
+        {
+            try
+            {
+                string? userId = null;
+                if (Request.Headers.ContainsKey("Authorization"))
+                {
+                    var authentication = await HttpContext.AuthenticateAsync(JwtBearerDefaults.AuthenticationScheme);
+                    if (!authentication.Succeeded || authentication.Principal == null)
+                    {
+                        throw new UnauthorizedAccessException("Token inválido ou vencido.");
+                    }
+                    HttpContext.User = authentication.Principal;
+                }
+                if (User.Identity?.IsAuthenticated == true)
+                {
+                    userId = _userManager.GetUserId(User);
+                    if (userId == null)
+                    {
+                        throw new UnauthorizedAccessException("Usuário não autenticado.");
+                    }
+                }
+                await _programmingInteractionAppService.AddAsync(dto, programmingId, userId);
+                return NoContent();
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Problem(statusCode: 401, title: "Usuário não autenticado", detail: ex.Message);
+            }
+            catch (ArgumentException ex)
+            {
+                return Problem(statusCode: 400, title: "Dados inválidos", detail: ex.Message);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return Problem(statusCode: 404, title: "Programação indisponível", detail: ex.Message);
+            }
+            catch (InteractionConflictException ex)
+            {
+                return Problem(statusCode: 409, title: "Interação conflitante", detail: ex.Message);
+            }
+        }
 
         [AllowAnonymous]
         [HttpGet("Filter")]
@@ -43,7 +92,7 @@ namespace Projetos___4.Presentation.Controllers
 
         [AllowAnonymous]
         [HttpGet("GetAllProgrammings")]
-        public async Task<IActionResult> GetAllProgrammings([FromQuery] int take = 10, [FromQuery] int skip = 0)
+        public async Task<IActionResult> GetAllProgrammings([FromQuery, Range(1, 100)] int take = 10, [FromQuery, Range(0, int.MaxValue)] int skip = 0)
         {
             try
             {
@@ -140,12 +189,10 @@ namespace Projetos___4.Presentation.Controllers
                     title: ex.ServiceUnavailable ? "Serviço de localização indisponível" : "Endereço não localizado",
                     detail: ex.Message);
             }
-            catch (DbUpdateException ex) when (ex.InnerException is PostgresException postgres &&
-                postgres.SqlState == PostgresErrorCodes.ForeignKeyViolation &&
-                postgres.ConstraintName?.Contains("CategoryId", StringComparison.OrdinalIgnoreCase) == true)
+            catch (CategoryNotFoundException ex)
             {
                 return Problem(statusCode: StatusCodes.Status400BadRequest,
-                    title: "Categorias inválidas", detail: "Uma ou mais categorias informadas não existem.");
+                    title: "Categorias inválidas", detail: ex.Message);
             }
             catch (ArgumentException ex)
             {
@@ -194,12 +241,10 @@ namespace Projetos___4.Presentation.Controllers
                     title: ex.ServiceUnavailable ? "Serviço de localização indisponível" : "Endereço não localizado",
                     detail: ex.Message);
             }
-            catch (DbUpdateException ex) when (ex.InnerException is PostgresException postgres &&
-                postgres.SqlState == PostgresErrorCodes.ForeignKeyViolation &&
-                postgres.ConstraintName?.Contains("CategoryId", StringComparison.OrdinalIgnoreCase) == true)
+            catch (CategoryNotFoundException ex)
             {
                 return Problem(statusCode: StatusCodes.Status400BadRequest,
-                    title: "Categorias inválidas", detail: "Uma ou mais categorias informadas não existem.");
+                    title: "Categorias inválidas", detail: ex.Message);
             }
             catch (ArgumentException ex)
             {
@@ -221,5 +266,52 @@ namespace Projetos___4.Presentation.Controllers
             var programmings = await _programmingAppService.GetAllProgrammingsByUserCategoriesAsync(userId);
             return Ok(programmings);
         }
+      
+        [HttpGet("GetAllProgrammingsWithProHost")]
+        public async Task<IActionResult> GetAllProgrammingsWithProHost([FromQuery, Range(1, 100)] int take = 10, [FromQuery, Range(0, int.MaxValue)] int skip = 0)
+        {
+            try
+            {
+                var programmings = await _programmingAppService.GetAllProgrammingsWithProHost(take, skip);
+                return Ok(programmings);
+            }
+            catch (ArgumentException ex)
+            {
+                return Problem(statusCode: StatusCodes.Status400BadRequest,
+                    title: "Dados inválidos", detail: ex.Message);
+            }
+        }
+
+        [HttpGet("GetAllTuristProgrammings")]
+        [Authorize]
+        public async Task<IActionResult> GetAllTuristProgrammings([FromQuery, Range(1, 100)] int take = 10, [FromQuery, Range(0, int.MaxValue)] int skip = 0)
+        {
+            if (!User.HasClaim("typeofuser", ((int)Domain.Model.User.TypeofUser.Turist).ToString(System.Globalization.CultureInfo.InvariantCulture)))
+            {
+                return Forbid();
+            }
+
+            var userId = _userManager.GetUserId(User);
+            if (string.IsNullOrWhiteSpace(userId))
+            {
+                return Problem(statusCode: StatusCodes.Status401Unauthorized, title: "Usuário não autenticado");
+            }
+            try
+            {
+                var programmings = await _programmingAppService.GetAllTuristProgrammings(take, skip, userId);
+                return Ok(programmings);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Problem(statusCode: StatusCodes.Status403Forbidden,
+                    title: "Acesso negado", detail: ex.Message);
+            }
+            catch (ArgumentException ex)
+            {
+                return Problem(statusCode: StatusCodes.Status400BadRequest,
+                    title: "Paginação inválida", detail: ex.Message);
+            }
+        }
+
     }
 }

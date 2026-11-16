@@ -1,18 +1,17 @@
 using Projetos___4.Domain.Exceptions;
 using Projetos___4.Domain.Validations.Interface;
 using Microsoft.AspNetCore.Identity;
-using Projetos___4.Application.DTO;
 using Projetos___4.Domain.Interfaces;
 using Projetos___4.Domain.Model;
-using Projetos___4.Application.AppServices;
 using Projetos___4.Domain.Interfaces.Repository;
 using Projetos___4.Domain.Interfaces.Service;
-using Microsoft.AspNetCore.Http.HttpResults;
 
 namespace Projetos___4.Domain.Service
 {
     public class HostService : IHostService
     {
+        private readonly IOpeningHoursValidations _openingHoursValidations;
+        private readonly IHostFilterValidations _hostFilterValidations;
         private readonly ICnpjValidations _cnpjValidations;
         private readonly ICompanyRegistrationService _companyRegistrationService;
         private readonly UserManager<User> _userManager;
@@ -20,8 +19,10 @@ namespace Projetos___4.Domain.Service
         private readonly IHostRepository _hostRepository;
         private readonly IAddressService _addressService;
         private readonly RoleManager<IdentityRole> _roleManager;
-        public HostService(UserManager<User> userManager, IUserRepository userRepository, IHostRepository hostRepository, RoleManager<IdentityRole> roleManager, IAddressService addressService, ICnpjValidations cnpjValidations, ICompanyRegistrationService companyRegistrationService)
+        public HostService(UserManager<User> userManager, IUserRepository userRepository, IHostRepository hostRepository, RoleManager<IdentityRole> roleManager, IAddressService addressService, ICnpjValidations cnpjValidations, ICompanyRegistrationService companyRegistrationService, IOpeningHoursValidations openingHoursValidations, IHostFilterValidations hostFilterValidations)
         {
+            _openingHoursValidations = openingHoursValidations;
+            _hostFilterValidations = hostFilterValidations;
             _cnpjValidations = cnpjValidations;
             _companyRegistrationService = companyRegistrationService;
             _userManager = userManager;
@@ -93,7 +94,27 @@ namespace Projetos___4.Domain.Service
                 throw new InvalidOperationException("User not found.");
             }
 
-            host.CNPJ = await ValidateHostCnpjAsync(host.CNPJ, userId, 0);
+if (host.OpeningDays != null)
+{
+    if (host.Typeofhost != Hosts.TypeofHost.Gastronomy &&
+        host.Typeofhost != Hosts.TypeofHost.Business)
+    {
+        throw new ArgumentException(
+            "O funcionamento semanal está disponível somente para hosts de gastronomia e comércio.");
+    }
+
+    _openingHoursValidations.ValidateWeek(host.OpeningDays.ToList());
+
+    if (host.OpeningDays.Any(day => day.Id != 0 || day.HostId != 0 ||
+        day.Periods.Any(period =>
+            period.Id != 0 || period.HostOpeningDayId != 0)))
+    {
+        throw new ArgumentException(
+            "Informe somente novos dias e períodos para o cadastro do host.");
+    }
+}
+
+host.CNPJ = await ValidateHostCnpjAsync(host.CNPJ, userId, 0);
             host.Address = await _addressService.AddAddress(host.AddressId, host.Address, userId);
             host.AddressId = host.Address.Id;
 
@@ -124,7 +145,7 @@ namespace Projetos___4.Domain.Service
             return _hostRepository.GetByIdAsync(hostId);
         }
 
-        private async Task<Hosts?> HostVerification(int hostId, string userId)
+        public async Task<Hosts?> HostVerification(int hostId, string userId)
         {
             if (hostId <= 0 || string.IsNullOrWhiteSpace(userId))
             {
@@ -137,8 +158,7 @@ namespace Projetos___4.Domain.Service
                 return null;
             }
 
-            var isAdmin = await _userManager.IsInRoleAsync(user, "ADMIN");
-            return await _hostRepository.VerificationbyId(hostId, userId, isAdmin);
+            return await _hostRepository.VerificationbyId(hostId, userId);
         }
 
         public async Task<Hosts?> EditHostAsync(Hosts host, string userId)
@@ -166,6 +186,8 @@ namespace Projetos___4.Domain.Service
             var address = await _addressService.AddAddress(host.AddressId, host.Address, userId);
 
             existing.Typeofhost = host.Typeofhost;
+            existing.MinPrice = host.MinPrice;
+            existing.MaxPrice = host.MaxPrice;
             existing.CNPJ = host.CNPJ;
             existing.LogoUrl = host.LogoUrl;
             existing.InstagranUrl = host.InstagranUrl;
@@ -206,18 +228,7 @@ namespace Projetos___4.Domain.Service
 
         public async Task<List<Hosts>> FilterAsync(HostFilter filter)
         {
-            ArgumentNullException.ThrowIfNull(filter);
-
-            if (filter.Take <= 0 || filter.Skip < 0)
-            {
-                throw new ArgumentException("Take deve ser maior que zero e Skip deve ser maior ou igual a zero.");
-            }
-
-            if (filter.Types != null && filter.Types.Any(type => !Enum.IsDefined(type)))
-            {
-                throw new ArgumentException("Informe tipos de host válidos: 0, 1 ou 2.");
-            }
-
+            _hostFilterValidations.Validate(filter);
             return await _hostRepository.FilterAsync(filter);
         }
 

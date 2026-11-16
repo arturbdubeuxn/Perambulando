@@ -1,10 +1,15 @@
-using Projetos___4.Application.DTO;
+using Projetos___4.Application.DTO.HostsPhoto;
+using Projetos___4.Application.DTO.Company;
+using Projetos___4.Application.DTO.Host;
 using Projetos___4.Domain.Model;
 
 namespace Projetos___4.Application.Interfaces
 {
     public interface IHostAppService
     {
+        Task<List<HostPhotoResponse>> GetAllHostsPhotosByHost(int hostId);
+        Task<HostPhotoResponse> CreateHostPhotoAsync(HostPhotoCreateDTO dto, string userId);
+        Task DeleteHostPhotoAsync(int photoId, string userId);
 
         Task<CompanyRegistrationDTO> GetByCnpjAsync(string cnpj, CancellationToken cancellationToken = default);
 
@@ -22,3 +27,4 @@ namespace Projetos___4.Application.Interfaces
 
     }
 }
+

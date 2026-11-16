@@ -1,4 +1,4 @@
-using Projetos___4.Application.DTO;
+using Projetos___4.Application.DTO.User;
 using Projetos___4.Application.Validations.Interfaces;
 
 namespace Projetos___4.Application.Validations.Validations.User;
@@ -10,6 +10,11 @@ public class UserXCategoryValidation : IValidation<UserXCategoryDTO>
         if (dto.CategoryIds == null)
         {
             throw new ArgumentException("Informe uma lista de categorias; use [] para nenhuma seleção.");
+        }
+
+        if (dto.CategoryIds.Count > 3)
+        {
+            throw new ArgumentException("Selecione no máximo 3 categorias de preferência.");
         }
 
         if (dto.CategoryIds.Any(categoryId => categoryId <= 0))

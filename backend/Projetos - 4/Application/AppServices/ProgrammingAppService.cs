@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
-using Projetos___4.Application.DTO;
+using Projetos___4.Application.DTO.Programming;
 using Projetos___4.Application.Interfaces;
 using Projetos___4.Application.Mapping.Interfaces;
 using Projetos___4.Application.Validations.Interfaces;
@@ -112,5 +112,20 @@ namespace Projetos___4.Application.AppServices
             var programmings = await _programmingService.FilterAsync(filter);
             return programmings.Select(_programmingMapping.ToDTO).ToList();
         }
+
+
+        public async Task<List<ProgrammingResponseDTO>> GetAllProgrammingsWithProHost(int take, int skip)
+        {
+            var programmings = await _programmingService.GetAllProgrammingsWithProHost(take, skip);
+            return programmings.Select(_programmingMapping.ToDTO).ToList();
+        }
+
+        public async Task<List<ProgrammingResponseDTO>> GetAllTuristProgrammings(int take, int skip, string userid)
+        {
+            var programmings = await _programmingService.GetAllTuristProgrammings(take, skip, userid);
+            return programmings.Select(_programmingMapping.ToDTO).ToList();
+        }
+
+
     }
 }

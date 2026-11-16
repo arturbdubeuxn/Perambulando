@@ -1,4 +1,4 @@
-using Projetos___4.Application.DTO;
+using Projetos___4.Application.DTO.Programming;
 using Projetos___4.Application.Mapping.Interfaces;
 using Projetos___4.Domain.Model;
 namespace Projetos___4.Application.Mapping;
@@ -63,7 +63,13 @@ public class ProgrammingMapping : IProgrammingMapping
             UpdateDate = programming.UpdateDate,
             MinPrice = programming.MinPrice,
             MaxPrice = programming.MaxPrice,
-            Address = _addressMapping.ToDTO(programming.Address)
+            Address = _addressMapping.ToDTO(programming.Address),
+            Categories = programming.ProgrammingXCategories
+                .Select(link => link.Category)
+                .DistinctBy(category => category.Id)
+                .OrderBy(category => category.Id)
+                .Select(_categoryMapping.ToDTO)
+                .ToList()
         };
     }
 
@@ -91,7 +97,11 @@ public class ProgrammingMapping : IProgrammingMapping
             UpdateDate = programming.UpdateDate,
             MinPrice = programming.MinPrice,
             MaxPrice = programming.MaxPrice,
-            Categories = categories?.Select(_categoryMapping.ToDTO).ToList()
+            Categories = (categories ?? programming.ProgrammingXCategories.Select(link => link.Category))
+                .DistinctBy(category => category.Id)
+                .OrderBy(category => category.Id)
+                .Select(_categoryMapping.ToDTO)
+                .ToList()
         };
     }
 }

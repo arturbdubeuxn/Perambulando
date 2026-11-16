@@ -1,4 +1,4 @@
-﻿namespace Projetos___4.Domain.Model
+namespace Projetos___4.Domain.Model
 {
     public class Hosts
     {
@@ -15,12 +15,16 @@
 
         public string InstagranUrl { get; set; } = string.Empty;
 
+        public decimal? MinPrice { get; set; }
+        public decimal? MaxPrice { get; set; }
+
         public string Phone { get; set; } = string.Empty;
 
         public string Name { get; set; } = string.Empty;
         public string Description { get; set; } = string.Empty;
         public Address Address { get; set; } = null!;
         public int AddressId { get; set; }
+        public ICollection<HostOpeningDay>? OpeningDays { get; set; }
         public bool IsActive { get; set; } = true;
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 

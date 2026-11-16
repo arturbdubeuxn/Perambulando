@@ -20,6 +20,11 @@ public class ProgrammingValidations : IProgrammingValidations
             throw new ArgumentException("Selecione pelo menos uma categoria para a programação.");
         }
 
+        if (links.Count > 3)
+        {
+            throw new ArgumentException("Selecione no máximo 3 categorias para a programação.");
+        }
+
         if (links.Any(link => link == null || link.CategoryId <= 0))
         {
             throw new ArgumentException("Informe IDs de categorias maiores que zero.");

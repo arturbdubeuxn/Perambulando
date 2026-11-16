@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using Projetos___4.Domain.Exceptions;
+using Projetos___4.Domain.Interfaces;
 using Projetos___4.Domain.Interfaces.Repository;
 using Projetos___4.Domain.Model;
 using System.Net;
@@ -18,7 +19,7 @@ namespace Projetos___4.Data.Repository
         public async Task<List<Programming>> GetAllProgrammingsAsync(int take, int skip)
         {
             var query =
-                from programming in Db.Programmings.Include(p => p.Address).AsNoTracking()
+                from programming in Db.Programmings.Include(p => p.Address).Include(p => p.ProgrammingXCategories).ThenInclude(link => link.Category).AsNoTracking()
                 where programming.IsActive && programming.Host.IsActive
                 orderby programming.StartDate, programming.Id
                 select programming;
@@ -30,9 +31,16 @@ namespace Projetos___4.Data.Repository
         {
             return await Db.Programmings
                 .Include(p => p.Address)
+                .Include(p => p.ProgrammingXCategories).ThenInclude(link => link.Category)
                 .AsNoTracking()
                 .Where(p => p.HostId == hostId && p.IsActive && p.Host.IsActive)
                 .OrderBy(p => p.StartDate)
+                .ToListAsync();
+        }
+
+        public Task<List<Programming>> GetAllProgrammingsByUserIdAsync(string userId)
+        {
+            return Db.Programmings.Where(programming => programming.Host.UserId == userId && programming.IsActive)
                 .ToListAsync();
         }
 
@@ -41,6 +49,7 @@ namespace Projetos___4.Data.Repository
             return Db.Programmings
                 .Include(p => p.Host)
                 .Include(p => p.Address)
+                .Include(p => p.ProgrammingXCategories).ThenInclude(link => link.Category)
                 .FirstOrDefaultAsync(p => p.Id == programmingId &&
                     (!hostId.HasValue || p.HostId == hostId.Value) &&
                     p.IsActive && p.Host.IsActive);
@@ -61,6 +70,24 @@ namespace Projetos___4.Data.Repository
            await using var transaction = await Db.Database.BeginTransactionAsync();
             try
             {
+                var expectedCategoryIds = currentLinks.Select(link => link.CategoryId).ToHashSet();
+                await Db.Database.ExecuteSqlInterpolatedAsync(
+                    $"SELECT 1 FROM \"Programmings\" WHERE \"Id\" = {programming.Id} FOR UPDATE");
+                currentLinks = await Db.ProgrammingXCategories
+                    .Where(link => link.ProgrammingId == programming.Id).ToListAsync();
+                var currentIds = currentLinks.Select(link => link.CategoryId).ToHashSet();
+                if (!currentIds.SetEquals(expectedCategoryIds))
+                {
+                    throw new CategoryLinksConflictException();
+                }
+
+                var finalCategoryIds = currentIds.Except(categoryIdsToRemove)
+                    .Union(linksToAdd.Select(link => link.CategoryId)).ToList();
+                if (finalCategoryIds.Count == 0 || finalCategoryIds.Count > 3)
+                {
+                    throw new ArgumentException("Selecione de 1 a 3 categorias para a programação.");
+                }
+
                 if (programming.AddressId == 0)
                 {
                     Db.Addresses.Add(programming.Address);
@@ -69,7 +96,6 @@ namespace Projetos___4.Data.Repository
                 var linksToRemove = currentLinks.Where(link => categoryIdsToRemove.Contains(link.CategoryId)).ToList();
                 Db.ProgrammingXCategories.RemoveRange(linksToRemove);
 
-                var currentIds = currentLinks.Select(link => link.CategoryId).ToHashSet();
                 currentIds.ExceptWith(categoryIdsToRemove);
 
                 foreach (var link in linksToAdd)
@@ -82,17 +108,32 @@ namespace Projetos___4.Data.Repository
                 }
 
                 await Db.SaveChangesAsync();
+                await Db.Entry(programming).Collection(p => p.ProgrammingXCategories)
+                    .Query().Include(link => link.Category).LoadAsync();
                 await transaction.CommitAsync();
                 return programming;
             }
-            catch (DbUpdateException ex)
+            catch (DbUpdateException ex) when (ex.InnerException is PostgresException postgres &&
+                postgres.SqlState == PostgresErrorCodes.ForeignKeyViolation &&
+                postgres.ConstraintName == "FK_ProgrammingXCategories_Categories_CategoryId")
             {
-                throw new CategoryLinksConflictException();
+                throw new CategoryNotFoundException(ex);
+            }
+            catch (DbUpdateException ex) when (ex.InnerException is PostgresException postgres &&
+                postgres.SqlState == PostgresErrorCodes.UniqueViolation &&
+                postgres.ConstraintName == "IX_ProgrammingXCategories_ProgrammingId_CategoryId")
+            {
+                throw new CategoryLinksConflictException(ex);
             }
         }
 
         public async Task<Programming> CreateWithCategoriesAsync(Programming programming, List<ProgrammingXCategory> links)
         {
+            if (links.Count == 0 || links.Count > 3)
+            {
+                throw new ArgumentException("Selecione de 1 a 3 categorias para a programação.");
+            }
+
             if (programming.Address.Id == 0)
             {
                 Db.Addresses.Add(programming.Address);
@@ -103,15 +144,26 @@ namespace Projetos___4.Data.Repository
             {
                 Db.ProgrammingXCategories.Add(link);
             }
-            await Db.SaveChangesAsync();
-            return programming;
+            try
+            {
+                await Db.SaveChangesAsync();
+                await Db.Entry(programming).Collection(p => p.ProgrammingXCategories)
+                    .Query().Include(link => link.Category).LoadAsync();
+                return programming;
+            }
+            catch (DbUpdateException ex) when (ex.InnerException is PostgresException postgres &&
+                postgres.SqlState == PostgresErrorCodes.ForeignKeyViolation &&
+                postgres.ConstraintName == "FK_ProgrammingXCategories_Categories_CategoryId")
+            {
+                throw new CategoryNotFoundException(ex);
+            }
+
         }
 
         public async Task<List<Programming>> GetAllProgrammingsByUserCategories(List<int> categoryIds)
         {
-
             var query =
-                from programming in Db.Programmings.Include(p => p.Address).AsNoTracking()
+                from programming in Db.Programmings.Include(p => p.Address).Include(p => p.ProgrammingXCategories).ThenInclude(link => link.Category).AsNoTracking()
                 join link in Db.ProgrammingXCategories
                     on programming.Id equals link.ProgrammingId
                 join category in Db.Categories
@@ -126,10 +178,6 @@ namespace Projetos___4.Data.Repository
                 .Distinct()
                 .OrderBy(p => p.StartDate)
                 .ToListAsync();
-
-
-
-           
         }
 
         public async Task<List<Programming>> FilterAsync(ProgrammingFilter programmingFilter)
@@ -142,7 +190,7 @@ namespace Projetos___4.Data.Repository
             var categoryIds = programmingFilter.CategoriesId ?? new List<int>();
 
             var query =
-                from programming in Db.Programmings.Include(p => p.Address).AsNoTracking()
+                from programming in Db.Programmings.Include(p => p.Address).Include(p => p.ProgrammingXCategories).ThenInclude(link => link.Category).AsNoTracking()
                 join link in Db.ProgrammingXCategories
                     on programming.Id equals link.ProgrammingId into programmingLinks
                 from link in programmingLinks.DefaultIfEmpty()
@@ -179,6 +227,38 @@ namespace Projetos___4.Data.Repository
                 .Skip(programmingFilter.Skip)
                 .Take(programmingFilter.Take)
                 .ToListAsync();
+        }
+
+
+        public async Task<List<Programming>> GetAllProgrammingsWithProHost(int take, int skip)
+        {
+            var now = DateTime.UtcNow;
+
+            return await Db.Programmings.AsNoTracking()
+                .Include(p => p.Address)
+                .Include(p => p.ProgrammingXCategories).ThenInclude(link => link.Category)
+                .Where(p => p.IsActive && p.Host.IsActive && p.Host.User.IsActive &&
+                    p.EndDate > now && Db.Subscriptions.Any(s => s.UserId == p.Host.UserId &&
+                        s.Status == SubscriptionStatus.Active && s.StartsAt <= now && now < s.ExpiresAt))
+                .OrderBy(p => p.StartDate)
+                .ThenBy(p => p.Id)
+                .Skip(skip)
+                .Take(take)
+                .ToListAsync();
+        }
+
+
+        public async Task<List<Programming>> GetAllTusristProgrammingsAsync(int take, int skip)
+        {
+            var query =
+                from programming in Db.Programmings.Include(p => p.Address).Include(p => p.ProgrammingXCategories).ThenInclude(link => link.Category).AsNoTracking()
+                where programming.IsActive && programming.Host.IsActive && programming.Host.User.IsActive
+                    && Db.ProgrammingXCategories.Any(link => link.ProgrammingId == programming.Id
+                        && link.Category.IsActive && link.Category.Name == "Turismo")
+                orderby programming.StartDate, programming.Id
+                select programming;
+
+            return await query.Skip(skip).Take(take).ToListAsync();
         }
     }
 }

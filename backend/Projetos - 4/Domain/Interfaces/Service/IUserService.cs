@@ -10,5 +10,6 @@ namespace Projetos___4.Domain.Interfaces.Service
         Task<User?> GetProfileAsync(string userId);
 
         Task<IdentityResult?> EditUserAsync(User user, string userId);
+        Task<IdentityResult?> DeleteUserAsync(string email, string userId);
     }
 }

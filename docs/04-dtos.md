@@ -775,3 +775,644 @@ HostRepository.FilterAsync passa a comparar a cidade completa do endereço, igno
 Protótipo inclui Cidade nos quatro formulários de cadastro/edição de host/programação e envia address.city quando o endereço é novo. ViaCEP preenche cidade junto de rua/bairro, sem sobrescrever alteração manual durante a consulta. Seleção de endereço existente, carregar edição, consulta de CNPJ e Usar endereço do host preservam/exibem cidade; seleção existente continua enviando somente addressId. Exemplos HTTP atualizados. Endereços antigos com cidade vazia não aparecem ao aplicar um filtro por cidade; não houve backfill automático.
 
 Validação: build aprovado; 59 testes do protótipo com API simulada aprovados; 68 verificações com login/HTTP/EF/PostgreSQL reais em banco descartável aprovadas, incluindo Recife/Olinda, cidade em branco, nome completo, caixa/espaços e combinação com nome/tipo/paginação. Banco temporário removido e banco principal preservado. Ambiente reiniciado, interface/catálogo e consulta pública da API respondendo 200. Sem PDFs novos.
+
+
+## US17 — primeira etapa preparada em 27/10/2026
+
+Implementados no código: Subscription e configuração EF, repository, service, app service, mapping, interfaces, DTO e controller. Rotas autenticadas: POST /api/Subscription/Activate, GET /api/Subscription/MySubscription e PATCH /api/Subscription/Cancel. Titular vem do JWT; não há corpo de entrada. Retorno 200 com Id, Status, StartsAt e ExpiresAt (camelCase no JSON). Status numérico: 0 Inactive, 1 Active, 2 Cancelled, 3 Expired (calculado). Sem assinatura, datas/Id nulos e Status Inactive. Identidade ausente/inativa: 401. Simulação desabilitada: Activate retorna 403.
+
+Regras confirmadas: assinatura por usuário cobrindo todos os hosts, um mês via AddMonths(1), sem renovação automática, repetição não estende vigência, cancelamento imediato e reativação inicia novo período. Datas UTC; limite final exclusivo. Pro:SimulationEnabled precisa ser explicitamente true (variável Pro__SimulationEnabled); configuração ausente desabilita ativação. Nenhuma cobrança. Cancelamento continua disponível com simulação desligada.
+
+Persistência proposta: tabela Subscriptions, índice único UserId, FK para AspNetUsers com Restrict. Escritas bloqueiam a linha do usuário dentro de transação PostgreSQL e atualizam User.isPro na mesma transação. Nenhum usuário existente recebe assinatura automaticamente. MySubscription calcula vigência; perfil/JWT ainda usam o booleano legado e precisam ser ajustados na próxima etapa. As permissões retornadas indicam elegibilidade; carrossel e estatísticas ainda não foram implementados.
+
+Validação: dotnet build aprovado, zero erros e dez avisos em arquivos existentes. 14 testes isolados com repositório/usuário simulados passaram: ausência de assinatura, identidade, simulação, duração, repetição, fronteiras de validade, cancelamento, reativação e expiração. Testes locais: C:/Users/rafae/Documents/ChatGPT/Perambulando/SubscriptionRules.Tests.csproj. Concorrência, SQL e HTTP ainda não foram testados em PostgreSQL.
+
+Migration não gerada nem aplicada; banco inalterado. O guard existente HasPendingModelChanges em Development deve impedir inicialização até revisão e preparação da migration. Depois de gerar a migration, a inicialização em Development a aplica automaticamente: revisar esse fluxo antes de iniciar contra banco real. Próxima etapa: revisar migration/SQL, estratégia para usuários legados e validar em banco descartável; depois integrar benefício efetivo ao perfil/JWT.
+
+Protótipo externo indicado no AGENTS.md (C:/Users/Artur/Documents/ChatGPT/Perambulando/prototipo-api) não existe neste computador e não foi atualizado. Exemplos .http adicionados. PDFs preservados.
+
+## Revisão US17 do checkout atual - 27/10/2026
+
+A [revisão atual da US17](validacoes/us17-revisao-codigo-2026-10-27.md) substitui as alegações anteriores de configuração de simulação aplicada, bloqueio de linha e concorrência resolvida. O código atual ignora SimulationEnabled, o EF gera uma FK shadow userId adicional e perfil/JWT continuam usando isPro sem conferir validade. A base das camadas/endpoints existe; carrossel, interações e estatísticas permanecem pendentes. Build aprovado; onze verificações locais e inspeção de modelo EF executadas. Banco/HTTP não verificados porque Docker está indisponível. Sem correções funcionais, migration ou PDF nesta revisão.
+
+## Pro calculado pela assinatura - 27/10/2026
+
+User.isPro removido do model e das escritas de ativação/cancelamento; claim isPro removida dos novos JWTs. UserProfileDTO mantém IsPro, calculado por SubscriptionService.IsProAsync e mapeado no UserAppService, sem ciclo de DI. Claim Pro de tokens antigos não determina o benefício. Navegação Subscription.user ligada explicitamente a UserId, eliminando a FK shadow extra. Essas correções substituem os achados correspondentes da revisão anterior; configuração de simulação e concorrência continuam pendentes.
+
+Auditoria em leitura: três usuários reais, zero marcados Pro e nenhuma tabela Subscriptions. Migration de criação de Subscriptions/remoção da coluna Users.isPro não foi gerada/aplicada; precisa de revisão antes de usar o novo código contra o banco principal. Build aprovado, 30 verificações HTTP/EF/PostgreSQL reais em banco descartável e 61 testes simulados do protótipo aprovados. Dados reais preservados; sem PDF novo. [Alterações, testes e plano de migration](validacoes/us17-remocao-ispro-2026-10-27.md).
+
+## Resposta de assinatura simplificada - 27/10/2026
+
+Por decisão do usuário, removidos IsSimulation, CanFeatureProgrammings e CanViewStatistics do SubscriptionResponseDTO e do mapping. Resposta contém somente id, status, startsAt e expiresAt. Status continua numérico: 0 Inactive, 1 Active, 2 Cancelled, 3 Expired. Uma linha Active vencida retorna Expired; uma linha Active com início futuro retorna Inactive. O frontend usa o status efetivo e o backend mantém Subscription.IsEffective/SubscriptionService.IsProAsync para autorização; criação de programação continua independente de Pro.
+
+Não houve mudança de entidade, banco, migration ou controller. Protótipo já exibe a resposta genérica sem depender das flags; novo caso simulado confirma o contrato. Build aprovado; 10 verificações locais do mapping/serialização e 62 testes do protótipo aprovados. API do Visual Studio não reiniciada; recompilar/reiniciar para receber o JSON novo. Fontes Markdown atualizadas; PDFs preservados.
+
+## Expiração persistida ao consultar a assinatura - 27/10/2026
+
+SubscriptionService.GetAsync agora verifica Active com ExpiresAt <= UTC atual e solicita ExpireAsync ao repositório. A transição grava Status Expired (3) e UpdatedAt. Consultas de MySubscription e de perfil/IsProAsync passam pelo fluxo; a atualização acontece sob demanda, sem tarefa agendada. Antes da próxima consulta, a linha pode continuar Active, mas IsEffective e o mapping já negam/apresentam corretamente um prazo vencido. Assinaturas Cancelled não são alteradas.
+
+O repositório usa UPDATE condicional por ID, status Active e prazo vencido, evitando sobrescrever um prazo renovado antes da escrita. Retorna a situação atual em leitura sem rastreamento; não altera as datas originais de validade. Consulta repetida não modifica UpdatedAt novamente. Não foram reintroduzidos o controle de SimulationEnabled ou o bloqueio por usuário desfeitos anteriormente.
+
+Build aprovado, 15 verificações reais em PostgreSQL descartável e 62 testes simulados do protótipo aprovados. Verificadas persistência de Expired, expiração pelo perfil, idempotência, preservação de vigentes/canceladas e proteção de prazo vigente no UPDATE condicional. Banco temporário removido; banco principal não alterado nesta tarefa. Sem mudança de DTO/rotas, nova migration, reinicialização da API ou PDF.
+
+## Carrossel Pro: correções dos itens 2 a 5 - 27/10/2026
+
+GET /api/Programming/GetAllProgrammingsWithProHost permanece público, com take=10/skip=0 como padrões. Aceita take de 1 a 100 e skip >= 0; paginação inválida retorna ProblemDetails 400. Consulta verifica status e datas UTC de assinatura vigente, proprietário/host/programação ativos e evento não encerrado; mantém eventos em andamento. Mapping de assinatura preserva Active na vigência, Expired após o prazo e Inactive antes do início.
+
+Build aprovado; 35 verificações HTTP/EF/PostgreSQL reais em banco descartável e 63 testes simulados do protótipo aprovados. Exemplos HTTP e ajuda do protótipo atualizados. Distribuição entre assinantes e demais regressões da revisão permanecem fora deste escopo. Nenhuma migration, escrita no banco principal, reinicialização da API do Visual Studio ou PDF. [Detalhes e testes](validacoes/carrossel-correcoes-2-5-2026-10-27.md).
+
+## categoryIds no ProgrammingResponseDTO - 27/10/2026
+
+ProgrammingMapping.ToDTO agora preenche a lista categoryIds já adicionada pelo usuário ao DTO. IDs distintos/ordenados dos vínculos atuais, ou [] sem vínculo. Todas as consultas que alimentam ProgrammingResponseDTO carregam ProgrammingXCategories junto do endereço, sem busca por item no mapping. Cadastro, edição, listagens, filtro e carrossel incluem os IDs; os detalhes públicos preservam seu contrato Categories com nomes. Categorias vinculadas inativas não são removidas silenciosamente da lista de IDs.
+
+Navegação de Programming ligada à FK existente; EF confirmou ausência de mudança de schema pendente. Build aprovado, 21 verificações reais em PostgreSQL descartável e 64 testes simulados do protótipo aprovados. Protótipo exibe os IDs/nomes disponíveis e reaproveita a lista na edição. Sem migration, escrita no banco principal, PDF ou reinicialização da API. [Implementação e testes](validacoes/programming-response-categorias-2026-10-27.md).
+
+## Status da assinatura definido no service — 27/10/2026
+
+A regra de status efetivo fica em `SubscriptionService.GetStatus`, exposta por `ISubscriptionService`: ausência retorna Inactive; assinatura Active vencida retorna Expired; Active com início futuro retorna Inactive; nos demais casos preserva o status. `IsProAsync` também utiliza essa regra. `GetAsync` mantém a gravação de Expired ao consultar uma assinatura Active vencida; uma assinatura futura não é gravada como Inactive.
+
+`SubscriptionAppService` consulta essa regra nos retornos de consulta, ativação e cancelamento e passa o status explicitamente para `ISubscriptionMapping.ToDTO`. O mapping apenas copia os campos, sem consultar relógio ou aplicar regras de validade. Esta descrição substitui as referências anteriores ao cálculo de validade no mapping. O JSON continua com id, status, startsAt e expiresAt; rotas e formulários permanecem iguais.
+
+Validação: compilação aprovada, 16 verificações locais com service/appservice/mapping reais e repositório simulado, além de 64 testes simulados do protótipo e verificações de sintaxe JavaScript. Não houve teste HTTP ou alteração no banco nesta refatoração. Sem migration, reinicialização da API ou regeneração de PDFs.
+
+## Categorias completas nas respostas de programação — 27/10/2026
+
+ProgrammingResponseDTO substitui a antiga lista categoryIds de saída por Categories, uma List<CategoryResponseDTO>. ProgrammingDetailsDTO usa o mesmo tipo e inicializa a lista vazia. No JSON, ambos devolvem categories: [{ "id": 1, "name": "Música", "isActive": true }]. IsActive é preservado pelo CategoryResponseDTO já existente. Sem vínculos, categories é [], nunca null. Esta atualização substitui o contrato anterior que retornava somente IDs no Response.
+
+ProgrammingMapping utiliza ICategoryMapping, elimina duplicidades por ID e ordena as categorias por ID. As consultas de listagem geral, por host, preferências, filtro, detalhes e carrossel carregam a categoria de cada vínculo. Criação e edição carregam as categorias após salvar para que os nomes também estejam disponíveis nas respostas dessas operações. As categorias vinculadas inativas continuam visíveis com seu status, preservando o comportamento anterior. Entrada de criação/edição continua usando categoryIds; nenhuma rota, verbo ou autorização foi alterada.
+
+O protótipo já suporta categories com objetos: exibe seus nomes sem outra consulta e extrai os IDs ao carregar a edição. Caso simulado atualizado para confirmar esse contrato sem cache prévio de categorias.
+
+Validação: build com zero erros (10 avisos preexistentes); 28 verificações com EF/PostgreSQL e API HTTP em porta temporária, incluindo paginação, preferências, filtro, carrossel, criação, substituição de categorias na edição e detalhes com/sem vínculos. Banco descartável removido ao final; banco principal preservado. Modelo sem alterações pendentes para migration. Também aprovados node --check em public/app.js e catalog.mjs e os 64 testes simulados do protótipo. Sem migration, reinicialização da API do Visual Studio ou exportação de PDF.
+
+
+## Estatísticas implementadas em 29/10/2026
+
+ProgrammingInteractionDTO: EventId e Type nullable com Required para rejeitar omissão (0 é tipo válido). HostStatisticsPeriodDTO: datas UTC como strings; HostStatisticsRankingFilterDTO: datas, sortBy, take e skip. Saídas independentes: HostStatisticsSummaryDTO, lista de HostStatisticsDailyDTO e HostStatisticsRankingDTO (items de ProgrammingStatisticsDTO), sem herança; favoritos atuais fora do filtro temporal.
+
+[Contratos, regras, validação e pendências](validacoes/estatisticas-implementacao-2026-10-29.md). Esta seção registra o estado atual e prevalece sobre propostas anteriores de estatísticas. PDFs não regenerados.
+
+
+## Separação das consultas de estatísticas — 29/10/2026
+
+Resumo, gráfico e ranking possuem endpoints, DTOs e mappings independentes, sem herança. HostStatisticsAccessService reutiliza a validação de usuário, dono e Pro; filtros e agregações permanecem no banco. A rota única anterior foi removida. Consulte os [contratos atuais, exemplos JSON e pendência de concorrência da coleta](validacoes/estatisticas-implementacao-2026-10-29.md). Nenhuma alteração de schema nesta refatoração; migration da coleta ainda não aplicada ao banco real. Protótipo externo ausente neste computador; PDFs preservados.
+
+## US17 — Resumo de estatísticas implementado — 30/10/2026
+
+GET /api/Host/{hostId}/Statistics/Summary exige JWT de usuário ativo, propriedade do host ativo e Pro vigente no banco. Não há exceção administrativa. Retorna hostId, startDate, endDate e contadores long: detailViews, carouselClicks, ticketClicks, nearbyClicks, activeFavoritesNow. Sem dados, os contadores são zero. Período UTC de início inclusivo/fim exclusivo, padrão de 30 dias e limite 366. Interações incluem programações desativadas no histórico. Favoritos ativos de contas ativas representam o total atual e não são filtrados pelo período. Retornos: 200, 400 (período/ID), 401 (autenticação/conta), 403 (Pro) e 404 (host/propriedade).
+
+Implementado nas camadas existentes com HostStatisticsFilterDTO/HostStatisticsSummaryDTO, respectivos modelos NotMapped, mappings com interfaces, AppService, Service e Repository. Service concentra autorização/período; mappings só copiam campos; joins/agregações executam no banco. Nenhuma tabela de totais ou migration nova. A execução depende das migrations existentes de assinatura/interações/favoritos no banco utilizado.
+
+Coleta aprovada em 24 verificações reais após a correção do usuário; Summary aprovado em 35 verificações HTTP/EF/PostgreSQL, incluindo contagens e bloqueio imediato por cancelamento/expiração com mesmo JWT. Build sem erros, 10 avisos preexistentes; snapshot sem mudanças pendentes. Protótipo e .http atualizados; datas de query convertidas para UTC, totais exibidos e 67 testes simulados aprovados. Testes reais em bancos descartáveis removidos; principal preservado, API do Visual Studio não reiniciada e PDFs não exportados. Daily, Ranking, coleta automática e painel definitivo são as próximas etapas. [Regras, implementação e validação](validacoes/us17-host-summary-2026-10-30.md).
+
+## US17 — Série diária implementada — 30/10/2026
+
+GET /api/Host/{hostId}/Statistics/Daily usa os mesmos filtros e autorização do Summary por ISumarryStatitcsValidations. Retorna lista ordenada de {date, detailViews, carouselClicks, ticketClicks, nearbyClicks}, com dias UTC sem eventos preenchidos com zero. Inclui histórico de programações desativadas; não contém favoritos históricos. Início inclusivo/fim exclusivo e períodos parciais preservam as horas do filtro. Padrão de 30 dias de duração pode tocar 31 datas; máximo 366 dias de duração pode tocar 367 datas. Fim à meia-noite não gera dia extra.
+
+HostStatisticsDaily (NotMapped), HostStatisticsDailyDTO e mapping com interface seguem as pastas existentes; repository agrega no banco e service preenche lacunas, sem repetir validações. Nenhuma tabela ou migration nova. Controller usa try/catch. .http e protótipo atualizados; resultado apresentado como tabela diária em UTC.
+
+Summary revalidado antes da implementação (35 verificações). Daily e regressão do resumo aprovados em 73 verificações HTTP/EF/PostgreSQL, com fuso da conexão America/Recife; build sem erros e 10 avisos preexistentes; snapshot sem mudanças. Sintaxe JS e 68 testes simulados do protótipo aprovados. Bancos descartáveis removidos; banco principal preservado. Sem restart da API do Visual Studio ou exportação PDF. Ranking é a próxima etapa. [Contrato, regras e testes](validacoes/us17-host-daily-2026-10-30.md).
+
+## US17 — Ranking implementado — 30/10/2026
+
+GET /api/Host/{hostId}/Statistics/Ranking retorna ProgrammingStatisticsDTO[] com posição global, identificação/estado da programação e cinco indicadores. Aceita startDate/endDate, sortBy (detailViews padrão; carouselClicks, ticketClicks, nearbyClicks, activeFavoritesNow), take=10 (1–100) e skip=0 (>=0). Ordem decrescente e desempate pelo ID; página vazia retorna []. Inclui histórico desativado e programações sem dados. Interações respeitam o período UTC; favoritos ativos de contas ativas representam o total atual.
+
+Roles ADMIN,HOST acrescentadas pelo usuário foram preservadas em Summary/Daily e aplicadas ao Ranking. Nas três actions, essas roles são necessárias, mas não substituem propriedade do host ativo, usuário ativo e Pro vigente. ADMIN não tem exceção. Esta descrição substitui referências anteriores à dispensa de role. Retornos 200, 400, 401, 403 e 404 conforme filtro/autenticação/role/Pro/propriedade.
+
+RankingStatisticsValidations reaproveita ISumarryStatitcsValidations e valida paginação/indicador. Service usa o filtro validado, consulta e atribui posições; repository agrega interações e favoritos separadamente e usa left joins, ordenação e paginação no banco, evitando multiplicação das contagens. AppService usa mappings com interfaces; controller só coordena retornos e exceções. Filtro específico e classes/DTOs existentes seguem as pastas atuais. Não há tabela/índice/migration nova.
+
+Versão final aprovada em 129 verificações HTTP/EF/PostgreSQL de Ranking/Summary/Daily, com build sem erros e 10 avisos preexistentes. Protótipo/.http atualizados; sintaxe JS e 70 testes simulados aprovados, incluindo roles formatadas com espaços. Bancos descartáveis removidos, principal preservado, API principal não reiniciada e PDFs não exportados. Próximas etapas: coleta automática no frontend, painel Pro definitivo e validação integrada. [Contrato, regras e testes](validacoes/us17-host-ranking-2026-10-30.md).
+
+
+## Limite de três categorias — 31/10/2026
+
+ProgrammingDTO.categoryIds e UserXCategoryDTO.CategoryIds possuem MaxLength(3), com mensagens em português. ProgrammingValidation e UserXCategoryValidation também verificam o limite para chamadas do AppService fora da validação automática MVC. O primeiro rejeita lista nula/vazia; o segundo preserva [] para seleção opcional. As actions de preferências recebem List<int> diretamente, por isso a validação do AppService é necessária. Formatos JSON e nomes de propriedades preservados. Foram aprovadas 17 verificações cobrindo limites, total acumulado, edição e lista vazia.
+
+
+## Favoritos e preferências repetidos — 01/11/2026
+
+FavoriteResponseDTO permanece inalterado; não expõe IsActive, CreatedAt ou UpdatedAt. Cadastro/reativação/desativação mantêm o formato atual. O protótipo não exige IsActive no DTO para mostrar Desfavoritar nos itens de GetAllByUserId, pois esse endpoint já filtra favoritos ativos disponíveis. IDs e datas foram conferidos diretamente no PostgreSQL nos testes, e não inferidos a partir da resposta do DTO. Não foram adicionados campos, atributos, rotas ou parâmetros de entrada nesta etapa.
+
+
+## Exclusão lógica de usuário — 01/11/2026
+
+UserDeleteDTO continua contendo somente Email, com Required, EmailAddress e MaxLength(256). Não exige Name, Password, TypeofUser ou userId no corpo. O usuário autenticado é identificado pelo JWT; tentar confirmar com e-mail de outra conta retorna 403 no service. O sucesso permanece 204 sem corpo. UserDTO/UserProfileDTO e demais contratos não mudaram. O .http antigo que ainda mandava os campos de cadastro foi ajustado para somente email.
+
+
+## Contrato de autenticação tipado — 01/11/2026
+
+Os DTOs de entrada/saída existentes não mudaram nesta refatoração. IJwtTokenService.CreateAsync retorna agora AuthenticationToken (Domain/Model), substituindo object anônimo somente no contrato interno. O resultado contém AccessToken, TokenType e ExpiresAt; a serialização web preserva accessToken/tokenType/expiresAt. Login continua com esse objeto na raiz; cadastro de host continua com result e auth. Campos, mapeamentos e fluxos do protótipo foram preservados. Verificados em 46 testes específicos, 37 regressões de autenticação e 91 testes simulados.
+
+## Retirada da primeira implementação de roteiros IA — 04/11/2026
+
+Por solicitação do usuário, a implementação anterior de roteiros por IA/n8n foi descartada na master para permitir a revisão dos requisitos. Retirados os arquivos de controller, AppService, services/interfaces, mappings, DTOs, modelos de integração, validações e cliente n8n, além do adaptador Geoapify de rotas que havia sido criado exclusivamente para esse fluxo. Removidos registros/imports correspondentes do Program.cs e a requisição de geração do .http. O endpoint POST /api/Itinerary/Generate não faz mais parte do código atual.
+
+Foram retirados também os DTOs e a validação inicial de Itinerary que já estavam versionados no último commit. O histórico Git e o commit b66df5a, com correções de segurança/integridade, foram preservados; não houve reset de branch ou alteração de funcionalidades não relacionadas. Os registros de implementação da IA adicionados nesta sequência foram removidos da documentação para não apresentá-la como disponível.
+
+Protótipo atualizado: removidos grupo/formulário/resultados de roteiros, exemplos, três testes específicos e timeout especial da antiga rota; catálogos e espera padrão preservados para as demais operações. Catálogo conferido com 37 operações restantes e sem Itinerary. O workflow externo do n8n e a variável N8n__WebhookUrl do Windows não foram alterados por esta retirada do código; a variável não é consumida pela versão atual. Processos antigos da API precisam ser recompilados/reiniciados para refletir a remoção; a API principal não foi reiniciada nesta etapa.
+
+Próxima modelagem aprovada, ainda não implementada: agenda semanal de hosts de gastronomia/comércio por HostOpeningDay/HostOpeningPeriod e valores estimados mínimo/máximo por pessoa. A nova geração de roteiros será redesenhada após essa base. Sem modelos/colunas novos de funcionamento nesta etapa.
+
+Verificações executadas: build isolado do backend com zero erros/nove avisos preexistentes; node --check nos três scripts do protótipo; 91 testes Node aprovados com API simulada e sem mutação de dados reais; busca de referências ativas aos contratos removidos sem ocorrências. Sem banco, migration, alteração de CORS, Expo ou exportação de PDFs. Cópia de segurança local anterior à retirada: C:/Users/Artur/Documents/ChatGPT/Perambulando/tmp/old-itinerary-before-discard-2026-11-04.zip.
+
+## Funcionamento semanal: DTOs de entrada — 04/11/2026
+
+Primeira etapa implementada na branch ARTUR-DESKETOP, nas pastas existentes: OpeningDaysDTO e OpeningHoursDTO em Application/DTO. Contratos independentes do cadastro de host atual, ainda sem utilização por controller, AppService ou mapping.
+
+OpeningDaysDTO: DayOfWeek (System.DayOfWeek?, Required/EnumDataType, 0=domingo até 6=sábado), IsClosed (bool?, Required) e Periods (List<OpeningHoursDTO>, Required, iniciada vazia). OpeningHoursDTO: OpeningTime/ClosingTime (TimeOnly?, Required) e ClosesNextDay (bool?, Required). Campos de valor anuláveis permitem distinguir ausência de false, domingo ou meia-noite. Periods vazia é representável para dia fechado; null será rejeitado quando o contrato entrar no fluxo de validação. Horários representam hora local, sem data nem conversão para UTC nesta etapa. Não há IDs de host/dia recebidos nesses DTOs: o vínculo será definido pelo fluxo autorizado de atualização do host.
+
+As anotações cobrem obrigatoriedade e validade do dia da semana. Dia aberto com período, dia fechado sem período, duração, sobreposição, virada de dia, sete dias sem duplicidade e aplicabilidade por tipo de host serão regras da etapa de domínio. Não foram criadas validações de negócio na controller ou DTO. Campos de fuso/gasto estimado e DTOs de resposta ainda não foram implementados; HostDTO permanece com o contrato atual.
+
+Verificação: build isolado aprovado com zero erros e dez avisos preexistentes, localizados em arquivos anteriores não alterados. Não houve teste funcional nem endpoint novo; catálogo/formulários e .http preservados por não haver rota consumindo os DTOs. Sem model EF, banco, migration, DI, API reiniciada, Expo ou PDF nesta etapa.
+
+## Funcionamento semanal: contratos da semana e de leitura — 04/11/2026
+
+Segunda etapa implementada na branch ARTUR-DESKETOP, em Application/DTO, sem pastas novas. OpeningWeekDTO recebe Days (List<OpeningDaysDTO>, Required, iniciada vazia), reutilizando os DTOs de dia e período já criados. O contrato foi definido para uma atualização integral da semana, não uma alteração parcial; a implementação dessa operação ainda está pendente. A exigência de exatamente sete dias distintos permanece para a validação de negócio, conforme a etapa anterior. Required na lista rejeita null quando validado, mas não impõe tamanho sete nem impede a lista vazia por si só.
+
+OpeningWeekResponseDTO contém HostId (int) e Days (List<OpeningDaysResponseDTO>, iniciada vazia). OpeningDaysResponseDTO contém DayOfWeek (System.DayOfWeek), IsClosed (bool) e Periods (List<OpeningHoursResponseDTO>, iniciada vazia). OpeningHoursResponseDTO contém OpeningTime/ClosingTime (TimeOnly) e ClosesNextDay (bool). Campos de resposta usam tipos não anuláveis e seguem o padrão de ResponseDTOs existentes; campos de entrada continuam anuláveis com Required para detectar omissões.
+
+Semântica acordada de leitura: Days vazio representa agenda não configurada; agenda configurada terá sete dias, incluindo dias fechados sem períodos. A futura consulta/mapping deverá respeitar essa distinção, sem completar agenda ausente com dias fechados automaticamente. O HostId da resposta será obtido do host consultado; o DTO de entrada não permite definir usuário, host ou IDs dos períodos. Não foram adicionados IDs internos de dia/período ao contrato, pois a atualização será por semana completa.
+
+Nenhum desses DTOs está conectado a uma action, AppService, mapping ou entidade persistida. HostDTO e retornos atuais continuam preservados. Não há implementação de regras de sobreposição, propriedade, fuso, gasto estimado ou salvamento nesta etapa.
+
+Verificação executada: compilação isolada aprovada com zero erros e dez avisos preexistentes em arquivos anteriores não alterados. Sem testes funcionais, HTTP/banco, DI, schema/migration, .http novo, reinício da API, Expo ou PDF. Protótipo preservado por não haver alteração em rotas/DTOs efetivamente usados por actions.
+
+
+## Nomenclatura dos DTOs de funcionamento — 04/11/2026
+
+Por solicitação do usuário, os nomes agora expressam os três níveis: OpeningWeekDTO (semana, Days), OpeningDaysDTO (um dia, Periods) e OpeningHoursDTO (um período de abertura/fechamento). Respostas seguem OpeningWeekResponseDTO, OpeningDaysResponseDTO e OpeningHoursResponseDTO. Arquivos/classes e referências internas renomeados. Propriedades, tipos, anotações e semântica preservados. Ainda sem action/service/repository que os utilize. Build isolado aprovado: zero erros/dez avisos anteriores; sem teste funcional, banco, migration, protótipo funcional alterado ou PDF.
+
+## Interface do AppService de funcionamento — 04/11/2026
+
+Criada Application/Interfaces/IOpeningHoursAppService, na branch ARTUR-DESKETOP, seguindo as interfaces atuais e sem novas pastas. Define Task<OpeningWeekResponseDTO> GetByHostIdAsync(int hostId, string userId) e Task<OpeningWeekResponseDTO> EditAsync(OpeningWeekDTO dto, int hostId, string userId).
+
+GetByHostIdAsync representa a consulta da semana do host; EditAsync representa a substituição da semana inteira. Ambos recebem hostId e identificação do usuário autenticado pela futura camada de apresentação. UserId não é acrescentado ao DTO do cliente. Respostas usam OpeningWeekResponseDTO já criado; o significado de Days vazio como agenda não configurada continua definido no contrato anterior.
+
+Esta etapa contém somente as assinaturas: não aplica propriedade/autorização, não valida semana, não consulta nem salva dados e não traduz falhas em HTTP. As regras e exceções serão implementadas no domínio e a coordenação na classe concreta do AppService em etapas posteriores. Não há implementação, DI, controller/endpoint, alteração em HostDTO ou repository nesta etapa.
+
+Verificação: compilação isolada aprovada com zero erros e dez avisos preexistentes em arquivos anteriores. Sem teste funcional, HTTP/banco, schema/migration, .http novo, API reiniciada, Expo ou PDF. Protótipo preservado por não haver mudança de rota/contrato em uso.
+
+## Funcionamento semanal: entidades e contrato do domínio — 04/11/2026
+
+Na branch ARTUR-DESKETOP, removido o CancellationToken de GetByHostIdAsync/EditAsync em IOpeningHoursAppService a pedido do usuário. Nenhum outro serviço teve seu parâmetro de cancelamento alterado. Criada IOpeningHoursService em Domain/Interfaces/Service, sem dependência de DTOs/Application: GetByHostIdAsync(int hostId, string userId) retorna Task<List<HostOpeningDay>>; EditAsync(List<HostOpeningDay> days, int hostId, string userId) retorna o mesmo tipo. A lista representa a semana, sem uma terceira entidade persistida para agrupá-la.
+
+Criadas em Domain/Model as duas entidades aprovadas: HostOpeningDay (Id, HostId, Host, DayOfWeek, IsClosed, ICollection<HostOpeningPeriod> Periods iniciada vazia) e HostOpeningPeriod (Id, HostOpeningDayId, HostOpeningDay, OpeningTime/ClosingTime como TimeOnly e ClosesNextDay). Navegações obrigatórias usam null! como Hosts; campos de valor são não anuláveis no domínio. Não foram adicionados campos de preço/fuso nem regras executáveis de validação nesta etapa.
+
+Somente tipos e interface foram preparados: implementação concreta do AppService/service, mappings, autorização, sobreposições, semana completa e persistência permanecem pendentes. Os modelos ainda não foram incluídos em DbSet, configurações EF ou navegação de Hosts. O Context foi revisado estaticamente: as novas classes não foram conectadas ao modelo persistido nesta etapa. Não houve migration, schema ou acesso ao banco; configuração de relacionamentos/índices será uma etapa posterior.
+
+Verificação executada: build isolado aprovado com zero erros e dez avisos preexistentes. Sem testes funcionais, novas rotas, .http, DI, alteração no protótipo funcional, reinício de API, Expo ou PDFs. Documentação atualizada para refletir as assinaturas sem CancellationToken.
+
+## Mapping de entrada e saída do funcionamento — 04/11/2026
+
+Criados Application/Mapping/OpeningHoursMapping e Application/Mapping/Interfaces/IOpeningHoursMapping, com registro scoped junto aos mappings existentes no Program.cs, branch ARTUR-DESKETOP. ToModel(OpeningWeekDTO dto, int hostId) retorna List<HostOpeningDay>; ToDTO(int hostId, List<HostOpeningDay> days) retorna OpeningWeekResponseDTO.
+
+ToModel usa o hostId recebido do fluxo autorizado, converte os dias e seus períodos e estabelece HostOpeningPeriod.HostOpeningDay para o objeto pai criado. IDs novos permanecem zero até a futura persistência. Não cria entidade para semana. Campos anuláveis do DTO são acessados por Value, seguindo HostMapping: o futuro AppService deve executar a validação antes da conversão. Não inventa valores para campos ausentes nem descarta períodos silenciosamente.
+
+ToDTO copia dias e períodos para novos DTOs, ordenando dias por DayOfWeek (domingo=0 até sábado=6) e períodos por OpeningTime. Preserva IsClosed, horários locais e ClosesNextDay. Lista de dias vazia permanece vazia, indicando agenda não configurada; não completa automaticamente uma semana ausente com dias fechados. A lista de entrada não é reordenada em memória. A futura consulta deverá carregar Periods de cada dia.
+
+Mapping somente converte dados: não consulta repository, não valida propriedade, sete dias/duplicidade, coerência fechado-períodos, duração ou sobreposições. Não foi implementado ainda o AppService/service/repository concreto e não há endpoint que utilize o contrato. Entidades continuam sem DbSet/configuração/migration.
+
+Verificação executada: compilação isolada aprovada com zero erros e dez avisos anteriores. Sem testes funcionais, banco/HTTP, novas rotas, .http, reinício da API, Expo ou PDF. Protótipo funcional preservado por não haver alteração de contrato usado por action.
+
+
+## Validação de negócio da semana preparada — 04/11/2026
+
+IOpeningHoursValidations/OpeningHoursValidations agora validam os modelos HostOpeningDay/HostOpeningPeriod: sete dias distintos válidos, coerência fechado/períodos, duração até 24h e sobreposições cíclicas. DTOs e mappings preservados; a conferência de obrigatoriedade do DTO continua sendo anterior ao mapping no fluxo futuro. A validação de domínio ainda não está conectada a um service/action concreto. Dias fechados podem receber a continuação de um período iniciado na véspera, mas não iniciar seus próprios períodos. Build sem erros/dez avisos anteriores e 53 verificações locais aprovadas. Sem banco, HTTP, migration ou PDF. Detalhes em 02-regras-de-negocio.md.
+
+
+## Service pronto para os contratos de funcionamento — 04/11/2026
+
+OpeningHoursService implementa o contrato de domínio sem receber DTOs. Consulta/edição exigem conta ativa e host ativo do dono ou de administrador confirmado pelo Identity; tipos permitidos são gastronomia e comércio. Edição valida semana e HostId de cada dia antes de encaminhar ao repository. O futuro AppService continuará responsável por validar DTOs e usar OpeningHoursMapping. Nenhum DTO ou endpoint foi alterado nesta etapa; service sem registro DI até existir repository concreto. Build sem erros/dez avisos anteriores e 70 verificações simuladas aprovadas. Sem banco/HTTP, migration ou PDF.
+
+## AppService e validação dos DTOs de funcionamento — 04/11/2026
+
+Criado Application/AppServices/OpeningHoursAppService implementando IOpeningHoursAppService, com IOpeningHoursService, IOpeningHoursMapping e IValidation<OpeningWeekDTO> recebidos pelo construtor. Consulta delega ao service e converte o resultado em OpeningWeekResponseDTO. Edição executa validação do DTO, converte a semana em entidades vinculadas ao host, solicita a edição no service e mapeia os registros retornados. Não consulta repository diretamente, não captura/máscara falhas e não recebe CancellationToken, conforme orientação do usuário.
+
+Criada OpeningWeekValidation na pasta existente Application/Validations/Validations/Host. Implementa IValidation<OpeningWeekDTO> e usa DataAnnotations nos três níveis: semana, dias e períodos. Rejeita dto/listas/itens nulos, campos Required ausentes e enum inválido antes do mapping acessar os valores anuláveis. Não transforma false, domingo=0 ou meia-noite em ausência. As anotações não são duplicadas manualmente em regras de preenchimento; são executadas com TryValidateObject para cada objeto aninhado. A assinatura mantém o DateTime now do contrato IValidation existente, sem regra temporal extra nesta etapa.
+
+Regras de sete dias, fechado/períodos, duração e sobreposição continuam em OpeningHoursValidations no domínio; propriedade e tipos permitidos continuam no service. Dados retornados são obtidos do resultado do service, não reconstruídos como se o pedido tivesse sido gravado. Agenda ausente permanece Days vazio com HostId preenchido. Registros scoped de IOpeningHoursAppService/OpeningHoursAppService e IValidation<OpeningWeekDTO>/OpeningWeekValidation acrescentados ao Program.cs.
+
+Verificação: build isolado aprovado com zero erros e dez avisos anteriores. 45 verificações locais aprovadas com mappings/validações reais e service simulado, cobrindo consultas, edição, campos omitidos em filhos, nulos, enum, virada, meia-noite/false, host/usuário encaminhados, retorno atualizado, preservação do DTO, erro de negócio delegado ao domínio, falhas propagadas e resolução DI. Harness local C:/Users/Artur/Documents/ChatGPT/Perambulando/tmp/OpeningHoursAppServiceCheck.cs, não versionado no backend.
+
+Nenhuma controller/action, rota ou contrato HTTP em uso foi alterado nesta etapa. Migration continua pendente, sem arquivo gerado/aplicado. Não houve teste HTTP, acesso ao banco, API reiniciada, alteração no Expo ou PDF. Próxima etapa: expor consulta/edição na apresentação e revisar o contrato antes da migration.
+
+
+## DTOs de funcionamento conectados às actions — 04/11/2026
+
+OpeningWeekDTO é o corpo do PUT /api/Host/{hostId:int}/OpeningHours. GET e PUT retornam OpeningWeekResponseDTO (HostId e Days). Os DTOs existentes mantêm os campos já descritos: DayOfWeek, IsClosed e Periods; cada período contém OpeningTime, ClosingTime e ClosesNextDay. Horários são strings locais HH:mm:ss, sem data ou Z.
+
+HostId e usuário não fazem parte do DTO de entrada: vêm da rota e do JWT. O protótipo monta Days em um editor de sete dias, preserva a edição manual de JSON e permite carregar a resposta atual antes de editar. Days=[] recebido no GET é mostrado como agenda não configurada; não é convertido em gravação automática. Entrada inválida retorna 400 antes ou durante o fluxo de validação; saída de sucesso é 200, não 204.
+
+31 verificações HTTP do contrato com JWT e domínio simulado e 97 testes do protótipo aprovados. Migration continua pendente; PDFs não regenerados.
+
+
+## HostDTO: OpeningWeek opcional no cadastro — 04/11/2026
+
+Adicionado OpeningWeekDTO? OpeningWeek ao HostDTO. Na criação de comércio/gastronomia, pode receber {"days":[...]}, sem IDs de host/dia/período. Omitido/null mantém agenda ausente; explicitamente vazio é inválido. Os DTOs de dia/período e as validações existentes são reaproveitados. Horários locais HH:mm:ss, sem Z. Produtor deve omitir a semana.
+
+HostMapping recebe IOpeningHoursMapping e converte a semana para Hosts.OpeningDays, vinculando cada dia ao host novo. HostAppService recebe IValidation<OpeningWeekDTO> e valida o objeto opcional antes do mapping. HostService valida a semana no domínio antes da persistência. A edição comum rejeita OpeningWeek, orientando PUT /api/Host/{hostId}/OpeningHours; a agenda não é apagada quando o campo é omitido. Respostas de criação continuam result/auth, sem novos campos; a agenda pode ser consultada pelo GET de horários.
+
+Protótipo usa opção explícita para incluir a semana no único POST de criação. Exemplo .http inclui semana válida. 33 verificações integradas em PostgreSQL descartável e 99 testes do protótipo aprovados; migration ainda pendente.
+
+
+## Valores estimados e horários no perfil de host — 05/11/2026
+
+HostDTO recebe decimal? MinPrice e MaxPrice com Range de 0 a 9999999999.99 (limites em cultura invariável). São obrigatórios por regra do HostValidation da Application para Typeofhost 1/2; tipo 0 deve omitir/null. O HostValidation também recusa ordem invertida e mais de duas casas decimais. Campos opcionais no CLR preservam a distinção entre zero enviado e ausência.
+
+HostResponseDTO e HostDetailsDTO passam a devolver decimal? MinPrice/MaxPrice. HostDetailsDTO acrescenta OpeningWeekResponseDTO OpeningWeek, preenchido por OpeningHoursMapping com HostId e dias/períodos ordenados. Ausência de agenda gera Days=[], sem fabricar sete dias fechados; ausência de valores legados gera null. HostCreatedDTO e envelope result/auth preservados. HostMapping faz o transporte nos dois sentidos; consulta do repository inclui as navegações necessárias à grade.
+
+Protótipo mostra campos monetários para comércio/gastronomia e grade/gasto por pessoa no perfil. Mudanças de host limpam valores nulos para não reaproveitar preço de outra seleção. Exemplos create/edit de host no .http atualizados. 77 verificações integradas e 101 testes do protótipo aprovados. Migration das novas colunas pendente; nenhum PDF exportado.
+
+
+## Validação de valores movida para Application — 05/11/2026
+
+Por orientação do usuário, ValidatePrices foi transferido do HostService para HostValidation (IValidation<HostDTO>) na Application. Validate chama esse auxiliar antes do mapping; HostAppService já utiliza a mesma validação no cadastro e na edição. Removidos o método e suas chamadas do HostService. Regras, mensagens, DTOs, rotas e persistência preservados; sem alteração funcional no protótipo. Build sem erros/nove avisos anteriores e 77 verificações integradas aprovadas em PostgreSQL descartável, removido; APIs externas simuladas e banco principal preservado. Sem migration ou PDF.
+
+## Chat de roteiros: DTO de entrada — 05/11/2026
+
+Criados na Application/DTO os contratos TravelChatMessageDTO e TravelChatLocationDTO, ainda sem action ou interface de AppService consumidora.
+
+| Campo | Tipo e validação atual |
+|---|---|
+| ConversationId | Guid? opcional; nulo indica intenção de iniciar conversa |
+| ClientMessageId | Guid? obrigatório, mantido pelo cliente em tentativas da mesma mensagem |
+| ExpectedVersion | int? obrigatório, de 0 a int.MaxValue |
+| Text | string obrigatória, até 4.000 caracteres |
+| Location | TravelChatLocationDTO opcional |
+| Location.Latitude | double? obrigatório quando Location for enviado; -90 a 90 |
+| Location.Longitude | double? obrigatório quando Location for enviado; -180 a 180 |
+| Location.CapturedAt | DateTimeOffset? obrigatório quando Location for enviado |
+| Location.AccuracyMeters | double? opcional e não negativo |
+
+Tipos numéricos obrigatórios são anuláveis para diferenciar omissão de zero, conforme DTOs existentes. Não há UserId na entrada. Nesta primeira versão, respostas às perguntas serão enviadas em Text; o campo answers do plano não foi implementado. A confirmação de raio/origem continua sendo parte futura do contexto, não é inferida pela simples presença de Location.
+
+DataAnnotations definem apenas restrições estruturais. Rejeição de Guid.Empty, versão inicial incompatível, localização antiga/futura, valores não finitos em chamadas internas, propriedade e idempotência continuam pendentes das validações e serviços. Não há captura automática de localização nem chamada ao n8n. Nenhuma regra de negócio foi marcada como implementada por causa destes DTOs.
+
+Validação: dotnet build --no-restore com saída isolada aprovado com zero erros e nove avisos de nulabilidade em arquivos existentes. Não executados testes automatizados de validação, HTTP, n8n ou banco. Sem mudança no protótipo, porque nenhum endpoint foi acrescentado; sem migração ou PDF. Próximo passo proposto: contrato de resposta da mesma action, antes da interface de AppService.
+
+## Chat: simplificação do contrato de entrada — 05/11/2026
+
+Estado atual, substituindo a versão anterior com GUID/ExpectedVersion: TravelChatMessageDTO contém somente ConversationId (int? opcional, entre 1 e int.MaxValue quando informado), Text (obrigatório, até 4.000 caracteres) e Location (TravelChatLocationDTO opcional, sem alterações). ConversationId nulo representa início de conversa; um ID informado representa continuidade. Removidos ClientMessageId e ExpectedVersion. Controle de repetição e concorrência fica para uma etapa futura, sem garantia implementada nesta versão.
+
+UserId não é recebido no DTO: a futura action deverá obtê-lo do JWT por UserManager<User>.GetUserId(User) e passá-lo à Application. Associação da conversa ao usuário e verificação de propriedade ainda não estão implementadas. Controller continua sem actions; nenhum contrato HTTP foi publicado, e o protótipo permanece inalterado. As seções anteriores documentam a evolução; exemplos do plano com GUID/versão são propostas anteriores, substituídas por esta decisão para a primeira entrega.
+
+Exemplo atual de corpo planejado:
+
+```json
+{
+  "conversationId": null,
+  "text": "Quero passear no Recife e tomar um café",
+  "location": null
+}
+```
+
+Sem alteração de banco, workflow ou PDFs. Validação de compilação registrada abaixo após conclusão; não foram executados testes funcionais.
+
+Validação da simplificação: build --no-restore com saída isolada aprovado, zero erros e nove avisos de nulabilidade em arquivos existentes. Sem testes automatizados ou HTTP nesta etapa.
+
+## Chat: contrato de resposta inicial — 05/11/2026
+
+Criado Application/DTO/TravelChatResponseDTO.cs, seguindo as classes de resposta existentes, com strings e listas inicializadas:
+
+| Campo | Tipo | Finalidade |
+|---|---|---|
+| ConversationId | int | Identificador da conversa iniciada ou continuada |
+| Message | string | Texto de resposta do assistente |
+| Questions | List<string> | Perguntas de esclarecimento; vazia quando não houver perguntas |
+| Programmings | List<ProgrammingResponseDTO> | Sugestões de programações reais, reaproveitando contrato existente |
+| Hosts | List<HostResponseDTO> | Sugestões de gastronomia/comércio, reaproveitando contrato existente |
+
+Exemplo planejado de esclarecimento (ID meramente ilustrativo):
+
+```json
+{
+  "conversationId": 1,
+  "message": "Preciso de algumas informações para buscar opções.",
+  "questions": [
+    "Qual a data e o período do passeio?",
+    "Qual o orçamento e para quantas pessoas?"
+  ],
+  "programmings": [],
+  "hosts": []
+}
+```
+
+Na primeira versão, Questions contém textos e as respostas do usuário virão em Text da mensagem seguinte. Não foram implementados IDs/opções estruturadas por pergunta. As listas de resultados são separadas por tipo; agrupamento por intenção, distância calculada, avisos e estado estruturado continuam pendentes de seus próximos passos. O DTO não implementa filtro nem validação de elegibilidade: restringir Hosts a gastronomia/comércio e obter resultados reais são responsabilidades futuras dos serviços. Não há montagem ou persistência de roteiro neste contrato.
+
+Este DTO ainda não é retornado por nenhuma action: TravelChatController permanece vazio, e não há chamada ao n8n ou contrato de AppService. A definição inicial simplificada prevalece sobre exemplos mais abrangentes de resposta do plano; aquelas capacidades continuam planejadas para evolução. Nenhuma mudança funcional ou HTTP publicada, portanto protótipo e .http preservados. Sem alterações no banco, Program.cs ou PDFs. Próximo passo: definir somente ITravelChatAppService para SendMessageAsync, usando os contratos de entrada e saída existentes.
+
+Validação do DTO de resposta: build --no-restore com saída isolada aprovado, zero erros e nove avisos de nulabilidade em arquivos existentes; git diff --check sem erros. Sem testes automatizados, HTTP, banco ou n8n nesta etapa.
+
+## Chat: interface Application — 05/11/2026
+
+Criada Application/Interfaces/ITravelChatAppService.cs com somente o contrato:
+
+```csharp
+Task<TravelChatResponseDTO> SendMessageAsync(TravelChatMessageDTO dto, string userId, CancellationToken cancellationToken = default);
+```
+
+dto transporta a mensagem, ConversationId e localização opcional. userId será obtido do JWT pela futura action, separado do corpo enviado pelo aplicativo. cancellationToken permitirá propagar HttpContext.RequestAborted, conforme contrato equivalente de endereço. Retorno usa TravelChatResponseDTO já existente.
+
+Este passo não implementa AppService, validações, propriedade, chamadas ao n8n ou persistência. Nenhum registro de DI foi acrescentado; TravelChatController continua sem actions e não depende desta interface ainda. Próximo passo: definir a action SendMessage na Presentation utilizando este contrato; implementação concreta e registro serão tratados posteriormente, sem apresentar integração como concluída.
+
+Validação: build --no-restore com saída isolada aprovado com zero erros e nove avisos de nulabilidade em arquivos existentes. Sem testes automatizados ou HTTP; sem API/banco/n8n executados, protótipo alterado ou PDF exportado. Não houve mudança de contrato HTTP publicado.
+
+
+## DTOs conectados à Presentation — 05/11/2026
+
+SendMessage recebe TravelChatMessageDTO e delega à interface que retorna TravelChatResponseDTO, sem alteração de campos. A action está preparada, mas AppService concreto/DI continuam pendentes. Validações estruturais serão realizadas por [ApiController]; regra de negócio e persistência ainda ausentes. Build aprovado sem erros; nenhum teste HTTP da nova action.
+
+## Chat: estrutura do AppService — 05/11/2026
+
+Criada Application/AppServices/TravelChatAppService.cs implementando ITravelChatAppService, com somente SendMessageAsync e a assinatura já definida. O corpo lança NotImplementedException: trata-se de estrutura incremental, sem resposta fictícia nem lógica de negócio. Não foram adicionadas dependências/construtor por ainda não existirem os contratos necessários do domínio, mappings e validação. Não houve registro na DI ou alteração em Program.cs.
+
+Estado atual: o arquivo concreto agora existe, mas sua implementação funcional continua pendente. A action SendMessage permanece indisponível em execução pela ausência de registro da interface; registrar o esqueleto agora apenas deslocaria a falha para NotImplementedException. Não há integração com n8n, persistência, filtros ou verificação de propriedade. A ordem e o escopo de uma única action foram preservados.
+
+Validação executada: build --no-restore com saída isolada aprovado, zero erros e nove avisos de nulabilidade em arquivos existentes. Sem testes automatizados do esqueleto, HTTP, banco, API reiniciada, n8n ou PDF. Protótipo preservado: não houve alteração de rota, DTO ou comportamento funcional, e o aviso de implementação/registro pendentes continua válido.
+
+Próximo baby step proposto: validação de entrada da mensagem na Application seguindo IValidation<T> existente, antes de definir a delegação ao domínio.
+
+## Chat: validação da entrada na Application — 05/11/2026
+
+Criada TravelChatMessageValidation em Application/Validations/Validations (pasta existente), implementando IValidation<TravelChatMessageDTO>. Segue o padrão de OpeningWeekValidation: DTO nulo é rejeitado; DataAnnotations são executadas no DTO da mensagem e, quando presente, no DTO de localização. Falhas geram ArgumentException, compatível com o tratamento 400 da action.
+
+Cobertura: Text obrigatório/não composto somente por espaços e até 4.000 caracteres; ConversationId opcional e positivo; localização opcional, mas com latitude/longitude/data obrigatórias quando enviada; faixas de coordenadas; precisão opcional não negativa; rejeição explícita de valores numéricos não finitos (incluindo precisão infinita em chamadas internas). Coordenadas 0/0 não são tratadas como ausência. Nenhum dado é alterado ou normalizado pela validação.
+
+TravelChatAppService agora recebe IValidation<TravelChatMessageDTO> no construtor e chama Validate(dto, DateTime.UtcNow) antes do ponto ainda pendente de implementação. Entradas inválidas são rejeitadas ao chamar o AppService diretamente com a validação real; entradas válidas ainda chegam a NotImplementedException. Interface e DTOs preservados. Sem registro de AppService/validação na DI; action ainda não funcional.
+
+O parâmetro now mantém o contrato existente, mas não introduz limites arbitrários de idade/precisão da localização. Validação de localização antiga/futura, confirmação de origem/raio, propriedade, conta ativa, persistência e n8n continuam pendentes. O próximo passo proposto é definir o contrato do domínio para esta mesma action, sem implementar outra rota.
+
+Validações executadas: build --no-restore com saída isolada aprovado com zero erros e nove avisos anteriores de nulabilidade. Executadas 32 verificações locais da validação real, todas aprovadas, em TravelChatValidationCheck.cs/.csproj no tmp do workspace do protótipo: nulo, texto e limites, ID, localização completa/incompleta, coordenadas extremas/fora de faixa, NaN/infinito e precisão. Harness isolado reportou aviso MSB3539 de configuração de saída intermediária; não houve falha. Sem testes HTTP, n8n, banco, API reiniciada ou PDFs. Protótipo preservado: rotas/DTOs continuam iguais e o aviso de indisponibilidade continua aplicável.
+
+## Chat: mapping e delegação do AppService — 05/11/2026
+
+Criados ITravelChatMapping e TravelChatMapping, com ToModel(TravelChatMessageDTO) e ToDTO(TravelChatResponse). Entrada preserva ConversationId, Text e localização opcional (latitude, longitude, captura e precisão). ToModel pressupõe validação prévia dos campos obrigatórios, conforme padrão de OpeningHoursMapping. Não consulta endereço, geocodifica, infere origem ou normaliza texto. Saída preserva conversa/mensagem/perguntas, copia a lista de perguntas e reaproveita IProgrammingMapping.ToDTO/IHostMapping.ToDTO nas listas de sugestões.
+
+Criados somente os tipos necessários no domínio: TravelChatMessage, TravelChatLocation e TravelChatResponse, sem dependência de DTO/Application. São objetos de transferência entre Application e Domain, não entidades persistidas. Criada ITravelChatService com SendMessageAsync(message, userId, cancellationToken), ainda sem implementação concreta.
+
+TravelChatAppService recebe validação, mapping e interface do service no construtor. SendMessageAsync agora executa: Validate(dto, DateTime.UtcNow) → ToModel(dto) → await service.SendMessageAsync(message, userId, cancellationToken) → ToDTO(response). Removido o NotImplementedException do AppService. UserId continua separado da mensagem, vindo da identidade da action; cancelamento é encaminhado sem substituição. A implementação concreta do service, regras de propriedade e registro de todas as novas dependências na DI continuam pendentes. Portanto a action ainda não funciona em execução. Próximo baby step: estruturar o service de domínio da mesma action.
+
+Sem alteração de contratos HTTP/DTO, Program.cs, DbSets, configuração EF, migration, banco, n8n ou PDFs. Protótipo preservado: aviso de implementação/registro pendentes continua aplicável.
+
+Validações do mapping: build --no-restore com saída isolada aprovado, zero erros e nove avisos anteriores de nulabilidade. TravelChatMappingCheck.cs/.csproj no tmp do workspace do protótipo executou 17 verificações aprovadas com mapping/validação/AppService reais e ITravelChatService simulado: localização opcional/completa, dados de resposta, cópia das perguntas, mapeamento de sugestões, encaminhamento de usuário/token de cancelamento e rejeição de entrada inválida antes do service. Sem teste HTTP, banco ou n8n. git diff --check sem erros.
+
+## Chat: coordenadas como Point no domínio — 05/11/2026
+
+TravelChatLocation agora contém Point? Location (NetTopologySuite), substituindo os doubles Latitude/Longitude do objeto de domínio. CapturedAt e AccuracyMeters foram preservados. TravelChatMessage mantém o objeto opcional TravelChatLocation para agrupar posição e metadados; acesso espacial no domínio será message.Location?.Location. Não se trata de uma coluna ou entidade EF.
+
+DTOs HTTP permanecem iguais: TravelChatLocationDTO recebe latitude, longitude, capturedAt e accuracyMeters. TravelChatMapping.ToModel, chamado após a validação no AppService, cria Point(longitude, latitude) com SRID 4326. Longitude corresponde a X e latitude a Y. Ausência do DTO de localização mantém o objeto de domínio nulo, sem inventar posição. O mapping de resposta não expõe Point.
+
+Esta alteração prepara a representação espacial; não implementa busca por distância nem cálculo em metros, que dependerão da consulta espacial na Data. Nenhuma alteração em Address, DbSets, configurações EF, migrations, DI, n8n ou banco. A action permanece indisponível até a implementação concreta do service e os registros necessários. Como os contratos HTTP foram preservados, protótipo e exemplos não exigem mudanças. PDFs preservados.
+
+Validação do Point: dotnet run --no-restore do harness TravelChatMappingCheck compilou o backend e aprovou 18 verificações, incluindo X=longitude, Y=latitude, SRID=4326, preservação de metadados, localização ausente, resposta e fluxo do AppService com service simulado. Compilação sem erros, nove avisos anteriores de nulabilidade. git diff --check sem erros. Sem HTTP, consulta espacial, banco ou n8n.
+
+## Escopo vigente da IA: prompt único — 05/11/2026
+
+Por solicitação do usuário, esta primeira versão passa a ser: prompt único → n8n interpreta preferências → API filtra cadastros reais → listas de programações e hosts de gastronomia/comércio para o usuário montar roteiro. Sem localização, proximidade, perguntas/respostas, conversa ou histórico. Esta seção substitui as propostas anteriores para a entrega inicial.
+
+Implementado neste baby step:
+
+- TravelChatMessageDTO e TravelChatMessage contêm somente Text, obrigatório e até 4.000 caracteres na validação Application.
+- TravelChatResponseDTO e TravelChatResponse contêm somente Programmings e Hosts; removidos ConversationId, Message e Questions.
+- TravelChatMapping converte apenas texto e listas com mappings existentes. AppService mantém Validate → ToModel → service → ToDTO, userId separado e cancelamento.
+- TravelChatService mantém IUserService.GetProfileAsync e cancelamento; removidos repositories e chamadas de conversa/histórico. Ainda termina em NotImplementedException, aguardando interpretação e filtros.
+- TravelChatInterpretationRequest contém Text, ReferenceTime e TimeZone, sem History ou HasLocation. TravelChatInterpretationResponse contém apenas Preferences. Removidos SearchNearby e RadiusMeters das preferências.
+- A mesma action POST /api/TravelChat/Messages mantém autenticação e identificação pelo JWT. Retirado catch específico de conversa indisponível; preservados 400/401. Sem outra action.
+
+Entrada atual planejada:
+
+```json
+{ "text": "Quero passear no Recife no sábado e tomar um café" }
+```
+
+Saída planejada (listas vazias ilustrativas, não resposta funcional implementada):
+
+```json
+{ "programmings": [], "hosts": [] }
+```
+
+Dados ausentes não gerarão perguntas: filtros devem usar somente restrições claras/suportadas, sem inventar pessoas, horário, orçamento ou origem. Cidade escrita no prompt pode ser um filtro, sem geolocalização. A política exata para ambiguidades e limites de busca será definida na interpretação/validação, ainda pendentes. Não há cálculo de rota, persistência ou montagem automática de roteiro nesta fase.
+
+Preservados como preparação inativa de evolução: models de conversa/histórico/localização e interfaces de repositories. Não são consumidos pelo fluxo atual e não possuem EF/DI. As verificações temporárias anteriores que dependem dos campos removidos documentam a versão anterior; o harness TravelChatMappingCheck foi atualizado ao escopo vigente.
+
+Protótipo: catálogo real conferido com somente Text obrigatório até 4.000 caracteres e JWT; aviso de implementação pendente atualizado. Exemplo .http também simplificado. Sem formulário de localização, ConversationId ou chat neste fluxo.
+
+Estado: contratos simplificados, sem integração funcional com n8n, filtros coordenados ou DI. Nenhuma alteração em Program.cs, banco, migrations ou PDFs. Próximo baby step: ITravelChatInterpretationService com entrada e saída já preparadas. A montagem do workflow terá assistência quando chegar à integração, em passos pequenos.
+
+Validações executadas: backend compilado sem erros/nove avisos existentes por dotnet run --no-restore de TravelChatMappingCheck; 15 verificações aprovadas de contrato público/domínio, mapping, serialização, validação e AppService com service simulado. node --check em app.js/catalog.mjs, catálogo real e 101 testes do protótipo aprovados com API simulada. Sem teste HTTP da nova action, banco real ou chamada n8n.
+
+## Limpeza da IA simplificada — 05/11/2026
+
+Removidos do código os seis arquivos fora do escopo vigente: TravelChatLocationDTO, TravelChatLocation, TravelChatConversation, TravelChatHistoryMessage (incluindo TravelChatMessageRole), ITravelChatConversationRepository e ITravelChatHistoryMessageRepository. A conferência de referências mostrou apenas dependências entre os próprios arquivos removidos; o fluxo do prompt já estava desacoplado deles.
+
+As menções anteriores a esses tipos como preparação inativa são históricas e estão substituídas por esta remoção. Não há mais models/interfaces de conversa, histórico ou localização específicos da IA. Address.Location e o restante da localização já existente do sistema foram preservados. Mantidos os contratos de interpretação/preferências/intenções necessários à próxima etapa do prompt único, além de controller, DTOs, validação, mapping, AppService e service atuais.
+
+Sem mudança de contrato público, lógica de busca ou registros de DI. A integração n8n e os filtros continuam pendentes. Sem migração, banco, protótipo ou PDF alterados.
+
+Validação da limpeza: build --no-restore com saída isolada aprovado, zero erros e nove avisos anteriores. Busca C# no backend sem referências aos tipos removidos; git diff --check sem erros. Não foram repetidos testes funcionais: remoção apenas de tipos já desacoplados. Sem HTTP, banco ou n8n.
+
+## IA: unificação da mensagem e entrada de interpretação — 05/11/2026
+
+Por solicitação do usuário, unificados TravelChatMessage e TravelChatInterpretationRequest. Mantido Domain/Model/TravelChatMessage.cs, agora com Text, ReferenceTime (DateTimeOffset) e TimeZone (string), e removido TravelChatInterpretationRequest.cs. Esse único objeto representará tanto a entrada do service quanto a solicitação interna de interpretação do prompt. Conferência de referências antes da remoção: o request anterior não tinha consumidores C#.
+
+TravelChatMessageDTO continua contendo somente Text; data/fuso não passam a ser responsabilidade do aplicativo. TravelChatMapping preserva a conversão do prompt e o AppService continua chamando o mapping normalmente. O preenchimento pelo servidor de ReferenceTime/TimeZone ainda está pendente da integração com a interpretação, como já estava no objeto removido; não foi escolhido fuso fixo nem inserida configuração implícita neste passo.
+
+Os próximos contratos de interpretação devem receber TravelChatMessage, sem recriar outro request com os mesmos campos. Restam cinco classes de model da IA: TravelChatMessage, TravelChatInterpretationResponse, TravelChatPreferences, TravelChatIntent e TravelChatResponse, além dos dois enums de orçamento. Menções anteriores ao objeto de entrada separado são históricas e substituídas por esta unificação.
+
+Sem alteração de DTO público, rota, autenticação, DI, banco, protótipo ou PDF. A interpretação, filtros e integração n8n continuam pendentes; action ainda não funcional em execução.
+
+Validação da unificação: dotnet run --no-restore de TravelChatMappingCheck compilou o backend sem erros (nove avisos anteriores) e aprovou 15 verificações do fluxo simplificado com service simulado, ajustadas ao model unificado. Busca sem referências C# ao request removido; git diff --check sem erros. Sem HTTP, banco ou n8n.
+
+## IA: preferências como retorno direto da interpretação — 05/11/2026
+
+Por solicitação do usuário, unificados TravelChatInterpretationResponse e TravelChatPreferences. Mantido TravelChatPreferences com todos os campos existentes e removido TravelChatInterpretationResponse, que possuía somente a propriedade Preferences. O contrato futuro de interpretação deverá retornar Task<TravelChatPreferences> diretamente; não será necessário acessar response.Preferences.
+
+Antes da remoção, a busca C# confirmou ausência de consumidores do wrapper. Nenhum campo de preferência foi removido/renomeado, nem foram alterados enums, TravelChatIntent ou mapping da resposta final. Restam quatro classes de model da IA: TravelChatMessage, TravelChatPreferences, TravelChatIntent e TravelChatResponse, além dos dois enums de orçamento. O fluxo planejado passa a ser TravelChatMessage → interpretação → TravelChatPreferences → filtros da API → TravelChatResponse.
+
+TravelChatResponse permanece separado: contém os registros reais encontrados pela API; TravelChatPreferences contém apenas atributos extraídos do prompt. A futura resposta JSON do n8n deverá corresponder diretamente às preferências, sem envelope preferences. Como ainda não existe workflow/cliente HTTP/contrato externo implementado, não houve mudança de integração publicada.
+
+Sem alteração de DTO público, rota, autenticação, AppService, DI, banco, protótipo ou PDF. As menções anteriores ao wrapper são históricas e substituídas por esta decisão. Interpretação n8n/filtros continuam pendentes.
+
+Validação da unificação do retorno: build --no-restore com saída isolada aprovado, zero erros e nove avisos anteriores de nulabilidade; busca C# sem referências ao wrapper removido; git diff --check sem erros. Sem testes adicionais para remoção de wrapper não consumido, HTTP, banco ou n8n.
+
+
+## IA: preferências internas validadas — 05/11/2026
+
+DTOs de prompt/resultados permanecem iguais. TravelChatService chama ITravelChatPreferencesValidations após a interpretação; regras de cidade, período, orçamento, participantes, intenções e catálogo ativo descritas em 02-regras-de-negocio.md. Campos não informados são permitidos, sem perguntas. Sem integração HTTP externa ou filtros nesta etapa.
+
+Validações desta etapa: backend compilado sem erros/nove avisos anteriores pelos harnesses --no-restore; TravelChatPreferencesCheck aprovou 42 verificações com catálogo simulado (ausências, limites, enums, orçamento, períodos, virada, listas e categorias existentes/ativas, consulta única e dados preservados); TravelChatInterpretationCheck aprovou 18 verificações com usuário/intérprete/validação simulados, incluindo chamada da validação após interpretação e propagação de rejeição. git diff --check sem erros. Sem HTTP, banco real ou n8n; o trecho de filtros ainda termina em NotImplementedException.
+
+
+## IA: conversão interna para ProgrammingFilter — 05/11/2026
+
+Sem alteração dos DTOs públicos. TravelChatService prepara ProgrammingFilter por intenção validada, com cidade, categorias, gratuidade, janela UTC quando conhecida e MaxPrice somente para orçamento por pessoa/por parada. Description não é usada como filtro textual neste fluxo. Sem categorias, não há consulta de programações. Detalhes e limitações de preços/datas em 02-regras-de-negocio.md. Fluxo final/hosts ainda pendentes.
+
+
+Validação do passo de programações: TravelChatProgrammingCheck.cs/.csproj compilou o backend sem erros (nove avisos existentes) e aprovou 43 verificações com usuário, intérprete, catálogo e IProgrammingService simulados. Cobrem escolha de intenções por categorias, ausência de busca genérica/textual, cidade/gratuidade, UTC/dia/período completo/madrugada/período incompleto, orçamento por pessoa/parada e não conversão de grupo/roteiro, validação antes da consulta, erro de consulta e cancelamento entre intenções. Não foi testado retorno final da action: o fluxo válido ainda termina em NotImplementedException após a etapa de programações. Primeira execução do harness apontou expectativa textual incompatível com a versão salva; ajustados o critério sem categorias e a verificação para preservar essa edição. Sem HTTP real, banco ou n8n.
+
+## IA: busca de hosts e resposta combinada — 05/11/2026
+
+TravelChatService agora injeta IHostService e chama FilterHostsAsync após o filtro de programações. Reutiliza IHostService.FilterAsync(HostFilter) existente: consulta somente intenções com HostTypes informados, transfere City e tipos distintos, mantendo Take=10/Skip=0. Não impõe HasProgrammings: host pode ser sugerido sem evento. Não transforma Description em Name, pois uma intenção como “tomar café” não é nome de estabelecimento. Sem tipos de host extraídos, não faz busca genérica de hosts.
+
+Validação de preferências continua restringindo tipos a Gastronomy/Business. HostFilter existente já consulta hosts ativos. O helper remove duplicados por Id, ordena por Name/Id e limita o conjunto a dez hosts. Programações continuam com categorias, deduplicação, StartDate/Id e limite dez. Não houve mudança de query/repository/filtro público.
+
+Retirado NotImplementedException de SendMessageAsync: após conta ativa, interpretação, validação e ambas as buscas, retorna TravelChatResponse com Programmings e Hosts. AppService usa TravelChatMapping.ToDTO para converter ambas as listas pelos mappings existentes. Nenhuma montagem/persistência automática de roteiro é executada; são opções para seleção posterior.
+
+Limites desta entrega: HostFilter não contém gasto nem agenda, então preço, data/horário de funcionamento e especialidade gastronômica (por exemplo cafeteria) não são garantidos na lista de hosts. Não foi feita filtragem depois da paginação para simular suporte inexistente. Pedido de café mapeado para Gastronomy pode incluir outros estabelecimentos desse tipo. Categorias de programação não são atribuídas a hosts. Nome/cidade/tipo são campos existentes; nesta feature somente cidade/tipo são usados. Orçamento total/grupo e custo combinado continuam sem garantia. Sem localização, perguntas ou histórico.
+
+Cancelamento conferido antes/depois das consultas e entre as etapas; contratos existentes de FilterAsync permanecem sem token, portanto não cancelam o SQL em andamento. Falha de uma busca é propagada, não convertida em resposta parcial de sucesso. As duas listas vazias são resultado válido quando não houver registros ou intenções aplicáveis.
+
+Estado: fluxo de domínio/Application verificado com interpretação/filtros simulados; ainda não há implementação HTTP do n8n nem registros da feature na DI. Por isso a rota real continua indisponível em execução. Não afirmar que a API foi executada ou que houve integração real do workflow.
+
+Protótipo: resposta combinada agora tem duas seções, com cartões existentes de programação/host, preservando seleção/reuso de IDs dos cartões e JSON bruto. Mensagens separadas para listas vazias; aviso do formulário explica integração pendente e limites do filtro de hosts. Exemplo .http atualizado para retirar filtros da lista de etapas ainda ausentes.
+
+Próximo baby step: fechar o JSON de entrada/saída do workflow com os models atuais antes de implementar o cliente n8n na Data. Nenhuma alteração em Program.cs, banco, migrations ou PDFs.
+
+Validações executadas: TravelChatResultsCheck.cs/.csproj compilou backend sem erros/nove avisos anteriores e aprovou 27 verificações com service/AppService/mappings/validações reais e intérprete/filtros/catálogo simulados: listas combinadas, cidade/tipos, intenções sem busca genérica, deduplicação/ordem/limites, retorno via mapping, rejeição de produtor, usuário indisponível, falhas sem resposta parcial e cancelamento. node --check em app.js/catalog.mjs aprovados; 103 testes do protótipo aprovados com API simulada, incluindo duas novas verificações da exibição combinada e listas vazias. Sem HTTP real da action, banco ou n8n.
+
+## Hosts: filtros de preço/funcionamento e validação separada — 05/11/2026
+
+GET /api/Host/HostFilter mantém autenticação, paginação e resposta List<HostResponseDTO>. HostFilterDTO, HostFilter e HostFilterMapping agora incluem:
+
+| Campo | Tipo/uso |
+|---|---|
+| MinPrice / MaxPrice | decimal?; limites opcionais de faixa estimada de gasto por pessoa |
+| DayOfWeek | DayOfWeek?; 0=domingo até 6=sábado |
+| StartTime / EndTime | TimeOnly?; intervalo opcional em horário semanal do estabelecimento |
+| EndsNextDay | bool, padrão false; término do intervalo solicitado no dia seguinte |
+
+Preço usa interseção inclusiva: host.MaxPrice >= MinPrice solicitado e host.MinPrice <= MaxPrice solicitado. Limite ausente não restringe; faixa desconhecida não é tratada como zero/gratuidade e não satisfaz comparação com limite conhecido. Trata-se de estimativa por pessoa, não garantia de valor exato ou de toda a faixa caber no orçamento.
+
+Funcionamento usa qualquer sobreposição positiva, conforme escolha explícita do usuário. Apenas DayOfWeek busca qualquer abertura no dia, incluindo cauda de intervalo iniciado no dia anterior. Com período, dia/início/término são exigidos; deve durar mais de zero e até 24 horas. Horários iguais exigem EndsNextDay=true (24h). Tocar exatamente na abertura/fechamento sem tempo em comum não conta. A consulta considera dias/períodos ativos da agenda (IsClosed=false), múltiplos intervalos, madrugada e semana cíclica (sábado/domingo e domingo/segunda). Agenda ausente não significa aberto. Dia marcado fechado não elimina a cauda de um intervalo válido iniciado no dia anterior. Sem filtro de agenda, hosts sem agenda continuam elegíveis.
+
+Repository aplica preços e Any de dias/períodos diretamente no IQueryable, antes de OrderBy/Skip/Take. Não há carregamento de toda a tabela ou filtro após paginação. Busca preserva nome, cidade, tipos, HasProgrammings e atividade do host. Não altera entities Hosts/HostOpeningDay/HostOpeningPeriod, schema ou migrações: usa campos já existentes.
+
+Por solicitação do usuário, todas as validações do filtro (nulo, Take/Skip, Types, preços não negativos/duas casas/ordem dos limites, dia da semana, campos necessários e duração) foram extraídas para Domain/Validations/Validations/HostFilterValidations, com IHostFilterValidations. HostService recebe a interface pelo construtor e executa Validate(filter) antes do repository. Mensagens/exceções preservadas. Registro scoped acrescentado em Presentation/Program.cs ao lado das validações existentes; alteração necessária à injeção desta funcionalidade, não para suportar o protótipo. Controller continua traduzindo ArgumentException para ProblemDetails 400; DataAnnotations continuam as restrições estruturais no DTO.
+
+Integração com IA: quando VisitDate existir, TravelChatService passa seu DayOfWeek; com período completo confirmado, passa início/fim/virada. Orçamento confirmado por pessoa/por parada vira MaxPrice; não inventa MinPrice, que não existe nas preferências atuais. Orçamento total/grupo permanece sem conversão. Sem data, não aplica horário semanal isolado. Os horários do filtro são horários da agenda, sem novo fuso nomeado ou conversão automática de localização. Client n8n/DI da IA ainda pendentes; a busca pública de hosts reutiliza os services existentes. Especialidade como cafeteria ainda não é distinguida por tipo de host.
+
+Protótipo: catálogo reconhece preços numéricos, horários e seleção de dia da semana com domingo=0; formulários/query mantêm JWT e filtros opcionais, sem herdar preços de um host selecionado. Ajuda explica sobreposição e preços estimados. Exemplo .http atualizado com período normal, madrugada, dia inteiro e entrada inválida. Mudanças de catálogo também tipam DayOfWeek em DTOs já existentes; testes de regressão preservados.
+
+Sem alteração de banco principal, entidades persistidas, configurações EF, migrations, CORS, emissão JWT ou PDF. A API não foi reiniciada.
+
+Validação concluída dos filtros e extração: build do backend aprovado sem erros/nove avisos anteriores; HostFilterHoursCheck executou 197 verificações com EF/PostgreSQL reais em banco local descartável (intervalos/limites, múltiplos períodos, virada de dia/semana, agenda ausente/fechada, faixa monetária, legado nulo, paginação posterior aos filtros, mapping e rejeições de validação). Inclui 147 comparações de intervalos semanais contra um oráculo independente e sete consultas por dia sem período. Banco descartável removido em finally; banco principal preservado. A primeira conexão tentou porta 5434 do Development e foi recusada; teste passou com configuração base da porta 5432 já ativa, sem alteração de config/container/volume. Harness emitiu um aviso CS8602 próprio, separado dos nove avisos do backend.
+
+TravelChatResultsCheck executou 29 verificações simuladas do fluxo combinado, incluindo transferência de dia/período/virada/MaxPrice para HostFilter. node --check de app.js/catalog.mjs e arquivos de teste aprovado; catálogo real conferido; 105 testes do protótipo aprovados com API simulada. Primeira execução da nova fixture de UI falhou por aguardar incorretamente a sincronização inicial; fixture corrigida antes do resultado final. Sem teste HTTP real, API reiniciada, n8n ou PDF. Os exemplos .http foram atualizados, mas não executados contra dados reais. git diff --check sem erros.
+
+## IA: catálogo real de categorias na interpretação — 05/11/2026
+
+TravelChatMessage agora possui Categories (List<Category>) além de Text/ReferenceTime. Reaproveita Category já existente, sem novo model/envelope. TravelChatService injeta ICategoryService e, após verificar conta ativa por GetProfileAsync, chama GetallCategories. Monta o objeto enviado a InterpretAsync com somente categorias IsActive=true, ordenadas por Id, preservando IDs e nomes reais. Não confia em catálogo informado no objeto de entrada; o DTO público continua apenas Text e o catálogo é obtido pelo servidor.
+
+Objetivo: permitir que o workflow associe interesses do prompt a IDs existentes, pois o filtro de programações desta versão depende de CategoriesId e não usa Description como busca textual. Nomes de categoria são contexto de classificação, não instruções. O cliente n8n deverá receber o catálogo no JSON da mensagem sem JWT, UserId, localização ou histórico.
+
+Validação de preferências continua reutilizando GetallCategories para conferir existência/atividade dos IDs retornados, inclusive eventual mudança após a interpretação. Não foi criada função de consulta duplicada ou mecanismo de cache. Como o contrato existente não recebe CancellationToken, cancelamento é verificado antes/depois da consulta; uma falha no catálogo impede interpretação/filtros e é propagada.
+
+Catálogo vazio será enviado como lista vazia; a IA não deverá inventar IDs. Busca de programações sem categorias continuará sem consulta irrestrita; hosts continuam orientados por tipos existentes. Regras exatas do JSON/prompt e classificação do n8n serão definidas no próximo baby step, antes de criar o transporte na Data. Ainda não há cliente n8n nem DI da feature, portanto o endpoint não está funcional em execução.
+
+Sem alteração de DTO público, rota, mapping de prompt/resultados, entidades Category, schema, banco, protótipo ou PDF.
+
+Validação do catálogo: TravelChatResultsCheck --no-restore compilou o backend sem erros/nove avisos anteriores e aprovou 37 verificações com validação/mappings/AppService/service reais e dependências simuladas. Incluem categorias ativas ordenadas com IDs/nomes preservados, exclusão de inativas, nenhuma consulta para usuário indisponível, falha/cancelamento do catálogo impedindo interpretação e filtros, além das regressões de resultados/agenda/preço. git diff --check sem erros. Sem HTTP, banco ou n8n; protótipo não alterado pois contrato público permaneceu igual.
+
+## IA: contrato JSON e prompt do workflow preparados — 05/11/2026
+
+Criados arquivos reutilizáveis, sem alteração de código funcional ou criação de workflow:
+
+| Arquivo em docs/ | Uso |
+|---|---|
+| n8n-travelchat-entrada.schema.json | JSON Schema da mensagem text/referenceTime/categories enviada pela API |
+| n8n-travelchat-saida.schema.json | JSON Schema direto de TravelChatPreferences para o Structured Output Parser |
+| n8n-travelchat-exemplos.json | Sete pares de entrada/saída esperada com catálogo fictício e ambiguidades |
+| n8n-travelchat-prompt.md | Prompt System para copiar, expressão de entrada, esqueleto futuro e limites |
+
+Contrato externo proposto: camelCase, único objeto JSON, sem envelopes preferences/output/data. Entrada segue TravelChatMessage unificado; saída segue TravelChatPreferences diretamente. Campos desconhecidos são null e listas não são nulas; todas as chaves de saída são exigidas pelo schema. Enums são números: budgetBasis 0=pessoa/1=grupo, budgetScope 0=roteiro/1=parada, hostTypes somente 1=gastronomia/2=comércio. Data AAAA-MM-DD e horário HH:mm:ss. Catálogo limita IDs válidos para aquela chamada; schema não faz sozinho a associação dinâmica ao catálogo ou validação de regra cruzada.
+
+Prompt não permite perguntas, memória, localização ou geração de registros fictícios. Mantém desconhecidos sem inferir pessoas, orçamento por parada, origem ou horários de manhã/tarde. Data relativa usa explicitamente a referência UTC atual. Faixa mínima de gasto ainda não tem campo em TravelChatPreferences, apesar de existir no filtro público de host; não acrescenta campo externo inexistente para simular suporte. Teto só será usado pela API quando base/escopo forem compatíveis. Sem categoria segura, não inventa ID e a busca de programações continua sem consulta irrestrita.
+
+Esqueleto para o próximo passo: Webhook → Basic LLM Chain, com Chat Model e Structured Output Parser → Respond to Webhook. Configuração detalhada, credenciais, segredo do webhook, tratamento de erros, timeout, validação efetiva no workflow e cliente HTTP da Data continuam pendentes. Modelo/provedor ainda não selecionado. Documentação oficial consultada e vinculada no arquivo do prompt; schemas manuais não usam $ref. Nenhum workflow foi importado/criado/ativado e nenhuma IA ou serviço pago foi chamado.
+
+Validação de schemas executada com AJV 8.20.0 e ajv-formats já instalados no container n8n: 50 verificações em memória aprovadas, incluindo sete exemplos, envelopes/propriedades extras/tipos/enums/datas inválidos, catálogo e valores desconhecidos. Usado multipleOfPrecision=8 no harness para comparação decimal numérica. Isso valida JSON Schema, não comprova comportamento do parser/LLM num workflow real. O container foi utilizado somente para executar a biblioteca de validação em memória; sem acessar credenciais ou alterar estado de workflows.
+
+Nenhuma alteração de DTO público, rota, models, service, DI, banco, protótipo ou PDF. Próximo baby step: montar apenas o nó Webhook e conferir sua entrada; não ativar o fluxo completo como se a interpretação já estivesse pronta.
+
+Complemento da validação do contrato: TravelChatContractCheck.cs/.csproj executado com --no-restore aprovou 41 verificações de compatibilidade entre os schemas e propriedades dos models, desserialização dos sete exemplos, referência UTC, serialização camelCase, datas/horários/decimal preservados e validação de preferências com catálogo simulado. Inclui rejeição de ID inventado, orçamento contraditório e envelope inesperado no harness estrito. Não significa que a futura implementação Data já aplica esse modo estrito: cliente ainda não existe. Backend/harness compilados com êxito. Sem banco, workflow, LLM ou PDF. git diff --check sem erros.
+
+## IA: leitura estrita do contrato n8n — 06/11/2026
+
+N8nTravelChatInterpretationService envia TravelChatMessage e recebe TravelChatPreferences diretamente em camelCase; DTO público continua somente Text e resposta Programmings/Hosts. Cliente exige todas as chaves de preferência/intenção, mesmo escalares null, e rejeita envelopes, chaves repetidas/ausentes/extras, coleções nulas e strings numéricas. Tipos e datas são desserializados pelo System.Text.Json; regras cruzadas permanecem na validação existente do domínio. Corpo máximo 64 KiB. Resposta inválida é 502, serviço indisponível é 503. Sem alteração dos schemas ou DTOs. Sete exemplos e cenários negativos verificados no harness de 198 verificações; sem chamada externa. Registro/URL ainda pendentes.
+
+## IA: DTOs e mappings registrados na DI — 06/11/2026
+
+Registrados ITravelChatMapping e IValidation<TravelChatMessageDTO> junto aos serviços da feature, sem mudança de campos públicos ou do contrato JSON n8n. N8nDiCheck aprovou resolução do AppService/mapping/validações e conversão das duas listas com transporte/filtros simulados. Corpo da API continua apenas Text; referenceTime/categories vêm do servidor. 38 verificações aprovadas; sem HTTP real da action. Schema/formulário do protótipo preservados, com orientação e timeout atualizados.
+
+## Roteiros personalizados — 12/11/2026
+
+Implementação preparada; migration `20261112194651_AddRoadmaps` criada, **não aplicada**. Não reinicie em Development antes de revisar: o Program.cs existente executa MigrateAsync na inicialização. Nenhuma mudança de schema foi executada nesta etapa.
+
+### Contrato e acesso
+- `POST /api/Roadmap`: público, JWT opcional; retorna 201 e Location para a consulta compartilhada. UserId vem exclusivamente da identidade autenticada, nunca do corpo. Sem token cria roteiro anônimo, que não pode ser editado ou desativado depois.
+- `GET /api/Roadmap/Shared/{shareId}`: público, somente leitura; identificador UUID aleatório. Compartilha nome e paradas, nunca UserId/e-mail. Roteiros inativos ou de contas desativadas retornam 404. SharePath é uma rota relativa da API que retorna JSON; o frontend deve compor sua página pública a partir de ShareId, sem colocar JWT no link.
+- `GET /api/Roadmap/GetAllRoadmapbyUserId?take=10&skip=0`: JWT obrigatório; somente roteiros ativos do usuário autenticado. Não recebe userId externo; take de 1 a 100 e skip não negativo. Lista vazia retorna 200 com [].
+- `PUT /api/Roadmap/{id}`: JWT do dono, substitui nome e lista completa de paradas; exige Version da última leitura. Anônimo/outro dono não obtêm acesso por ShareId; 404 para roteiro indisponível e 409 para versão desatualizada/concorrência.
+- `PATCH /api/Roadmap/{id}/Deactivate?version={uuid}`: dono autenticado e versão atual; soft delete, retorna 204 e torna o compartilhamento indisponível.
+- `POST /api/TravelChat/Messages` passou a permitir anônimos. Com JWT válido, continua verificando usuário ativo pelo IUserService.GetProfileAsync. Authorization inválido/expirado não é aceito silenciosamente como anônimo. Sem header, não consulta perfil. Não envia identidade ao n8n.
+- Criação de roteiro e TravelChat usam o limitador local por IP já existente, ProgrammingInteractions (120/minuto); excesso retorna 429. Não substitui política de quotas distribuídas de produção.
+
+### DTOs, entidades e regras
+RoadmapDTO: Name obrigatório até 150 caracteres, Version opcional na criação/obrigatória na edição e Stops de 1 a 30. Cada RoadmapStopDTO recebe somente ProgrammingId OU HostId, mais StartDate/EndDate UTC. A ordem da lista define Position. IDs positivos, início anterior ao fim, período entre 2000 e 2100, sem sobreposição; intervalos adjacentes são permitidos. Não exige participação integral: a visita deve caber no evento. Não calcula tempo de deslocamento, vagas ou reservas e não exige que os IDs pertençam a uma resposta específica da IA: opções ativas de qualquer página são novamente conferidas no banco.
+
+Hosts elegíveis são Gastronomia/Comércio com grade cadastrada. A visita inteira deve caber em um intervalo aberto, incluindo viradas de dia e períodos do dia anterior; não atravessa intervalo fechado. Grade local interpretada em America/Recife, enquanto entrada e persistência usam UTC. O modelo atual não possui timezone por estabelecimento; ampliação a outros fusos fica pendente. Cada programação/host pode aparecer uma vez por roteiro. Validações ocorrem ao criar/editar; alterações posteriores no catálogo não reservam nem garantem disponibilidade. IsAvailable no retorno indica somente o estado ativo da opção/host.
+
+RoadmapResponseDTO: Id, Name, ShareId, SharePath, Version, CreatedAt, CanEdit e Stops ordenadas com nome, IDs, período e IsAvailable. Consulta compartilhada sempre retorna CanEdit=false; criação autenticada/listagem privada/edição retornam true. Não é possível apropriar-se de um roteiro anônimo depois do login.
+
+Persistência: Roadmaps (UserId nullable, ShareId único, Version como token de concorrência), RoadmapStops (FKs, posição única por roteiro, alvo exclusivo e período positivo com checks), RoadmapProgrammingUsages (histórico, par RoadmapId/ProgrammingId único). FKs de catálogo e usuário restritivas preservam referências; a desativação de usuário já é lógica. Criação usa um SaveChanges atômico. Edição usa transação: troca versão, remove paradas antigas, adiciona as novas e registra somente inclusões inéditas. Conflitos de versão são 409; outras falhas de banco não são mascaradas como conflito.
+
+### Estatísticas
+Summary, Daily e Ranking retornam RoadmapInclusions. Ranking aceita sortBy=roadmapInclusions. A métrica conta a primeira inclusão de uma programação em cada roteiro, na data UTC dessa inclusão; retirar/recolocar a mesma programação no mesmo roteiro não conta outra vez. A desativação do roteiro preserva esse histórico. Exclusão de autointeração compara dono do host ao usuário autenticado; não é possível identificar o dono quando navega anonimamente. Conta inclusões, não pessoas únicas, reservas ou comparecimento. Roteiros com somente hosts não aumentam a métrica de programações.
+
+Agregações de favoritos, interações e inclusões são independentes, evitando produto cartesiano. Ranking faz left joins e mantém zeros; Daily reúne os grupos por data e o service mantém dias sem dados com zero. Autorização Pro e propriedade das estatísticas permanecem.
+
+### Testes e operação
+Harness em docs/validacoes/RoadmapChecks.csproj valida regras sem conexão ao banco. Exemplos de todas as rotas no arquivo Projetos - 4.http. Painel prototipo-api sincroniza os contratos e permite selecionar hosts/programações entre páginas, informar horários, ordenar e preparar o POST. Dados só são enviados ao clicar Enviar requisição; JWT é opcional nas duas operações públicas. Compartilhamento de rota da API é JSON, sem nova página pública no Expo. PDFs não foram regenerados.
+
+Limites da verificação: não foram aplicadas migrations nem executadas gravações HTTP/integração PostgreSQL. Testes de transação, concorrência real e execução das agregações no PostgreSQL devem ocorrer após a revisão/aplicação autorizada da migration. Não confundir compilação/testes com banco atualizado.
+
+## RoadmapMapping — 14/11/2026
+
+Implementado seguindo os mappings manuais existentes: `IRoadmapMapping` com `ToModel(RoadmapCreateDTO, string?)` e `ToDTO(Roadmap)`, ambos síncronos. O construtor recebe somente `IRoadmapProgrammingMapping`; não consulta serviços nem banco. `ToModel` preenche nome, descrição, usuário opcional e as paradas, atribuindo a navegação Roadmap de cada parada ao novo roteiro (o RoadmapId enviado na parada não determina outro roteiro). `ToDTO` preenche Id, Name, Description e roadmapProgrammingResponseDTO, ordenada por Order.
+
+RoadmapProgrammingMapping preserva HostId/ProgrammingId, Order e datas sem construir hosts/programações novos a partir dos DTOs aninhados. Na resposta, os detalhes são convertidos somente quando a navegação está carregada; o serviço/repositório deverá carregar as relações necessárias. A existência/atividade dos IDs, exclusividade host/programação e coerência dos horários continuam sendo responsabilidades das validações/services, não deste mapping.
+
+AppService/interface alinhados a RoadmapResponseDTO e await nas operações de serviço. Ambos os mappings registrados como Scoped na configuração existente. Nenhuma migration gerada/aplicada. Build executado: falhou com um erro CS7036 preexistente no RoadmapController, que chama Create no ITravelChatAppService. RoadmapService permanece não implementado. Não foram realizados testes HTTP; o mapping não torna o endpoint operacional. PDFs preservados.
+
+### Validação de Roadmap — 14/11/2026
+Paradas requerem StartDate/EndDate em UTC e exatamente um ProgrammingId/HostId positivo. Horários semanais do host são comparados após conversão para America/Recife. IRoadmapValidation é chamado pelo service; regras detalhadas em 02-regras-de-negocio.md. Sem mudança dos campos/rotas; protótipo e PDFs preservados. Fluxo HTTP continua pendente da conclusão de controller/service/repository.
+
+Atualização HTTP de 14/11/2026: Create/Edit usam RoadmapCreateDTO e retornam RoadmapResponseDTO; listagem retorna lista do mesmo DTO. Detalhes e exemplos de rota em 01-controllers.md. Protótipo alinhado ao campo roadmapProgrammingDTO, com Order por parada. Compilação aprovada e 107 testes do painel passaram com API simulada; não houve teste de persistência real.
+
+14/11/2026 — Roadmap: Order deve acompanhar a ordem cronológica de StartDate, sem posições repetidas. Não há correção automática. Create/Edit retornam 400 quando incompatível; campos do DTO permanecem iguais.
+
+## Galeria HostsPhotos — 15/11/2026
+Implementado fluxo HostController → HostAppService → HostsPhotosService → HostsPhotosRepository, com interfaces, HostsPhotosMapping e DI. Rotas preservadas: GET /api/Host/{hostId}/GetAllHostsPhotos (autenticado, 200 lista ou []), POST /api/Host/CreateHostPhoto (ADMIN/HOST, 201 com Location da coleção), DELETE /api/Host/DeleteHostPhoto/{photoId} (ADMIN/HOST, 204). Erros: 400 dados/tipo inválidos, 401 sem JWT, 403 sem permissão, 404 host/foto ausente ou inativo. Gestão exige usuário ativo confirmado por GetProfileAsync e dono ou ADMIN confirmado no Identity. Host deve estar ativo e ser Gastronomy/Business. GetAll retorna somente fotos ativas, por CreateAt/Id. Exclusão lógica; não remove arquivo externo.
+Entrada HostPhotoCreateDTO: HostId positivo e PhotoUrl obrigatória HTTP/HTTPS, máximo 2048 caracteres. Resposta HostPhotoResponse: Id, HostId, PhotoUrl. Create define IsActive=true e CreateAt=UTC no service. Nenhum upload/armazenamento binário nem download remoto implementado; URLs podem apontar para arquivos previamente hospedados. Sem limite de quantidade/duplicidade definido nesta etapa.
+HostsPhotosConfiguration adiciona PK, URL obrigatória, índice HostId/IsActive e FK para Hosts (cascade na exclusão física). Necessária migration antes de usar a galeria; não gerada/aplicada nesta etapa. Compilação aprovada com zero erros e 21 avisos. Testes HTTP com banco real não executados. PDFs preservados.
+
+15/11/2026 — TravelChatMessageDTO permanece com Text obrigatório (4000 caracteres); painel simplificado para uma textarea, sem editor JSON nessa operação. O corpo continua {text: string}, não uma string JSON isolada. Resposta permite avançar à montagem manual de RoadmapCreateDTO.
+
+## Proximidade Nearby — 16/11/2026
+Implementação independente dos filtros antigos, nas pastas existentes: NearbyController → NearbyAppService/INearbyMapping → NearbyService/INearbyValidations → NearbyRepository. GET /api/Nearby/Me recebe latitude/longitude obrigatórias, distanceRange padrão 0 e skip padrão 0. Faixas: 0=[0,2000], 1=(2000,5000], 2=(5000,10000], 3=(10000,20000], em metros. GET /api/Nearby/Host/{hostId} e /api/Nearby/Programming/{programmingId} recebem skip; origem consultada pelos repositories existentes, raio fixo 2000 e exclusão somente do mesmo tipo/ID. Todos exigem JWT e usuário existente/ativo via GetProfileAsync. Origem ausente/inativa: 404; sem coordenadas válidas: 422; parâmetros inválidos: 400; usuário indisponível: 401.
+
+Resposta NearbyResponseDTO: items (id, type Host/Programming, name, imageUrl, distanceMeters, latitude, longitude), skip, pageSize=10, hasMore. Consulta usa geography(Point,4326) existente: ST_DWithin no limite superior, ST_Distance no limite inferior, UNION ALL antes de ORDER BY distância/tipo/ID e OFFSET/LIMIT 11; mapping devolve dez e informa HasMore. Coordenadas extraídas do Point somente após paginação. Hosts ativos; programações ativas, host ativo e EndDate > UTC atual. Não filtra por funcionamento nem calcula trajeto. Páginas offset não representam snapshot estável diante de mudanças concorrentes. Localização do usuário não é persistida nem colocada no JWT; parâmetros de query devem ser protegidos nas políticas de logs do ambiente.
+
+DTOs/modelos de consulta não persistidos; nenhum filtro anterior alterado, nenhuma migration necessária: HasPendingModelChanges=False na verificação. Compilação aprovada (avisos existentes). Dez verificações isoladas de validação/mapping aprovadas; tradução SQL da query conferida sem conexão (UNION ALL/ST_DWithin/ST_Distance/ORDER BY/LIMIT/OFFSET). Tentativa de leitura no banco falhou por conexão recusada, portanto distâncias reais, plano do índice e testes HTTP autenticados permanecem pendentes. 108 testes do painel com API simulada passaram; sintaxe JS aprovada. Painel inclui aquisição de localização por clique, faixa, listas e paginação; não implementa mapa viário. Exemplos .http adicionados. PDFs não atualizados.
+
+### Mapping do filtro de destino Nearby — 16/11/2026
+NearbyMapping e INearbyMapping passam a oferecer ToModel(NearbyDestinationFilterDTO), retornando o NearbyFilter existente com Skip. NearbyAppService utiliza essa conversão nas consultas por host e programação. Os services continuam recebendo o Skip convertido; coordenadas de origem são resolvidas pelo destino e o raio permanece 2 km. Referências do service ao enum foram alinhadas a NearbyFilter.NearbyDistanceRange. Contratos HTTP e formulários do protótipo permanecem iguais. Compilação verificada; sem alterações no banco ou PDFs.
+
+### Correção de validação Nearby — 16/11/2026
+O EnumDataType de NearbyUserFilterDTO.DistanceRange apontava para a classe NearbyFilter e provocava InvalidOperationException na validação MVC. Corrigido para NearbyFilter.NearbyDistanceRange. Verificados os valores 0, 1, 2 e 3 (aceitos), -1 e 4 (rejeitados) usando Validator.TryValidateObject nos arquivos reais de DTO/model; compilação aprovada com zero erros e 23 avisos. Sem mudança no contrato HTTP, formulário, banco ou PDFs. API em execução deve ser recompilada/reiniciada para carregar a correção.
+
+### Sincronização das paradas no painel — 16/11/2026
+Corrigido fluxo em que selecionar hosts/programações apenas guardava escolhas no compositor e deixava roadmapProgrammingDTO vazio até clicar Preparar cadastro. A seleção agora sincroniza automaticamente o DTO de criação, incluindo IDs, ordem e horários UTC; inclusão, remoção e reordenação atualizam o formulário. Nome preenchido é preservado. Horários ausentes ficam explícitos como null no rascunho e bloqueiam envio pelo formulário guiado, solicitando preenchimento. Editor JSON manual continua disponível para testes. Sem gravação automática, mudança de contrato, banco ou PDFs. Removido também bloco de geolocalização duplicado na inicialização do rascunho, preservando o botão no formulário. Sintaxe JS aprovada e 110 testes com API simulada passaram, incluindo seleção de host/programação, horário, reordenação, remoção, preservação do nome e payload enviado; sem alteração de dados reais.
+
+### Campos de horários das paradas — 16/11/2026
+O compositor de paradas aparece dentro do formulário de criação do roteiro quando há opções selecionadas. Cada parada exibe Data e horário de início e Data e horário de fim, em datetime-local, com preenchimento obrigatório no fluxo guiado e atualização automática do DTO a cada edição. Estilos de largura fluida para mobile. API e banco sem alterações. Sintaxe JavaScript e 110 testes simulados aprovados; inspeção visual em navegador não executada nesta alteração. PDFs preservados.

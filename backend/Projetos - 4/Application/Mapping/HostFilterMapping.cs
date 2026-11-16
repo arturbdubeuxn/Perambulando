@@ -1,4 +1,4 @@
-using Projetos___4.Application.DTO;
+using Projetos___4.Application.DTO.Host;
 using Projetos___4.Application.Mapping.Interfaces;
 using Projetos___4.Domain.Model;
 
@@ -15,6 +15,12 @@ public class HostFilterMapping : IHostFilterMapping
             Types = dto.Types?.ToList(),
             City = dto.City,
             HasProgrammings = dto.HasProgrammings,
+            MinPrice = dto.MinPrice,
+            MaxPrice = dto.MaxPrice,
+            DayOfWeek = dto.DayOfWeek,
+            StartTime = dto.StartTime,
+            EndTime = dto.EndTime,
+            EndsNextDay = dto.EndsNextDay,
             Take = dto.Take,
             Skip = dto.Skip
         };

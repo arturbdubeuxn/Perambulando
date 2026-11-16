@@ -7,6 +7,7 @@ using Projetos___4.Application.Mapping;
 using Projetos___4.Application.Mapping.Interfaces;
 using Projetos___4.Application.Interfaces;
 using Projetos___4.Application.Validations.Interfaces;
+using Projetos___4.Application.Validations.Validations;
 using Projetos___4.Application.Validations.Validations.Programming;
 using Projetos___4.Data.Context;
 using Projetos___4.Data.Repository;
@@ -18,17 +19,48 @@ using Projetos___4.Domain.Model;
 using Projetos___4.Domain.Service;
 using System.Text;
 using static System.Net.Mime.MediaTypeNames;
-
-using Projetos___4.Application.DTO;
 using Projetos___4.Application.Validations.Validations.User;
 using Projetos___4.Application.Validations.Validations.Host;
 using Projetos___4.Domain.Validations.Interface;
 using Projetos___4.Domain.Validations.Validations;
+using Projetos___4.Application.DTO.Host;
+using Projetos___4.Application.DTO.OpeningDays;
+using Projetos___4.Application.DTO.Programming;
+using Projetos___4.Application.DTO.User;
+using Projetos___4.Application.DTO.TravelChat;
+using Projetos___4.Application.DTO;
 
 
 
 var builder = WebApplication.CreateBuilder(args);
+
 const string FrontendCorsPolicy = "FrontendCors";
+
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.AddPolicy("ProgrammingInteractions", context =>
+        System.Threading.RateLimiting.RateLimitPartition.GetFixedWindowLimiter(
+            context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new System.Threading.RateLimiting.FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 120,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+                AutoReplenishment = true
+            }));
+});
+
+if (builder.Environment.IsDevelopment())
+{
+    builder.Configuration.AddJsonFile(
+        "appsettings.json",
+        optional: true,
+        reloadOnChange: false);
+
+    builder.Configuration.AddEnvironmentVariables();
+    builder.Configuration.AddCommandLine(args);
+}
 
 builder.Services.AddControllers();
 builder.Services.AddCors(options =>
@@ -73,6 +105,10 @@ builder.Services.AddHttpClient<IGeocodingService, GeoapifyGeocodingService>(clie
   .RemoveAllLoggers();
 
 // INJEÇÃO DE DEPENDÊNCIAS
+builder.Services.AddScoped<ISubscriptionRepository, SubscriptionRepository>();
+builder.Services.AddScoped<ISubscriptionService, SubscriptionService>();
+builder.Services.AddScoped<ISubscriptionMapping, SubscriptionMapping>();
+builder.Services.AddScoped<ISubscriptionAppService, SubscriptionAppService>();
 builder.Services.AddHttpClient<IPostalCodeService, ViaCepService>(client =>
 {
     client.Timeout = TimeSpan.FromSeconds(8);
@@ -85,15 +121,20 @@ builder.Services.AddScoped<IAddressService, AddressService>();
 builder.Services.AddScoped<IAddressAppService, AddressAppService>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IUserAppService, UserAppService>();
-builder.Services.AddScoped<JwtTokenService>();
+builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
 builder.Services.AddScoped<IHostAppService,HostAppService>();
 builder.Services.AddScoped<IHostService,HostService>();
 builder.Services.AddScoped<ICnpjValidations, CnpjValidations>();
+builder.Services.AddScoped<IOpeningHoursValidations, OpeningHoursValidations>();
+builder.Services.AddScoped<IHostFilterValidations, HostFilterValidations>();
 builder.Services.AddHttpClient<ICompanyRegistrationService, MinhaReceitaService>(client =>
 {
     client.Timeout = TimeSpan.FromSeconds(10);
 }).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
 builder.Services.AddScoped<IHostRepository,HostRepository>();
+builder.Services.AddScoped<IOpeningHoursRepository, OpeningHoursRepository>();
+builder.Services.AddScoped<IOpeningHoursService, OpeningHoursService>();
+builder.Services.AddScoped<IOpeningHoursAppService, OpeningHoursAppService>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IProgrammingRepository,ProgrammingRepository>();
 builder.Services.AddScoped<IProgrammingService, ProgrammingService>();
@@ -102,12 +143,51 @@ builder.Services.AddScoped<IProgrammingXCategoryService, ProgrammingXCategorySer
 builder.Services.AddScoped<IProgrammingXCategoryAppService, ProgrammingXCategoryAppService>();
 builder.Services.AddScoped<IProgrammingAppService, ProgrammingAppService>();
 builder.Services.AddScoped<IProgrammingMapping, ProgrammingMapping>();
+builder.Services.AddScoped<IRoadmapMapping, RoadmapMapping>();
+builder.Services.AddScoped<IRoadmapAppService, RoadmapAppService>();
+builder.Services.AddScoped<IRoadmapService, RoadmapService>();
+builder.Services.AddScoped<IRoadmapRepository, RoadmapRepository>();
+builder.Services.AddScoped<IRoadmapValidation, RoadmapValidations>();
+builder.Services.AddScoped<IRoadmapProgrammingMapping, RoadmapProgrammingMapping>();
 builder.Services.AddScoped<IProgrammingFilterMapping, ProgrammingFilterMapping>();
 builder.Services.AddScoped<IAddressMapping, AddressMapping>();
 builder.Services.AddScoped<ICategoryMapping, CategoryMapping>();
 builder.Services.AddScoped<IUserMapping, UserMapping>();
 builder.Services.AddScoped<IHostMapping, HostMapping>();
+builder.Services.AddScoped<INearbyAppService, NearbyAppService>();
+builder.Services.AddScoped<INearbyMapping, NearbyMapping>();
+builder.Services.AddScoped<INearbyService, NearbyService>();
+builder.Services.AddScoped<INearbyValidations, NearbyValidations>();
+builder.Services.AddScoped<INearbyRepository, NearbyRepository>();
+builder.Services.AddScoped<IHostsPhotosMapping, HostsPhotosMapping>();
+builder.Services.AddScoped<IHostsPhotosService, HostsPhotosService>();
+builder.Services.AddScoped<IHostsPhotosRepository, HostsPhotosRepository>();
+builder.Services.AddScoped<IOpeningHoursMapping, OpeningHoursMapping>();
 builder.Services.AddScoped<IHostFilterMapping, HostFilterMapping>();
+// TravelChat
+builder.Services.AddScoped<ITravelChatAppService, TravelChatAppService>();
+builder.Services.AddScoped<ITravelChatService, TravelChatService>();
+builder.Services.AddScoped<ITravelChatMapping, TravelChatMapping>();
+builder.Services.AddScoped<IValidation<TravelChatMessageDTO>, TravelChatMessageValidation>();
+builder.Services.AddScoped<ITravelChatPreferencesValidations, TravelChatPreferencesValidations>();
+builder.Services.AddHttpClient<ITravelChatInterpretationService, N8nTravelChatInterpretationService>((services, client) =>
+{
+    var configuration = services.GetRequiredService<IConfiguration>();
+    if (Uri.TryCreate(configuration["N8n:TravelChatWebhookUrl"], UriKind.Absolute, out var webhookUri) &&
+        (webhookUri.Scheme == Uri.UriSchemeHttp || webhookUri.Scheme == Uri.UriSchemeHttps) &&
+        string.IsNullOrEmpty(webhookUri.UserInfo) && string.IsNullOrEmpty(webhookUri.Fragment))
+    {
+        client.BaseAddress = webhookUri;
+    }
+    var webhookKey = configuration["N8n:TravelChatWebhookKey"];
+    if (!string.IsNullOrWhiteSpace(webhookKey))
+    {
+        client.DefaultRequestHeaders.Add("X-Perambulando-Key", webhookKey);
+    }
+    client.Timeout = TimeSpan.FromSeconds(30);
+}).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false })
+  .RemoveAllLoggers();
+// Fim TravelChat
 builder.Services.AddScoped<IFavoriteMapping, FavoriteMapping>();
 builder.Services.AddScoped<IUserXCategoryMapping, UserXCategoryMapping>();
 builder.Services.AddScoped<IProgrammingXCategoryMapping, ProgrammingXCategoryMapping>();
@@ -116,11 +196,30 @@ builder.Services.AddScoped<ICategoryService, CategoryService>();
 builder.Services.AddScoped<ICategoryAppService, CategoryAppService>();
 builder.Services.AddScoped<IUserXCategoryRepository, UserXCategoryRepository>();
 builder.Services.AddScoped<IUserXCategoryService, UserXCategoryService>();
+builder.Services.AddScoped<IUserXCategoryValidations, UserXCategoryValidations>();
 builder.Services.AddScoped<IUserXCategoryAppService, UserXCategoryAppService>();
 builder.Services.AddScoped<IValidation<ProgrammingDTO>, ProgrammingValidation>();
 builder.Services.AddScoped<IValidation<HostDTO>, HostValidation>();
+builder.Services.AddScoped<IValidation<OpeningWeekDTO>, OpeningWeekValidation>();
 builder.Services.AddScoped<IValidation<UserDTO>, UserValidation>();
 builder.Services.AddScoped<IValidation<UserXCategoryDTO>, UserXCategoryValidation>();
+builder.Services.AddScoped<IProgrammingInteractionRepository, ProgrammingInteractionRepository>();
+builder.Services.AddScoped<IProgrammingInteractionService, ProgrammingInteractionService>();
+builder.Services.AddScoped<IProgrammingInteractionMapping, ProgrammingInteractionMapping>();
+builder.Services.AddScoped<IProgrammingInteractionAppService, ProgrammingInteractionAppService>();
+builder.Services.AddScoped<IProgrammingInteractionValidation, ProgrammingInteractionValidation>();
+builder.Services.AddScoped<IHostStatisticsRepository, HostStatisticsRepository>();
+builder.Services.AddScoped<IHostStatisticsService, HostStatisticsService>();
+builder.Services.AddScoped<ISumarryStatitcsValidations, SumarryStatitcsValidations>();
+//builder.Services.AddScoped<IHostStatisticsAccessService, HostStatisticsAccessService>();
+builder.Services.AddScoped<IHostStatisticsFilterMapping, HostStatisticsFilterMapping>();
+builder.Services.AddScoped<IHostStatisticsSummaryMapping, HostStatisticsSummaryMapping>();
+builder.Services.AddScoped<IHostStatisticsDailyMapping, HostStatisticsDailyMapping>();
+builder.Services.AddScoped<IHostStatisticsRankingMapping, HostStatisticsRankingMapping>();
+builder.Services.AddScoped<IHostStatisticsRankingFilterMapping, HostStatisticsRankingFilterMapping>();
+builder.Services.AddScoped<IRankingStatisticsValidations, RankingStatisticsValidations>();
+builder.Services.AddScoped<IHostStatisticsAppService, HostStatisticsAppService>();
+
 
 
 ///
@@ -142,6 +241,25 @@ builder.Services.AddAuthentication(options =>
 }).AddJwtBearer(options =>
 {
     options.MapInboundClaims = false;
+    options.Events = new JwtBearerEvents
+    {
+        OnTokenValidated = async context =>
+        {
+            var userId = context.Principal?.FindFirst("sub")?.Value;
+            if (string.IsNullOrWhiteSpace(userId))
+            {
+                context.Fail("Token sem identificação do usuário.");
+                return;
+            }
+
+            var userService = context.HttpContext.RequestServices.GetRequiredService<IUserService>();
+            var user = await userService.GetProfileAsync(userId);
+            if (user == null)
+            {
+                context.Fail("Usuário indisponível.");
+            }
+        }
+    };
     options.TokenValidationParameters = new TokenValidationParameters
     {
         NameClaimType = "name",
@@ -203,8 +321,16 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
 }
 app.UseHttpsRedirection(); 
+app.UseRouting();
 app.UseCors(FrontendCorsPolicy);
-app.UseAuthentication(); 
-app.UseAuthorization();  
+app.UseAuthentication();
+app.UseAuthorization();
+app.UseRateLimiter();
 app.MapControllers();
+// Removed duplicate middleware registrations
 app.Run();
+
+
+
+
+

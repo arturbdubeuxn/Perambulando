@@ -3,11 +3,14 @@ using Projetos___4.Domain.Exceptions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Projetos___4.Application.DTO;
 using Projetos___4.Domain.Model;
 using Microsoft.AspNetCore.Identity;
 using Projetos___4.Application.Interfaces;
-using Projetos___4.Domain.Service;
+using Projetos___4.Domain.Interfaces.Service;
+using Projetos___4.Application.DTO.Host;
+using Projetos___4.Application.DTO.Statistics;
+using Projetos___4.Application.DTO.OpeningDays;
+using Projetos___4.Application.DTO.HostsPhoto;
 
 namespace Projetos___4.Presentation.Controllers
 {
@@ -17,13 +20,147 @@ namespace Projetos___4.Presentation.Controllers
     {
         private readonly UserManager<User> _userManager;
         private readonly IHostAppService _hostAppService;
-        private readonly JwtTokenService _tokenService;
+        private readonly IJwtTokenService _tokenService;
+        private readonly IHostStatisticsAppService _hostStatisticsAppService;
+        private readonly IOpeningHoursAppService _openingHoursAppService;
 
-        public HostController(UserManager<User> userManager, IHostAppService hostAppService, JwtTokenService tokenService)
+
+        public HostController(UserManager<User> userManager, IHostAppService hostAppService, IJwtTokenService tokenService,
+            IOpeningHoursAppService openingHoursAppService, IHostStatisticsAppService hostStatisticsAppService)
         {
             _userManager = userManager;
             _hostAppService = hostAppService;
             _tokenService = tokenService;
+            _openingHoursAppService = openingHoursAppService;
+            _hostStatisticsAppService = hostStatisticsAppService;
+        }
+
+        [Authorize]
+        [HttpGet("{hostId:int}/OpeningHours")]
+        public async Task<IActionResult> GetOpeningHours([FromRoute] int hostId)
+        {
+            try
+            {
+                var userId = _userManager.GetUserId(User) ?? string.Empty;
+                return Ok(await _openingHoursAppService.GetByHostIdAsync(hostId, userId));
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Problem(statusCode: StatusCodes.Status401Unauthorized, title: "Usuário não autenticado", detail: ex.Message);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return Problem(statusCode: StatusCodes.Status404NotFound, title: "Host indisponível", detail: ex.Message);
+            }
+            catch (ArgumentException ex)
+            {
+                return Problem(statusCode: StatusCodes.Status400BadRequest, title: "Dados de funcionamento inválidos", detail: ex.Message);
+            }
+        }
+
+        [Authorize]
+        [HttpPut("{hostId:int}/OpeningHours")]
+        public async Task<IActionResult> EditOpeningHours([FromRoute] int hostId, [FromBody] OpeningWeekDTO dto)
+        {
+            try
+            {
+                var userId = _userManager.GetUserId(User) ?? string.Empty;
+                return Ok(await _openingHoursAppService.EditAsync(dto, hostId, userId));
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Problem(statusCode: StatusCodes.Status401Unauthorized, title: "Usuário não autenticado", detail: ex.Message);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return Problem(statusCode: StatusCodes.Status404NotFound, title: "Host indisponível", detail: ex.Message);
+            }
+            catch (ArgumentException ex)
+            {
+                return Problem(statusCode: StatusCodes.Status400BadRequest, title: "Dados de funcionamento inválidos", detail: ex.Message);
+            }
+            
+        }
+
+        [Authorize (Roles ="ADMIN,HOST")]
+        [HttpGet("{hostId:int}/Statistics/Summary")]
+        public async Task<IActionResult> StatisticsSummary([FromRoute] int hostId, [FromQuery] HostStatisticsFilterDTO dto)
+        {
+            try
+            {
+                var userId = _userManager.GetUserId(User);
+                return Ok(await _hostStatisticsAppService.GetSummaryAsync(hostId, userId, dto));
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Problem(statusCode: StatusCodes.Status401Unauthorized, title: "Usuário não autenticado", detail: ex.Message);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return Problem(statusCode: StatusCodes.Status404NotFound, title: "Host indisponível", detail: ex.Message);
+            }
+            catch (StatisticsForbiddenException ex)
+            {
+                return Problem(statusCode: StatusCodes.Status403Forbidden, title: "Acesso às estatísticas indisponível", detail: ex.Message);
+            }
+            catch (ArgumentException ex)
+            {
+                return Problem(statusCode: StatusCodes.Status400BadRequest, title: "Período inválido", detail: ex.Message);
+            }
+        }
+
+        [Authorize (Roles ="ADMIN,HOST")]
+        [HttpGet("{hostId:int}/Statistics/Ranking")]
+        public async Task<IActionResult> StatisticsRanking([FromRoute] int hostId, [FromQuery] HostStatisticsRankingFilterDTO dto)
+        {
+            try
+            {
+                var userId = _userManager.GetUserId(User);
+                return Ok(await _hostStatisticsAppService.GetRankingAsync(hostId, userId, dto));
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Problem(statusCode: StatusCodes.Status401Unauthorized, title: "Usuário não autenticado", detail: ex.Message);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return Problem(statusCode: StatusCodes.Status404NotFound, title: "Host indisponível", detail: ex.Message);
+            }
+            catch (StatisticsForbiddenException ex)
+            {
+                return Problem(statusCode: StatusCodes.Status403Forbidden, title: "Acesso às estatísticas indisponível", detail: ex.Message);
+            }
+            catch (ArgumentException ex)
+            {
+                return Problem(statusCode: StatusCodes.Status400BadRequest, title: "Filtros inválidos", detail: ex.Message);
+            }
+        }
+
+        [Authorize (Roles = "ADMIN,HOST")]
+        [HttpGet("{hostId:int}/Statistics/Daily")]
+        public async Task<IActionResult> StatisticsDaily([FromRoute] int hostId, [FromQuery] HostStatisticsFilterDTO dto)
+        {
+            try
+            {
+                var userId = _userManager.GetUserId(User);
+                return Ok(await _hostStatisticsAppService.GetDailyAsync(hostId, userId, dto));
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Problem(statusCode: StatusCodes.Status401Unauthorized, title: "Usuário não autenticado", detail: ex.Message);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return Problem(statusCode: StatusCodes.Status404NotFound, title: "Host indisponível", detail: ex.Message);
+            }
+            catch (StatisticsForbiddenException ex)
+            {
+                return Problem(statusCode: StatusCodes.Status403Forbidden, title: "Acesso às estatísticas indisponível", detail: ex.Message);
+            }
+            catch (ArgumentException ex)
+            {
+                return Problem(statusCode: StatusCodes.Status400BadRequest, title: "Período inválido", detail: ex.Message);
+            }
         }
 
         [AllowAnonymous]
@@ -225,5 +362,71 @@ namespace Projetos___4.Presentation.Controllers
                     title: "Filtros inválidos", detail: ex.Message);
             }
         }
+
+        [HttpGet("{hostId:int}/GetAllHostsPhotos")]
+        public async Task<IActionResult> GetAllHostsPhotosByHost([FromRoute, Range(1, int.MaxValue)] int hostId)
+        {
+            try
+            {
+                return Ok(await _hostAppService.GetAllHostsPhotosByHost(hostId));
+            }
+            catch (ArgumentException ex)
+            {
+                return Problem(statusCode: 400, title: "Dados inválidos", detail: ex.Message);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return Problem(statusCode: 404, title: "Host ou foto indisponível", detail: ex.Message);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Problem(statusCode: 403, title: "Acesso negado", detail: ex.Message);
+            }
+        }
+        [Authorize(Roles = "ADMIN,HOST")]
+        [HttpPost("CreateHostPhoto")]
+        public async Task<IActionResult> CreateHostPhoto([FromBody] HostPhotoCreateDTO dto)
+        {
+            try
+            {
+                var result = await _hostAppService.CreateHostPhotoAsync(dto, _userManager.GetUserId(User));
+                return CreatedAtAction(nameof(GetAllHostsPhotosByHost), new { hostId = result.HostId }, result);
+            }
+            catch (ArgumentException ex)
+            {
+                return Problem(statusCode: 400, title: "Dados inválidos", detail: ex.Message);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return Problem(statusCode: 404, title: "Host ou foto indisponível", detail: ex.Message);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Problem(statusCode: 403, title: "Acesso negado", detail: ex.Message);
+            }
+        }
+        [Authorize(Roles = "ADMIN,HOST")]
+        [HttpDelete("DeleteHostPhoto/{photoId:int}")]
+        public async Task<IActionResult> DeleteHostPhoto([FromRoute, Range(1, int.MaxValue)] int photoId)
+        {
+            try
+            {
+                await _hostAppService.DeleteHostPhotoAsync(photoId, _userManager.GetUserId(User));
+                return NoContent();
+            }
+            catch (ArgumentException ex)
+            {
+                return Problem(statusCode: 400, title: "Dados inválidos", detail: ex.Message);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return Problem(statusCode: 404, title: "Host ou foto indisponível", detail: ex.Message);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Problem(statusCode: 403, title: "Acesso negado", detail: ex.Message);
+            }
+        }
     }
 }
+
