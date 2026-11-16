@@ -1069,7 +1069,7 @@ export default function HostRegistrationScreen() {
               />
               <Field
                 error={errors.hostName}
-                label="Nome fantasia *"
+                label="Nome da empresa *"
                 maxLength={150}
                 onChangeText={(value) => updateHost('name', value)}
                 placeholder="Nome da empresa"
