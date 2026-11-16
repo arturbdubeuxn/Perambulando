@@ -30,10 +30,11 @@ export type RegisterFailure = {
 const FRIENDLY_MESSAGES: Record<string, string> = {
   DuplicateEmail: 'Este e-mail já está cadastrado.',
   InvalidEmail: 'Informe um e-mail válido.',
-  // Hoje o backend usa o nome como UserName do Identity: ele precisa ser único
-  // e só aceita letras e números.
-  DuplicateUserName: 'Este nome já está em uso. Tente outro.',
-  InvalidUserName: 'Use apenas letras e números no nome (a API ainda não aceita espaços).',
+  // O backend grava o campo "name" como UserName do Identity: ele é único
+  // e só aceita letras sem acento, números e - . _ @ +.
+  DuplicateUserName: 'Este nome de usuário já está em uso. Tente outro.',
+  InvalidUserName:
+    'Use apenas letras sem acento, números e os símbolos - . _ @ +, sem espaços.',
   PasswordTooShort: 'A senha é curta demais.',
   PasswordRequiresDigit: 'A senha precisa ter pelo menos um número.',
   PasswordRequiresLower: 'A senha precisa ter pelo menos uma letra minúscula.',

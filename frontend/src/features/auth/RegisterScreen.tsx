@@ -136,13 +136,13 @@ export default function RegisterScreen() {
 
             <View style={styles.card}>
               <FormField
-                autoCapitalize="words"
-                autoComplete="name"
+                autoCapitalize="none"
+                autoComplete="username"
                 error={errors.name}
-                label="Nome completo"
+                label="Nome de usuário"
                 maxLength={256}
                 onChangeText={(value) => updateField('name', value)}
-                placeholder="Como podemos te chamar?"
+                placeholder="ex.: maria_silva"
                 value={form.name}
               />
               <FormField

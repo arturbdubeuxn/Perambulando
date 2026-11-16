@@ -1,4 +1,6 @@
 export type RegisterForm = {
+  // Nome de usuário (UserName do Identity). O campo continua se chamando "name"
+  // porque é assim que a API o recebe.
   name: string;
   email: string;
   password: string;
@@ -12,7 +14,13 @@ const MAX_LENGTH = 256;
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+// Caracteres aceitos pelo Identity por padrão (o backend não os personaliza):
+// letras sem acento, números e - . _ @ +. Espaço e acento não são aceitos.
+const USERNAME_PATTERN = /^[A-Za-z0-9\-._@+]+$/;
+
 export const isValidEmail = (value: string) => EMAIL_PATTERN.test(value.trim());
+
+export const isValidUserName = (value: string) => USERNAME_PATTERN.test(value);
 
 // Mesma regra de senha usada hoje no cadastro de host: 8+ caracteres,
 // com maiúscula, minúscula, número e símbolo.
@@ -32,9 +40,12 @@ export function validateRegister(form: RegisterForm): RegisterErrors {
   const email = form.email.trim();
 
   if (!name) {
-    errors.name = 'Informe seu nome completo.';
+    errors.name = 'Informe seu nome de usuário.';
   } else if (name.length > MAX_LENGTH) {
-    errors.name = `O nome deve ter no máximo ${MAX_LENGTH} caracteres.`;
+    errors.name = `O nome de usuário deve ter no máximo ${MAX_LENGTH} caracteres.`;
+  } else if (!isValidUserName(name)) {
+    errors.name =
+      'Use apenas letras sem acento, números e os símbolos - . _ @ +, sem espaços.';
   }
 
   if (!email) {
