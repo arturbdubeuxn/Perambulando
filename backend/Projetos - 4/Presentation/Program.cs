@@ -135,6 +135,9 @@ builder.Services.AddScoped<IAddressMapping, AddressMapping>();
 builder.Services.AddScoped<ICategoryMapping, CategoryMapping>();
 builder.Services.AddScoped<IUserMapping, UserMapping>();
 builder.Services.AddScoped<IHostMapping, HostMapping>();
+builder.Services.AddScoped<IHostsPhotosMapping, HostsPhotosMapping>();
+builder.Services.AddScoped<IHostsPhotosService, HostsPhotosService>();
+builder.Services.AddScoped<IHostsPhotosRepository, HostsPhotosRepository>();
 builder.Services.AddScoped<IOpeningHoursMapping, OpeningHoursMapping>();
 builder.Services.AddScoped<IHostFilterMapping, HostFilterMapping>();
 // TravelChat
@@ -281,6 +284,7 @@ app.UseAuthorization();
 app.UseRateLimiter();
 app.MapControllers();
 app.Run();
+
 
 
 

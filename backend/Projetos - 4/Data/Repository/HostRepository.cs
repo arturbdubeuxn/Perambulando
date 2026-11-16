@@ -93,6 +93,14 @@ namespace Projetos___4.Data.Repository
                 {
                     Db.Addresses.Add(host.Address);
                 }
+                if (!host.IsActive)
+                {
+                    var photos = await Db.HostsPhotos.Where(photo => photo.HostId == host.Id && photo.IsActive).ToListAsync();
+                    foreach (var photo in photos)
+                    {
+                        photo.IsActive = false;
+                    }
+                }
                 await Db.SaveChangesAsync();
                 await transaction.CommitAsync();
                 return host;
@@ -174,3 +182,4 @@ namespace Projetos___4.Data.Repository
         }
     }
 }
+

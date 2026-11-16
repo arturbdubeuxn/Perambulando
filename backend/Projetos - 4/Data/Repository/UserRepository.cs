@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Projetos___4.Domain.Interfaces;
 using Projetos___4.Domain.Model;
 
@@ -50,6 +50,14 @@ namespace Projetos___4.Data.Repository
                     return false;
                 }
 
+                var photos = await Db.HostsPhotos
+                    .Where(photo => photo.IsActive && Db.Hosts.Any(host =>
+                        host.Id == photo.HostId && host.UserId == userId && !host.IsActive))
+                    .ToListAsync();
+                foreach (var photo in photos)
+                {
+                    photo.IsActive = false;
+                }
                 await Db.SaveChangesAsync();
                 await transaction.CommitAsync();
                 return true;
@@ -63,3 +71,4 @@ namespace Projetos___4.Data.Repository
         }
     }
 }
+

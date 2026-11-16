@@ -124,7 +124,7 @@ namespace Projetos___4.Domain.Service
             return _hostRepository.GetByIdAsync(hostId);
         }
 
-        private async Task<Hosts?> HostVerification(int hostId, string userId)
+        public async Task<Hosts?> HostVerification(int hostId, string userId)
         {
             if (hostId <= 0 || string.IsNullOrWhiteSpace(userId))
             {

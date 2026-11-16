@@ -1,3 +1,4 @@
+using Projetos___4.Application.DTO.HostsPhoto;
 using Projetos___4.Application.Mapping.Interfaces;
 using Projetos___4.Application.Validations.Interfaces;
 using Projetos___4.Application.Interfaces;
@@ -19,9 +20,13 @@ namespace Projetos___4.Application.AppServices
         private readonly IAddressAppService _addressAppService;
         private readonly IHostMapping _hostMapping;
         private readonly IHostFilterMapping _hostFilterMapping;
-        public HostAppService(IHostService hostService, IProgrammingService programmingService, IAddressAppService addressAppService, IValidation<HostDTO> hostValidation, IHostMapping hostMapping, IHostFilterMapping hostFilterMapping, IValidation<OpeningWeekDTO> openingWeekValidation)
+        private readonly IHostsPhotosService _hostsPhotosService;
+        private readonly IHostsPhotosMapping _hostsPhotosMapping;
+        public HostAppService(IHostService hostService, IProgrammingService programmingService, IAddressAppService addressAppService, IValidation<HostDTO> hostValidation, IHostMapping hostMapping, IHostFilterMapping hostFilterMapping, IValidation<OpeningWeekDTO> openingWeekValidation, IHostsPhotosService hostsPhotosService, IHostsPhotosMapping hostsPhotosMapping)
         {
             _openingWeekValidation = openingWeekValidation;
+            _hostsPhotosService = hostsPhotosService;
+            _hostsPhotosMapping = hostsPhotosMapping;
             _hostMapping = hostMapping;
             _hostValidation = hostValidation;
             _hostService = hostService;
@@ -30,6 +35,21 @@ namespace Projetos___4.Application.AppServices
             _hostFilterMapping = hostFilterMapping;
         }
 
+        public async Task<List<HostPhotoResponse>> GetAllHostsPhotosByHost(int hostId)
+        {
+            var photos = await _hostsPhotosService.GetAllAsync(hostId);
+            return photos.Select(photo => _hostsPhotosMapping.ToDTO(photo)).ToList();
+        }
+        public async Task<HostPhotoResponse> CreateHostPhotoAsync(HostPhotoCreateDTO dto, string userId)
+        {
+            var photo = _hostsPhotosMapping.ToModel(dto);
+            var result = await _hostsPhotosService.CreateAsync(photo, userId);
+            return _hostsPhotosMapping.ToDTO(result);
+        }
+        public Task DeleteHostPhotoAsync(int photoId, string userId)
+        {
+            return _hostsPhotosService.DeleteAsync(photoId, userId);
+        }
         public async Task<CompanyRegistrationDTO> GetByCnpjAsync(string cnpj, CancellationToken cancellationToken = default)
         {
             var company = await _hostService.GetByCnpjAsync(cnpj, cancellationToken);
@@ -108,3 +128,4 @@ namespace Projetos___4.Application.AppServices
         }
     }
 }
+

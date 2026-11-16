@@ -10,6 +10,7 @@ using Projetos___4.Domain.Interfaces.Service;
 using Projetos___4.Application.DTO.Host;
 using Projetos___4.Application.DTO.Statistics;
 using Projetos___4.Application.DTO.OpeningDays;
+using Projetos___4.Application.DTO.HostsPhoto;
 
 namespace Projetos___4.Presentation.Controllers
 {
@@ -361,5 +362,71 @@ namespace Projetos___4.Presentation.Controllers
                     title: "Filtros inválidos", detail: ex.Message);
             }
         }
+
+        [HttpGet("{hostId:int}/GetAllHostsPhotos")]
+        public async Task<IActionResult> GetAllHostsPhotosByHost([FromRoute, Range(1, int.MaxValue)] int hostId)
+        {
+            try
+            {
+                return Ok(await _hostAppService.GetAllHostsPhotosByHost(hostId));
+            }
+            catch (ArgumentException ex)
+            {
+                return Problem(statusCode: 400, title: "Dados inválidos", detail: ex.Message);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return Problem(statusCode: 404, title: "Host ou foto indisponível", detail: ex.Message);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Problem(statusCode: 403, title: "Acesso negado", detail: ex.Message);
+            }
+        }
+        [Authorize(Roles = "ADMIN,HOST")]
+        [HttpPost("CreateHostPhoto")]
+        public async Task<IActionResult> CreateHostPhoto([FromBody] HostPhotoCreateDTO dto)
+        {
+            try
+            {
+                var result = await _hostAppService.CreateHostPhotoAsync(dto, _userManager.GetUserId(User));
+                return CreatedAtAction(nameof(GetAllHostsPhotosByHost), new { hostId = result.HostId }, result);
+            }
+            catch (ArgumentException ex)
+            {
+                return Problem(statusCode: 400, title: "Dados inválidos", detail: ex.Message);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return Problem(statusCode: 404, title: "Host ou foto indisponível", detail: ex.Message);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Problem(statusCode: 403, title: "Acesso negado", detail: ex.Message);
+            }
+        }
+        [Authorize(Roles = "ADMIN,HOST")]
+        [HttpDelete("DeleteHostPhoto/{photoId:int}")]
+        public async Task<IActionResult> DeleteHostPhoto([FromRoute, Range(1, int.MaxValue)] int photoId)
+        {
+            try
+            {
+                await _hostAppService.DeleteHostPhotoAsync(photoId, _userManager.GetUserId(User));
+                return NoContent();
+            }
+            catch (ArgumentException ex)
+            {
+                return Problem(statusCode: 400, title: "Dados inválidos", detail: ex.Message);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return Problem(statusCode: 404, title: "Host ou foto indisponível", detail: ex.Message);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Problem(statusCode: 403, title: "Acesso negado", detail: ex.Message);
+            }
+        }
     }
 }
+

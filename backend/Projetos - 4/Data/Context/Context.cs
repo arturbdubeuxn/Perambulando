@@ -39,6 +39,8 @@ namespace Projetos___4.Data.Context
 
         public DbSet<RoadmapProgramming> RoadmapProgrammings => Set<RoadmapProgramming>();
 
+        public DbSet<HostsPhotos> HostsPhotos => Set<HostsPhotos>();
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);

@@ -1016,3 +1016,23 @@ Content-Type: application/json
 # @name deleteRoadmap
 PATCH {{Projetos___4_HostAddress}}/api/Roadmap/{{createRoadmap.response.body.$.id}}/Delete
 Authorization: Bearer {{login.response.body.$.accessToken}}
+
+### HOST PHOTOS - Listar fotos ativas (gastronomia/comércio)
+GET {{Projetos___4_HostAddress}}/api/Host/{{HostId}}/GetAllHostsPhotos
+Authorization: Bearer {{login.response.body.$.accessToken}}
+Accept: application/json
+
+### HOST PHOTOS - Cadastrar URL (dono ou ADMIN)
+# @name createHostPhoto
+POST {{Projetos___4_HostAddress}}/api/Host/CreateHostPhoto
+Authorization: Bearer {{login.response.body.$.accessToken}}
+Content-Type: application/json
+
+{
+  "hostId": {{HostId}},
+  "photoUrl": "https://example.com/foto-estabelecimento.jpg"
+}
+
+### HOST PHOTOS - Desativar foto pelo ID (204 sem corpo)
+DELETE {{Projetos___4_HostAddress}}/api/Host/DeleteHostPhoto/{{createHostPhoto.response.body.$.id}}
+Authorization: Bearer {{login.response.body.$.accessToken}}

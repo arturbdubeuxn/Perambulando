@@ -20,6 +20,8 @@ namespace Projetos___4.Domain.Interfaces.Service
 
         Task<List<Hosts>> FilterAsync(HostFilter filter);
 
+        Task<Hosts?> HostVerification(int hostId, string userId);
+
 
     }
 }
