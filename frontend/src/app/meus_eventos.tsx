@@ -196,6 +196,11 @@ export default function MyEventsScreen() {
   const { width: viewportWidth } = useWindowDimensions();
   const [fontsLoaded] = useFonts({ Fredoka_700Bold });
   const scrollRef = useRef<ScrollViewInstance>(null);
+  const hostScrollRef = useRef<ScrollViewInstance>(null);
+  const hostScrollXRef = useRef(0);
+  const hostDragStartXRef = useRef(0);
+  const hostPointerStartXRef = useRef(0);
+  const hostPointerStartYRef = useRef(0);
   const [currentTime] = useState(() => Date.now());
   const [status, setStatus] = useState<LoadStatus>('loading');
   const [message, setMessage] = useState('Carregando seu painel...');
@@ -361,9 +366,15 @@ export default function MyEventsScreen() {
               style={styles.brandMark}
             />
           </View>
-          <View style={styles.avatar}>
+          <Pressable
+            accessibilityHint="Abre os dados da sua conta"
+            accessibilityLabel="Abrir perfil do usuário"
+            accessibilityRole="button"
+            onPress={() => router.push('/perfil')}
+            style={({ pressed }) => [styles.avatar, pressed && styles.avatarPressed]}
+          >
             <Text style={styles.avatarText}>A</Text>
-          </View>
+          </Pressable>
         </View>
 
         <ScrollView ref={scrollRef} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator>
@@ -428,14 +439,52 @@ export default function MyEventsScreen() {
                 <View>
                   <Text style={styles.sectionEyebrow}>ESTABELECIMENTOS</Text>
                   <Text style={styles.sectionTitle}>Escolha o perfil</Text>
+                  <Text style={styles.horizontalScrollHint}>↔ Arraste para ver outros perfis</Text>
                 </View>
                 <Text style={styles.sectionCount}>{hosts.length}</Text>
               </View>
 
               <ScrollView
+                ref={hostScrollRef}
+                accessibilityHint="Deslize horizontalmente para visualizar os outros perfis"
+                alwaysBounceHorizontal
                 horizontal
+                nestedScrollEnabled
+                onMoveShouldSetResponderCapture={(event) => {
+                  if (Platform.OS !== 'web') {
+                    return false;
+                  }
+
+                  const horizontalDistance = Math.abs(
+                    event.nativeEvent.pageX - hostPointerStartXRef.current,
+                  );
+                  const verticalDistance = Math.abs(
+                    event.nativeEvent.pageY - hostPointerStartYRef.current,
+                  );
+                  return horizontalDistance > 5 && horizontalDistance > verticalDistance;
+                }}
+                onResponderMove={(event) => {
+                  const distance = event.nativeEvent.pageX - hostPointerStartXRef.current;
+                  hostScrollRef.current?.scrollTo({
+                    x: Math.max(0, hostDragStartXRef.current - distance),
+                    animated: false,
+                  });
+                }}
+                onScroll={(event) => {
+                  hostScrollXRef.current = event.nativeEvent.contentOffset.x;
+                }}
+                onStartShouldSetResponderCapture={(event) => {
+                  if (Platform.OS === 'web') {
+                    hostPointerStartXRef.current = event.nativeEvent.pageX;
+                    hostPointerStartYRef.current = event.nativeEvent.pageY;
+                    hostDragStartXRef.current = hostScrollXRef.current;
+                  }
+                  return false;
+                }}
+                scrollEventThrottle={16}
                 contentContainerStyle={styles.hostList}
-                showsHorizontalScrollIndicator={false}
+                showsHorizontalScrollIndicator
+                style={styles.hostScroller}
               >
                 {hosts.map((host) => {
                   const isSelected = host.id === selectedHostId;
@@ -732,6 +781,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.ink,
   },
   avatarText: { color: colors.card, fontSize: 14, fontWeight: '800' },
+  avatarPressed: { opacity: 0.78, transform: [{ scale: 0.95 }] },
   scrollContent: { paddingHorizontal: 14, paddingTop: 30, paddingBottom: 30, gap: 16 },
   intro: { paddingHorizontal: 2, paddingBottom: 8 },
   eyebrow: { marginBottom: 12, color: colors.orange, fontSize: 10, fontWeight: '800', letterSpacing: 1.7 },
@@ -789,6 +839,7 @@ const styles = StyleSheet.create({
   },
   sectionEyebrow: { marginBottom: 3, color: colors.orange, fontSize: 9, fontWeight: '800', letterSpacing: 1.3 },
   sectionTitle: { color: colors.ink, fontSize: 18, fontWeight: '800' },
+  horizontalScrollHint: { marginTop: 4, color: colors.muted, fontSize: 9, fontWeight: '600' },
   sectionCount: {
     minWidth: 28,
     height: 28,
@@ -801,7 +852,8 @@ const styles = StyleSheet.create({
     lineHeight: 28,
     textAlign: 'center',
   },
-  hostList: { gap: 10, paddingRight: 8 },
+  hostScroller: { width: '100%' },
+  hostList: { gap: 10, paddingRight: 18, paddingBottom: 8 },
   hostOption: {
     width: 146,
     minHeight: 112,

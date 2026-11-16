@@ -754,3 +754,15 @@ Os cards de `/meus_eventos` agora exibem uma lixeira vermelha no canto inferior 
 ## Administração dos dados do host — 13/11/2026
 
 O botão “Administrar” do perfil selecionado em `/meus_eventos` abre o formulário preenchido daquele host. Tipo, nome, contato, descrição, mídias e endereço podem ser ajustados; o CNPJ aparece bloqueado. O salvamento usa o PUT de edição existente, e o backend passou a rejeitar também chamadas diretas que tentem trocar o CNPJ. Não houve mudança de rota, DTO, entidade ou migration. TypeScript, ESLint e build .NET foram aprovados; nenhum PUT real foi executado. O protótipo externo está indisponível no caminho configurado e os PDFs foram preservados. Consulte [Controllers](01-controllers.md), [Regras de negócio](02-regras-de-negocio.md) e [Arquitetura frontend e backend](08-arquitetura-frontend-backend.md).
+
+### Scroll lateral dos perfis — 13/11/2026
+
+A lista de hosts do painel passou a explicitar a rolagem horizontal, com indicador e orientação de arraste. O gesto lateral funciona de forma aninhada no mobile, e o Expo Web também aceita arrastar a faixa com o mouse. Nenhum arquivo ou contrato do backend foi alterado nesta etapa. Consulte [Arquitetura frontend e backend](08-arquitetura-frontend-backend.md).
+
+## Página de perfil do usuário — 13/11/2026
+
+O avatar “A” dos cabeçalhos agora abre `/perfil`. A página usa o endpoint de perfil já existente para exibir nome, e-mail, tipo de usuário, plano, data de cadastro e ID da conta, com tratamento de carregamento, autenticação ausente e erro. A senha permanece protegida e não é exibida. TypeScript, ESLint e a rota web foram validados. Nenhum arquivo do backend foi alterado nesta etapa; PDFs foram preservados. Consulte [Arquitetura frontend e backend](08-arquitetura-frontend-backend.md).
+
+## CNPJ antes do nome fantasia — 16/11/2026
+
+O formulário de host agora inicia os dados empresariais pelo CNPJ e apresenta razão social e nome fantasia em seguida. O comportamento de consulta e autopreenchimento foi preservado. Mudança exclusiva do frontend, sem alterações no backend ou em contratos. Consulte [Arquitetura frontend e backend](08-arquitetura-frontend-backend.md).

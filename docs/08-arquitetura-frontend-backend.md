@@ -329,3 +329,17 @@ Implementação: o botão “Administrar” do resumo do perfil em `/meus_evento
 Ao salvar, o frontend envia o `HostDTO` para `PUT /api/Host/{hostId}/Edit` com o JWT atual. Nome, tipo, contatos, descrição e localidade podem ser alterados; o endereço preenchido é enviado como objeto para a resolução e deduplicação já existentes. Em sucesso, a tela informa a atualização e oferece retorno ao painel.
 
 Validações realizadas: `tsc --noEmit` e ESLint direto de `cadastro_host.tsx` e `meus_eventos.tsx` aprovados. O backend também rejeita mudança do CNPJ antes de resolver o endereço. Não foi executado PUT real nem houve gravação no banco. O protótipo externo permanece pendente porque o caminho obrigatório não existe neste computador; PDFs não foram regenerados.
+
+### Rolagem horizontal do seletor de hosts — 13/11/2026
+
+O seletor de estabelecimentos em `/meus_eventos` mantém todos os cards em uma faixa horizontal. No mobile, aceita o gesto nativo lateral mesmo dentro da rolagem vertical da página; o indicador horizontal fica visível e a interface informa que é possível arrastar para encontrar os demais perfis. No Expo Web, os eventos de gesto acrescentam arraste horizontal por mouse sem alterar o toque simples usado para selecionar um host. Esta alteração é exclusiva do frontend; contratos e arquivos do backend não foram modificados nesta etapa.
+
+## Perfil do usuário no frontend — 13/11/2026
+
+O avatar circular do cabeçalho nas telas de criação/edição de evento e no painel `/meus_eventos` passou a ser um botão acessível que abre `/perfil`. A nova rota exige o JWT da sessão web e consome o contrato existente `GET /api/User/Profile`, sem mudanças na API.
+
+A tela apresenta nome, e-mail, perfil de uso, situação da assinatura, data de cadastro e identificador da conta, além de estados para carregamento, sessão ausente e falha da API. A inicial do nome substitui o “A” estático dentro da página. A senha não é exibida porque não integra `UserProfileDTO` nem a resposta da API. TypeScript, ESLint dos três arquivos envolvidos e `git diff --check` foram aprovados; `/perfil` respondeu HTTP 200 no servidor Expo local. Não foi realizada consulta autenticada com dados reais. Esta implementação alterou exclusivamente o frontend; backend, rotas, DTOs, migrations e PDFs foram preservados.
+
+## Ordem dos dados empresariais no cadastro — 16/11/2026
+
+Na seção “Dados empresariais” de `/cadastro_host`, o CNPJ passou a ser o primeiro campo. A razão social e o nome fantasia aparecem depois da validação visual do CNPJ, preservando máscaras, consulta automática, preenchimento sugerido, mensagens e regras dos modos de criação e edição. Alteração exclusiva de apresentação no frontend; backend e contratos não foram modificados.

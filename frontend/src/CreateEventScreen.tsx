@@ -879,9 +879,15 @@ export default function CreateEventScreen() {
               style={styles.brandMark}
             />
           </View>
-          <View style={styles.avatar}>
+          <Pressable
+            accessibilityHint="Abre os dados da sua conta"
+            accessibilityLabel="Abrir perfil do usuário"
+            accessibilityRole="button"
+            onPress={() => router.push('/perfil')}
+            style={({ pressed }) => [styles.avatar, pressed && styles.avatarPressed]}
+          >
             <Text style={styles.avatarText}>A</Text>
-          </View>
+          </Pressable>
         </View>
 
         <KeyboardAvoidingView
@@ -1205,6 +1211,7 @@ const styles = StyleSheet.create({
   brandNameFredoka: { fontFamily: 'Fredoka_700Bold', fontWeight: 'normal' },
   brandMark: { width: 42, height: 42 },
   avatar: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.ink },
+  avatarPressed: { opacity: 0.78, transform: [{ scale: 0.95 }] },
   avatarText: { color: colors.card, fontSize: 14, fontWeight: '800' },
   keyboardArea: { flex: 1 },
   scrollContent: { paddingHorizontal: 12, paddingTop: 34, paddingBottom: 28, gap: 14 },

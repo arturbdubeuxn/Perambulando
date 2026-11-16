@@ -1026,22 +1026,6 @@ export default function HostRegistrationScreen() {
               />
 
               <Field
-                editable={false}
-                label="Razão social"
-                maxLength={256}
-                onChangeText={() => undefined}
-                placeholder="Preenchida após validar o CNPJ"
-                value={legalName}
-              />
-              <Field
-                error={errors.hostName}
-                label="Nome fantasia *"
-                maxLength={150}
-                onChangeText={(value) => updateHost('name', value)}
-                placeholder="Nome da empresa"
-                value={hostDraft.name}
-              />
-              <Field
                 editable={!isAuthenticatedHostFlow}
                 error={errors.cnpj}
                 keyboardType="numeric"
@@ -1075,6 +1059,22 @@ export default function HostRegistrationScreen() {
                   {cnpjLookup.message}
                 </Text>
               )}
+              <Field
+                editable={false}
+                label="Razão social"
+                maxLength={256}
+                onChangeText={() => undefined}
+                placeholder="Preenchida após validar o CNPJ"
+                value={legalName}
+              />
+              <Field
+                error={errors.hostName}
+                label="Nome fantasia *"
+                maxLength={150}
+                onChangeText={(value) => updateHost('name', value)}
+                placeholder="Nome da empresa"
+                value={hostDraft.name}
+              />
               {reusedCnpj ? (
                 <View style={styles.reusedCnpjNotice}>
                   <Text style={styles.reusedCnpjNoticeTitle}>Mesmo CNPJ, novo local</Text>
