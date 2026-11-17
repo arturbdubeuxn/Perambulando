@@ -75,6 +75,8 @@ type SubmissionState = {
   programmingId?: number;
 };
 
+type DateTimePickerTarget = 'startDate' | 'startTime' | 'endDate' | 'endTime' | null;
+
 type PostalAddressResponse = {
   cep: string;
   street: string;
@@ -184,6 +186,64 @@ function Field({
   );
 }
 
+function DateTimeInput({
+  active,
+  icon,
+  label,
+  maxLength,
+  onChangeText,
+  onTogglePicker,
+  placeholder,
+  value,
+}: {
+  active: boolean;
+  icon: 'calendar' | 'clock';
+  label: string;
+  maxLength: number;
+  onChangeText: (value: string) => void;
+  onTogglePicker: () => void;
+  placeholder: string;
+  value: string;
+}) {
+  return (
+    <View style={styles.fieldGroup}>
+      <Text style={styles.fieldLabel}>{label}</Text>
+      <View style={[styles.dateTimeInputShell, active && styles.dateTimeInputShellActive]}>
+        <TextInput
+          accessibilityLabel={label}
+          keyboardType="numeric"
+          maxLength={maxLength}
+          onChangeText={onChangeText}
+          placeholder={placeholder}
+          placeholderTextColor="#9297A3"
+          style={styles.dateTimeInput}
+          value={value}
+        />
+        <Pressable
+          accessibilityLabel={`Abrir seletor de ${label.toLowerCase()}`}
+          accessibilityRole="button"
+          accessibilityState={{ expanded: active }}
+          onPress={onTogglePicker}
+          style={({ pressed }) => [styles.pickerToggle, active && styles.pickerToggleActive, pressed && styles.pressed]}
+        >
+          {icon === 'calendar' ? (
+            <View style={[styles.calendarIcon, active && styles.calendarIconActive]}>
+              <View style={[styles.calendarIconHeader, active && styles.calendarIconHeaderActive]} />
+              <View style={styles.calendarIconGrid}>
+                {Array.from({ length: 4 }, (_, index) => (
+                  <View key={index} style={[styles.calendarIconDay, active && styles.calendarIconDayActive]} />
+                ))}
+              </View>
+            </View>
+          ) : (
+            <Text style={[styles.pickerToggleIcon, active && styles.pickerToggleIconActive]}>◷</Text>
+          )}
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
 function SectionTitle({ number, title, description }: { number: string; title: string; description: string }) {
   return (
     <View style={styles.sectionTitleRow}>
@@ -266,6 +326,162 @@ const isValidUrl = (value: string) => !value.trim() || /^https?:\/\/\S+$/i.test(
 
 function maskCep(value: string) {
   return onlyDigits(value).slice(0, 8).replace(/^(\d{5})(\d)/, '$1-$2');
+}
+
+function maskDate(value: string) {
+  const digits = onlyDigits(value).slice(0, 8);
+  if (digits.length <= 2) {
+    return digits;
+  }
+  if (digits.length <= 4) {
+    return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+  }
+  return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
+}
+
+function maskTime(value: string) {
+  const digits = onlyDigits(value).slice(0, 4);
+  return digits.length <= 2 ? digits : `${digits.slice(0, 2)}:${digits.slice(2)}`;
+}
+
+function parseDisplayDate(value: string) {
+  const match = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(value);
+  if (!match) {
+    return null;
+  }
+
+  const date = new Date(Number(match[3]), Number(match[2]) - 1, Number(match[1]));
+  if (
+    date.getFullYear() !== Number(match[3]) ||
+    date.getMonth() !== Number(match[2]) - 1 ||
+    date.getDate() !== Number(match[1])
+  ) {
+    return null;
+  }
+  return date;
+}
+
+function formatDisplayDate(date: Date) {
+  const pad = (part: number) => String(part).padStart(2, '0');
+  return `${pad(date.getDate())}/${pad(date.getMonth() + 1)}/${date.getFullYear()}`;
+}
+
+const calendarMonthNames = [
+  'Janeiro',
+  'Fevereiro',
+  'Março',
+  'Abril',
+  'Maio',
+  'Junho',
+  'Julho',
+  'Agosto',
+  'Setembro',
+  'Outubro',
+  'Novembro',
+  'Dezembro',
+];
+
+function CalendarPicker({ value, onSelect }: { value: string; onSelect: (value: string) => void }) {
+  const selectedDate = parseDisplayDate(value);
+  const [visibleMonth, setVisibleMonth] = useState(() => {
+    const reference = selectedDate ?? new Date();
+    return new Date(reference.getFullYear(), reference.getMonth(), 1);
+  });
+  const days = useMemo(() => {
+    const leadingEmptyDays = visibleMonth.getDay();
+    const daysInMonth = new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() + 1, 0).getDate();
+    return [
+      ...Array.from({ length: leadingEmptyDays }, () => null),
+      ...Array.from({ length: daysInMonth }, (_, index) => index + 1),
+    ];
+  }, [visibleMonth]);
+
+  const changeMonth = (offset: number) => {
+    setVisibleMonth((current) => new Date(current.getFullYear(), current.getMonth() + offset, 1));
+  };
+
+  return (
+    <View accessibilityLabel="Calendário para selecionar a data" style={styles.pickerPanel}>
+      <View style={styles.calendarHeader}>
+        <Pressable accessibilityLabel="Mês anterior" accessibilityRole="button" onPress={() => changeMonth(-1)} style={({ pressed }) => [styles.calendarArrow, pressed && styles.pressed]}>
+          <Text style={styles.calendarArrowText}>‹</Text>
+        </Pressable>
+        <Text style={styles.calendarTitle}>{calendarMonthNames[visibleMonth.getMonth()]} {visibleMonth.getFullYear()}</Text>
+        <Pressable accessibilityLabel="Próximo mês" accessibilityRole="button" onPress={() => changeMonth(1)} style={({ pressed }) => [styles.calendarArrow, pressed && styles.pressed]}>
+          <Text style={styles.calendarArrowText}>›</Text>
+        </Pressable>
+      </View>
+      <View style={styles.calendarGrid}>
+        {['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map((weekday, index) => (
+          <Text key={`${weekday}-${index}`} style={styles.calendarWeekday}>{weekday}</Text>
+        ))}
+        {days.map((day, index) => {
+          if (day === null) {
+            return <View key={`empty-${index}`} style={styles.calendarDay} />;
+          }
+          const candidate = new Date(visibleMonth.getFullYear(), visibleMonth.getMonth(), day);
+          const selected = selectedDate !== null && formatDisplayDate(candidate) === formatDisplayDate(selectedDate);
+          return (
+            <Pressable
+              key={day}
+              accessibilityLabel={`${day} de ${calendarMonthNames[visibleMonth.getMonth()]} de ${visibleMonth.getFullYear()}`}
+              accessibilityRole="button"
+              accessibilityState={{ selected }}
+              onPress={() => onSelect(formatDisplayDate(candidate))}
+              style={({ pressed }) => [styles.calendarDay, selected && styles.calendarDaySelected, pressed && styles.calendarDayPressed]}
+            >
+              <Text style={[styles.calendarDayText, selected && styles.calendarDayTextSelected]}>{day}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
+function TimePicker({ value, onChange, onClose }: { value: string; onChange: (value: string) => void; onClose: () => void }) {
+  const match = /^(\d{2}):(\d{2})$/.exec(value);
+  const selectedHour = match ? Number(match[1]) : null;
+  const selectedMinute = match ? Number(match[2]) : null;
+  const applyHour = (hour: number) => onChange(`${String(hour).padStart(2, '0')}:${String(selectedMinute ?? 0).padStart(2, '0')}`);
+  const applyMinute = (minute: number) => onChange(`${String(selectedHour ?? 0).padStart(2, '0')}:${String(minute).padStart(2, '0')}`);
+
+  return (
+    <View accessibilityLabel="Seletor de horário" style={styles.pickerPanel}>
+      <Text style={styles.pickerPanelTitle}>Selecione a hora</Text>
+      <View style={styles.timeGrid}>
+        {Array.from({ length: 24 }, (_, hour) => (
+          <Pressable
+            key={hour}
+            accessibilityRole="button"
+            accessibilityState={{ selected: selectedHour === hour }}
+            onPress={() => applyHour(hour)}
+            style={({ pressed }) => [styles.timeOption, selectedHour === hour && styles.timeOptionSelected, pressed && styles.pressed]}
+          >
+            <Text style={[styles.timeOptionText, selectedHour === hour && styles.timeOptionTextSelected]}>{String(hour).padStart(2, '0')}</Text>
+          </Pressable>
+        ))}
+      </View>
+      <Text style={styles.pickerPanelTitle}>Selecione os minutos</Text>
+      <View style={styles.minuteGrid}>
+        {[0, 15, 30, 45].map((minute) => (
+          <Pressable
+            key={minute}
+            accessibilityRole="button"
+            accessibilityState={{ selected: selectedMinute === minute }}
+            onPress={() => applyMinute(minute)}
+            style={({ pressed }) => [styles.minuteOption, selectedMinute === minute && styles.timeOptionSelected, pressed && styles.pressed]}
+          >
+            <Text style={[styles.timeOptionText, selectedMinute === minute && styles.timeOptionTextSelected]}>{String(minute).padStart(2, '0')}</Text>
+          </Pressable>
+        ))}
+      </View>
+      <Text style={styles.pickerHelper}>Para minutos diferentes, digite o horário diretamente no campo.</Text>
+      <Pressable accessibilityRole="button" onPress={onClose} style={({ pressed }) => [styles.pickerDoneButton, pressed && styles.pressed]}>
+        <Text style={styles.pickerDoneButtonText}>Concluir horário</Text>
+      </Pressable>
+    </View>
+  );
 }
 
 function parseLocalDateTime(dateValue: string, timeValue: string) {
@@ -360,6 +576,7 @@ export default function CreateEventScreen() {
   const [hosts, setHosts] = useState<HostResponse[]>([]);
   const [selectedHostId, setSelectedHostId] = useState<number | null>(null);
   const [hostOpen, setHostOpen] = useState(false);
+  const [dateTimePicker, setDateTimePicker] = useState<DateTimePickerTarget>(null);
   const [accessToken, setAccessToken] = useState('');
   const [selectedAddressId, setSelectedAddressId] = useState<number | null>(null);
   const [addressSuggestions, setAddressSuggestions] = useState<AddressResponse[]>([]);
@@ -1027,20 +1244,68 @@ export default function CreateEventScreen() {
               <SectionTitle description="Início futuro, término posterior e preços compatíveis." number="03" title="Quando e quanto" />
               <View style={styles.inlineFields}>
                 <View style={styles.inlineField}>
-                  <Field label="Data de início" onChangeText={(value) => updateDraft('startDate', value)} placeholder="dd/mm/aaaa" value={draft.startDate} />
+                  <DateTimeInput
+                    active={dateTimePicker === 'startDate'}
+                    icon="calendar"
+                    label="Data de início"
+                    maxLength={10}
+                    onChangeText={(value) => updateDraft('startDate', maskDate(value))}
+                    onTogglePicker={() => setDateTimePicker((current) => current === 'startDate' ? null : 'startDate')}
+                    placeholder="dd/mm/aaaa"
+                    value={draft.startDate}
+                  />
                 </View>
                 <View style={styles.inlineFieldSmall}>
-                  <Field label="Horário" onChangeText={(value) => updateDraft('startTime', value)} placeholder="19:00" value={draft.startTime} />
+                  <DateTimeInput
+                    active={dateTimePicker === 'startTime'}
+                    icon="clock"
+                    label="Horário de início"
+                    maxLength={5}
+                    onChangeText={(value) => updateDraft('startTime', maskTime(value))}
+                    onTogglePicker={() => setDateTimePicker((current) => current === 'startTime' ? null : 'startTime')}
+                    placeholder="19:00"
+                    value={draft.startTime}
+                  />
                 </View>
               </View>
+              {dateTimePicker === 'startDate' ? (
+                <CalendarPicker value={draft.startDate} onSelect={(value) => { updateDraft('startDate', value); setDateTimePicker(null); }} />
+              ) : null}
+              {dateTimePicker === 'startTime' ? (
+                <TimePicker value={draft.startTime} onChange={(value) => updateDraft('startTime', value)} onClose={() => setDateTimePicker(null)} />
+              ) : null}
               <View style={styles.inlineFields}>
                 <View style={styles.inlineField}>
-                  <Field label="Data de término" onChangeText={(value) => updateDraft('endDate', value)} placeholder="dd/mm/aaaa" value={draft.endDate} />
+                  <DateTimeInput
+                    active={dateTimePicker === 'endDate'}
+                    icon="calendar"
+                    label="Data de término"
+                    maxLength={10}
+                    onChangeText={(value) => updateDraft('endDate', maskDate(value))}
+                    onTogglePicker={() => setDateTimePicker((current) => current === 'endDate' ? null : 'endDate')}
+                    placeholder="dd/mm/aaaa"
+                    value={draft.endDate}
+                  />
                 </View>
                 <View style={styles.inlineFieldSmall}>
-                  <Field label="Horário" onChangeText={(value) => updateDraft('endTime', value)} placeholder="22:00" value={draft.endTime} />
+                  <DateTimeInput
+                    active={dateTimePicker === 'endTime'}
+                    icon="clock"
+                    label="Horário de término"
+                    maxLength={5}
+                    onChangeText={(value) => updateDraft('endTime', maskTime(value))}
+                    onTogglePicker={() => setDateTimePicker((current) => current === 'endTime' ? null : 'endTime')}
+                    placeholder="22:00"
+                    value={draft.endTime}
+                  />
                 </View>
               </View>
+              {dateTimePicker === 'endDate' ? (
+                <CalendarPicker value={draft.endDate} onSelect={(value) => { updateDraft('endDate', value); setDateTimePicker(null); }} />
+              ) : null}
+              {dateTimePicker === 'endTime' ? (
+                <TimePicker value={draft.endTime} onChange={(value) => updateDraft('endTime', value)} onClose={() => setDateTimePicker(null)} />
+              ) : null}
               <View style={styles.fieldGroup}>
                 <Text style={styles.fieldLabel}>O evento é gratuito?</Text>
                 <View style={styles.segmentedControl}>
@@ -1234,6 +1499,43 @@ const styles = StyleSheet.create({
   fieldGroup: { gap: 8 },
   fieldLabel: { color: colors.ink, fontSize: 11, fontWeight: '700' },
   input: { minHeight: 52, paddingHorizontal: 14, borderRadius: 12, borderColor: colors.line, borderWidth: 1, backgroundColor: colors.input, color: colors.ink, fontSize: 14 },
+  dateTimeInputShell: { minHeight: 52, overflow: 'hidden', flexDirection: 'row', alignItems: 'stretch', borderRadius: 12, borderColor: colors.line, borderWidth: 1, backgroundColor: colors.input },
+  dateTimeInputShellActive: { borderColor: colors.orange, backgroundColor: '#FFF9F5' },
+  dateTimeInput: { flex: 1, minWidth: 0, paddingHorizontal: 14, color: colors.ink, fontSize: 14 },
+  pickerToggle: { width: 44, alignItems: 'center', justifyContent: 'center', borderLeftColor: colors.line, borderLeftWidth: 1, backgroundColor: colors.card },
+  pickerToggleActive: { borderLeftColor: '#FFD8C2', backgroundColor: '#FFF0E6' },
+  pickerToggleIcon: { color: colors.ink, fontSize: 18, lineHeight: 20 },
+  pickerToggleIconActive: { color: colors.orange },
+  calendarIcon: { width: 19, height: 18, overflow: 'hidden', borderRadius: 3, borderColor: colors.ink, borderWidth: 1.7 },
+  calendarIconActive: { borderColor: colors.orange },
+  calendarIconHeader: { height: 5, backgroundColor: colors.ink },
+  calendarIconHeaderActive: { backgroundColor: colors.orange },
+  calendarIconGrid: { flex: 1, paddingHorizontal: 3, paddingVertical: 2.5, flexDirection: 'row', flexWrap: 'wrap', alignContent: 'space-between', justifyContent: 'space-between', gap: 2 },
+  calendarIconDay: { width: 4, height: 3, borderRadius: 0.8, backgroundColor: colors.ink },
+  calendarIconDayActive: { backgroundColor: colors.orange },
+  pickerPanel: { padding: 12, borderRadius: 16, borderColor: '#FFD8C2', borderWidth: 1, backgroundColor: '#FFF9F5', gap: 12 },
+  pickerPanelTitle: { color: colors.ink, fontSize: 12, fontWeight: '800' },
+  pickerHelper: { color: colors.muted, fontSize: 9, lineHeight: 14 },
+  calendarHeader: { minHeight: 38, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  calendarArrow: { width: 38, height: 38, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.card, borderColor: colors.line, borderWidth: 1 },
+  calendarArrowText: { color: colors.ink, fontSize: 25, lineHeight: 27 },
+  calendarTitle: { flex: 1, color: colors.ink, fontSize: 13, fontWeight: '800', textAlign: 'center' },
+  calendarGrid: { flexDirection: 'row', flexWrap: 'wrap' },
+  calendarWeekday: { width: '14.285%', paddingVertical: 5, color: colors.muted, fontSize: 9, fontWeight: '800', textAlign: 'center' },
+  calendarDay: { width: '14.285%', height: 38, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  calendarDaySelected: { backgroundColor: colors.orange },
+  calendarDayPressed: { backgroundColor: '#FFE1D0' },
+  calendarDayText: { color: colors.ink, fontSize: 11, fontWeight: '700' },
+  calendarDayTextSelected: { color: colors.card, fontWeight: '800' },
+  timeGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 6 },
+  timeOption: { flexBasis: '15%', minHeight: 38, borderRadius: 10, alignItems: 'center', justifyContent: 'center', borderColor: colors.line, borderWidth: 1, backgroundColor: colors.card },
+  timeOptionSelected: { borderColor: colors.orange, backgroundColor: colors.orange },
+  timeOptionText: { color: colors.ink, fontSize: 11, fontWeight: '700' },
+  timeOptionTextSelected: { color: colors.card, fontWeight: '800' },
+  minuteGrid: { flexDirection: 'row', justifyContent: 'space-between', gap: 8 },
+  minuteOption: { flex: 1, minHeight: 40, borderRadius: 10, alignItems: 'center', justifyContent: 'center', borderColor: colors.line, borderWidth: 1, backgroundColor: colors.card },
+  pickerDoneButton: { minHeight: 42, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.ink },
+  pickerDoneButtonText: { color: colors.card, fontSize: 11, fontWeight: '800' },
   inputDisabled: { opacity: 0.65, backgroundColor: '#F1EEE9' },
   lookupMessage: { marginTop: -4, fontSize: 11, lineHeight: 15 },
   lookupLoading: { color: colors.muted },

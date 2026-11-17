@@ -1403,3 +1403,9 @@ O `compose.postgis.yaml` agora inicia PostgreSQL/PostGIS, backend .NET 10 e fron
 ### Padronização da aba Painel — 17/11/2026
 
 A rota `/painel` passou a seguir o shell, cabeçalho, cartões, botões, espaçamentos e barra inferior das demais telas mobile. Quando selecionada, a aba Painel recebe fundo laranja claro, ícone e texto laranja e estado acessível de seleção; Criar evento permanece azul quando não é a página atual. ESLint, TypeScript e acesso HTTP 200 pelo container foram validados. Backend, banco, protótipo externo e PDFs foram preservados.
+
+No mesmo painel, “Resumo de visitas e cliques” deixou o plano gratuito Essencial e passou a constar explicitamente nos planos demonstrativos pagos Impulso e Destaque. Não houve implementação de cobrança ou alteração do backend.
+
+### Data e horário simplificados no cadastro de programação — 17/11/2026
+
+Datas agora possuem limite e máscara automática `dd/mm/aaaa`, e horários usam limite e máscara `HH:mm`. O cartão “Quando e quanto” também ganhou botão com ícone próprio de calendário, calendário mensal expansível e seletor de horário com horas e minutos separados. A digitação continua disponível para minutos fora dos atalhos de 15 minutos. O contrato ISO enviado ao backend foi preservado; ESLint, TypeScript e acesso HTTP 200 pelo frontend Docker foram validados. Backend, banco, protótipo externo e PDFs não foram alterados.

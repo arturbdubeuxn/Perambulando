@@ -11,9 +11,9 @@ type Period = typeof periods[number];
 type SubscriptionStatus = 'pendente' | 'ativa' | 'vencida' | 'cancelada';
 type PlanId = 'essencial' | 'impulso' | 'destaque';
 const plans: { id: PlanId; name: string; price: string; benefits: string[] }[] = [
-  { id: 'essencial', name: 'Essencial', price: 'Grátis', benefits: ['Página do estabelecimento', 'Publicação de programações', 'Resumo de visitas e cliques'] },
-  { id: 'impulso', name: 'Impulso', price: 'R$ 39,90', benefits: ['Tudo do Essencial', 'Destaque nas buscas da cidade', 'Evolução e comparação de resultados', 'Mais espaços de divulgação'] },
-  { id: 'destaque', name: 'Destaque', price: 'R$ 79,90', benefits: ['Tudo do Impulso', 'Maior exposição em espaços de destaque', 'Análise por programação', 'Relatórios de desempenho'] },
+  { id: 'essencial', name: 'Essencial', price: 'Grátis', benefits: ['Página do estabelecimento', 'Publicação de programações'] },
+  { id: 'impulso', name: 'Impulso', price: 'R$ 39,90', benefits: ['Tudo do Essencial', 'Resumo de visitas e cliques', 'Destaque nas buscas da cidade', 'Evolução e comparação de resultados', 'Mais espaços de divulgação'] },
+  { id: 'destaque', name: 'Destaque', price: 'R$ 79,90', benefits: ['Tudo do Impulso', 'Resumo de visitas e cliques', 'Maior exposição em espaços de destaque', 'Análise por programação', 'Relatórios de desempenho'] },
 ];
 // Cenários de apresentação: nunca representam métricas ou assinaturas do usuário autenticado.
 const samples: Record<Period, { visits: number; profile: number; clicks: number; previous: number; bars: number[] }> = {

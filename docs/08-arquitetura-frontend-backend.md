@@ -648,3 +648,15 @@ A rota `/painel` foi alinhada às telas de criação de evento e gestão de prog
 A barra inferior agora reutiliza o comportamento visual das demais páginas: a aba Painel apresenta fundo laranja claro, ícone e rótulo laranja, além de `accessibilityState.selected=true`; o botão central Criar evento permanece azul enquanto outra página está ativa. Meus eventos, Criar evento, perfil e Comércio mantêm navegação pelo Expo Router. Explorar continua somente visual, pois ainda não há rota implementada.
 
 Validações: ESLint em `src` e TypeScript com `--noEmit` aprovados sem erros; imagem Docker do frontend reconstruída; somente o container frontend foi recriado; `GET http://localhost:8081/painel` respondeu HTTP 200. Backend, banco, contratos HTTP, protótipo externo e PDFs foram preservados.
+
+### Distribuição dos benefícios demonstrativos — 17/11/2026
+
+O benefício “Resumo de visitas e cliques” foi retirado do plano gratuito Essencial e passou a ser exibido explicitamente nos planos pagos Impulso e Destaque. A mudança afeta somente a apresentação demonstrativa do frontend; não cria cobrança, assinatura ou regra de autorização no backend.
+
+## Entrada simplificada de data e horário — 17/11/2026
+
+O cartão “Quando e quanto” do cadastro e da edição de programação passou a aplicar máscaras durante a digitação. Datas aceitam no máximo oito algarismos e inserem automaticamente as barras no formato `dd/mm/aaaa` (2 dígitos para dia, 2 para mês e 4 para ano); horários aceitam no máximo quatro algarismos e inserem `:` no formato `HH:mm`.
+
+Cada campo possui um botão integrado. O botão de data usa um ícone próprio de calendário, com cabeçalho e grade de dias nas cores do aplicativo, em vez do símbolo quadrado genérico. Os campos de data expandem um calendário mensal dentro do mesmo cartão, com navegação entre meses e seleção direta do dia; a seleção preenche o campo e recolhe o calendário. Os campos de horário expandem um painel que separa a escolha das 24 horas e dos minutos `00`, `15`, `30` e `45`, com confirmação explícita. Minutos diferentes continuam disponíveis pela digitação mascarada.
+
+Os seletores mantêm os valores textuais já consumidos por `parseLocalDateTime`; payload, formato ISO enviado à API e validações de início futuro/término posterior não mudaram. Os controles expõem estados expandido/selecionado para acessibilidade. ESLint e TypeScript foram aprovados, a imagem do frontend foi reconstruída e a rota de criação respondeu HTTP 200 no Docker. Nenhum arquivo do backend, contrato, banco, protótipo externo ou PDF foi alterado.
