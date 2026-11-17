@@ -1111,6 +1111,10 @@ Verificações: build sem erros/dez avisos anteriores; 33 verificações integra
 
 Preparados MinPrice/MaxPrice em decimal? numeric(12,2), com obrigatoriedade para gastronomia/comércio no cadastro/edição e valores nulos preservados para legado. Faixa estimada por pessoa, não negativa, até duas casas e mínimo <= máximo; produtores não recebem preços. DTOs, mapping, service, configuração EF, exemplos .http e protótipo atualizados. Perfil do host agora inclui OpeningWeek, carregado com dias/períodos pelo repository, além dos valores e programações.
 
+Atualização de frontend em 17/11/2026: `/cadastro_host` voltou a exibir os campos de valor mínimo e máximo quando o tipo selecionado é Gastronomia ou Comércio. A interface valida preenchimento, duas casas decimais e ordem da faixa, envia números no contrato existente e recupera os valores na edição. Para Produtor de eventos, os campos ficam ocultos e os valores são enviados como nulos. Backend, banco e PDFs não foram alterados nesta atualização.
+
+Na mesma data, a aba “Comércio” passou a abrir `/comercio`, que reutiliza a tela `/perfil`. Assim, ambas exibem os mesmos dados cadastrais, plano e estados de sessão, e as barras inferiores deixaram de direcionar essa aba ao cadastro de host. Backend, banco e PDFs preservados.
+
 Build isolado aprovado sem erros/nove avisos anteriores; 77 verificações integradas PostgreSQL/Identity reais com APIs externas simuladas e 101 testes do protótipo aprovados. Banco descartável removido; principal preservado. Nenhuma migration criada/aplicada e nenhum PDF exportado. Migration anterior de horários foi informada como aplicada pelo usuário; as novas colunas monetárias ainda exigem outra migration antes de executar esta versão da API contra o banco principal.
 
 

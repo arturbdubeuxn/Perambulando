@@ -1,6 +1,6 @@
 import { Fredoka_700Bold } from '@expo-google-fonts/fredoka/700Bold';
 import { useFonts } from 'expo-font';
-import { router } from 'expo-router';
+import { router, type Href } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useState } from 'react';
 import { Image, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -207,7 +207,7 @@ export default function DashboardScreen() {
             <Text style={styles.createNavLabel}>Criar evento</Text>
           </Pressable>
           <NavItem icon="⊙" label="Explorar" />
-          <NavItem icon="▥" label="Comércio" onPress={() => router.push('/cadastro_host')} />
+          <NavItem icon="▥" label="Comércio" onPress={() => router.push('/comercio' as Href)} />
         </View>
         <Modal transparent visible={dialog !== null} animationType="fade" onRequestClose={() => setDialog(null)}>
           <View style={styles.overlay}><View accessibilityViewIsModal style={styles.dialog}><ScrollView contentContainerStyle={styles.dialogContent}>

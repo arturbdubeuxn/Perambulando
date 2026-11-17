@@ -132,6 +132,8 @@ type HostType = 0 | 1 | 2;
 
 type HostRegistrationDraft = {
   typeofhost: HostType | null;
+  minPrice: string;
+  maxPrice: string;
   cnpj: string;
   logoUrl: string;
   instagranUrl: string;
@@ -146,6 +148,8 @@ type RegistrationErrors = Partial<{
   email: string;
   password: string;
   hostType: string;
+  minPrice: string;
+  maxPrice: string;
   cnpj: string;
   phone: string;
   hostName: string;
@@ -162,8 +166,10 @@ type RegistrationErrors = Partial<{
 
 type PreparedRegistration = {
   user: UserRegistrationDraft;
-  host: Omit<HostRegistrationDraft, 'typeofhost' | 'address'> & {
+  host: Omit<HostRegistrationDraft, 'typeofhost' | 'address' | 'minPrice' | 'maxPrice'> & {
     typeofhost: HostType;
+    minPrice: number | null;
+    maxPrice: number | null;
     address: Omit<AddressDraft, 'state'>;
   };
 };
@@ -208,6 +214,8 @@ type HostCreateResponse = {
 type ExistingHostResponse = {
   id: number;
   typeofhost: HostType;
+  minPrice: number | null;
+  maxPrice: number | null;
   name: string;
   cnpj: string;
   logoUrl: string;
@@ -267,6 +275,28 @@ function maskCnpj(value: string) {
     .replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3')
     .replace(/\.(\d{3})(\d)/, '.$1/$2')
     .replace(/(\d{4})(\d)/, '$1-$2');
+}
+
+function maskPrice(value: string) {
+  const normalized = value.replace('.', ',').replace(/[^\d,]/g, '');
+  const separatorIndex = normalized.indexOf(',');
+  const integerPart = (separatorIndex >= 0 ? normalized.slice(0, separatorIndex) : normalized).slice(0, 10);
+
+  if (separatorIndex < 0) {
+    return integerPart;
+  }
+
+  const decimalPart = normalized.slice(separatorIndex + 1).replace(/,/g, '').slice(0, 2);
+  return `${integerPart},${decimalPart}`;
+}
+
+function parsePrice(value: string) {
+  const parsed = Number(value.replace(',', '.'));
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function formatPriceInput(value: number | null) {
+  return value === null ? '' : value.toFixed(2).replace('.', ',');
 }
 
 function maskCep(value: string) {
@@ -382,6 +412,8 @@ export default function HostRegistrationScreen() {
   });
   const [hostDraft, setHostDraft] = useState<HostRegistrationDraft>({
     typeofhost: null,
+    minPrice: '',
+    maxPrice: '',
     cnpj: '',
     logoUrl: '',
     instagranUrl: '',
@@ -454,6 +486,8 @@ export default function HostRegistrationScreen() {
       setSourceHostName(host.name);
       setHostDraft({
         typeofhost: host.typeofhost,
+        minPrice: formatPriceInput(host.minPrice),
+        maxPrice: formatPriceInput(host.maxPrice),
         cnpj: maskCnpj(host.cnpj),
         logoUrl: host.logoUrl ?? '',
         instagranUrl: host.instagranUrl ?? '',
@@ -712,6 +746,9 @@ export default function HostRegistrationScreen() {
     const nextErrors: RegistrationErrors = {};
     const normalizedEmail = userDraft.email.trim();
     const phoneDigits = onlyDigits(hostDraft.phone);
+    const requiresPrices = hostDraft.typeofhost === 1 || hostDraft.typeofhost === 2;
+    const minPrice = parsePrice(hostDraft.minPrice);
+    const maxPrice = parsePrice(hostDraft.maxPrice);
 
     if (!isAuthenticatedHostFlow) {
       if (!userDraft.name.trim()) {
@@ -738,6 +775,17 @@ export default function HostRegistrationScreen() {
     }
     if (hostDraft.typeofhost === null) {
       nextErrors.hostType = 'Selecione um tipo de host.';
+    }
+    if (requiresPrices) {
+      if (!hostDraft.minPrice.trim() || minPrice === null) {
+        nextErrors.minPrice = 'Informe o valor mínimo estimado por pessoa.';
+      }
+      if (!hostDraft.maxPrice.trim() || maxPrice === null) {
+        nextErrors.maxPrice = 'Informe o valor máximo estimado por pessoa.';
+      }
+      if (minPrice !== null && maxPrice !== null && minPrice > maxPrice) {
+        nextErrors.maxPrice = 'O valor máximo deve ser maior ou igual ao mínimo.';
+      }
     }
     if (phoneDigits.length > 0 && phoneDigits.length !== 10 && phoneDigits.length !== 11) {
       nextErrors.phone = 'Informe um telefone com DDD.';
@@ -784,6 +832,8 @@ export default function HostRegistrationScreen() {
       },
       host: {
         typeofhost: hostDraft.typeofhost,
+        minPrice: requiresPrices ? minPrice : null,
+        maxPrice: requiresPrices ? maxPrice : null,
         cnpj: onlyDigits(hostDraft.cnpj),
         logoUrl: hostDraft.logoUrl.trim(),
         instagranUrl: hostDraft.instagranUrl.trim(),
@@ -1103,7 +1153,12 @@ export default function HostRegistrationScreen() {
                         key={item.value}
                         onPress={() => {
                           resetValidation();
-                          setHostDraft((current) => ({ ...current, typeofhost: item.value }));
+                          setHostDraft((current) => ({
+                            ...current,
+                            typeofhost: item.value,
+                            minPrice: item.value === 0 ? '' : current.minPrice,
+                            maxPrice: item.value === 0 ? '' : current.maxPrice,
+                          }));
                           setHostTypeOpen(false);
                         }}
                         style={({ pressed }) => [
@@ -1119,6 +1174,36 @@ export default function HostRegistrationScreen() {
                 )}
                 {errors.hostType && <Text style={styles.fieldError}>{errors.hostType}</Text>}
               </View>
+
+              {hostDraft.typeofhost === 1 || hostDraft.typeofhost === 2 ? (
+                <View>
+                  <Text style={styles.priceHint}>Valores estimados por pessoa</Text>
+                  <View style={styles.priceRow}>
+                    <View style={styles.priceField}>
+                      <Field
+                        error={errors.minPrice}
+                        keyboardType="numeric"
+                        label="Valor mínimo *"
+                        maxLength={13}
+                        onChangeText={(value) => updateHost('minPrice', maskPrice(value))}
+                        placeholder="Ex.: 25,00"
+                        value={hostDraft.minPrice}
+                      />
+                    </View>
+                    <View style={styles.priceField}>
+                      <Field
+                        error={errors.maxPrice}
+                        keyboardType="numeric"
+                        label="Valor máximo *"
+                        maxLength={13}
+                        onChangeText={(value) => updateHost('maxPrice', maskPrice(value))}
+                        placeholder="Ex.: 100,00"
+                        value={hostDraft.maxPrice}
+                      />
+                    </View>
+                  </View>
+                </View>
+              ) : null}
 
               <Field
                 error={errors.phone}
@@ -1483,6 +1568,21 @@ const styles = StyleSheet.create({
     color: '#B42318',
     fontSize: 11,
     lineHeight: 15,
+  },
+  priceHint: {
+    marginBottom: 8,
+    color: colors.muted,
+    fontSize: 11,
+    lineHeight: 15,
+  },
+  priceRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+  },
+  priceField: {
+    flex: 1,
+    minWidth: 0,
   },
   lookupMessage: {
     marginTop: -4,

@@ -731,7 +731,7 @@ export default function MyEventsScreen() {
             <Text style={styles.createNavLabel}>Criar evento</Text>
           </Pressable>
           <NavItem icon="⊙" label="Explorar" />
-          <NavItem icon="▥" label="Comércio" onPress={() => router.push('/cadastro_host')} />
+          <NavItem icon="▥" label="Comércio" onPress={() => router.push('/comercio' as Href)} />
         </View>
       </View>
     </View>

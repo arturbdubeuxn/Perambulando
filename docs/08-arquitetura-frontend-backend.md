@@ -240,6 +240,14 @@ Validações realizadas: estrutura real dos diretórios conferida; solução e p
 
 Validações adicionais em 26/10/2026: `tsc --noEmit` e `expo lint` aprovados; bundle web do Expo Router compilado; `/` e `/cadastro_host` responderam HTTP 200 no servidor local. Em 27/10/2026, a rota `/cadastro_host` foi conferida integralmente em captura responsiva: cabeçalho, marca em Fredoka, pin, paleta, cartões, campos, seleção, botões e aviso final foram renderizados corretamente.
 
+### Comércio reutiliza a página de perfil — 17/11/2026
+
+Os atalhos “Comércio” das barras inferiores do painel, de “Meus eventos” e da criação de evento abrem `/comercio`. Essa rota reutiliza diretamente o componente de `/perfil`, exibindo os mesmos dados cadastrais da conta, plano, estados de autenticação e identidade visual, sem manter uma cópia divergente da tela. Alteração exclusiva do frontend.
+
+### Valores estimados no formulário de host — 17/11/2026
+
+O cadastro e a edição de host exibem `Valor mínimo` e `Valor máximo` após a seleção de Gastronomia ou Comércio. Os campos aceitam valor decimal com até duas casas, validam preenchimento obrigatório e impedem mínimo maior que máximo; para Produtor de eventos, ficam ocultos e o payload envia ambos como nulos. A edição carrega os valores já registrados. Alteração exclusiva do frontend, reutilizando o contrato atual da API.
+
 Pendências intencionais: implementar uma tela completa de login e armazenamento multiplataforma seguro da sessão, configurar a URL definitiva por ambiente, disponibilizar upload de imagens e implementar rascunhos quando existirem contratos correspondentes no backend. A sessão atual usa `sessionStorage` apenas no Expo Web e termina ao fechar a aba. A criação de evento depende de categorias ativas no banco.
 
 ## Integração da criação de evento — 28/10/2026
