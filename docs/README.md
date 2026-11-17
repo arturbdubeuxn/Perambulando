@@ -767,6 +767,10 @@ O avatar “A” dos cabeçalhos agora abre `/perfil`. A página usa o endpoint 
 
 O formulário de host agora inicia os dados empresariais pelo CNPJ e apresenta razão social e nome fantasia em seguida. O comportamento de consulta e autopreenchimento foi preservado. Mudança exclusiva do frontend, sem alterações no backend ou em contratos. Consulte [Arquitetura frontend e backend](08-arquitetura-frontend-backend.md).
 
+## Painel demonstrativo do host — 16/11/2026
+
+A rota `/painel` da branch `PaginaProHost` foi integrada ao frontend atual. Ela reúne métricas e planos em modo demonstrativo, sem dados reais, cobrança ou persistência, e está conectada ao item “Painel” da navbar. As rotas atuais de perfil, criação de evento, meus eventos e cadastro de comércio foram preservadas. TypeScript, ESLint e a resposta HTTP 200 da rota foram validados. Nenhum arquivo do backend foi alterado nesta etapa. Consulte [Arquitetura frontend e backend](08-arquitetura-frontend-backend.md).
+
 ## US17 — primeira etapa preparada em 27/10/2026
 
 Implementados no código: Subscription e configuração EF, repository, service, app service, mapping, interfaces, DTO e controller. Rotas autenticadas: POST /api/Subscription/Activate, GET /api/Subscription/MySubscription e PATCH /api/Subscription/Cancel. Titular vem do JWT; não há corpo de entrada. Retorno 200 com Id, Status, StartsAt e ExpiresAt (camelCase no JSON). Status numérico: 0 Inactive, 1 Active, 2 Cancelled, 3 Expired (calculado). Sem assinatura, datas/Id nulos e Status Inactive. Identidade ausente/inativa: 401. Simulação desabilitada: Activate retorna 403.
@@ -1391,3 +1395,7 @@ Protótipo da porta 5174 ampliado com acesso demonstrativo, perfil/preferências
 
 
 Pitch mobile — 13/11/2026: estilos compartilhados ajustados para celular nas duas jornadas (navegação, formulários, cards, horários, diálogos e painel). Verificação de layouts em 320/390/768px, sem transbordamento horizontal nos pontos medidos; seis testes do protótipo aprovados. Detalhes no README do pitch. Backend e PDFs preservados.
+
+### Ambiente completo no Docker — 17/11/2026
+
+O `compose.postgis.yaml` agora inicia PostgreSQL/PostGIS, backend .NET 10 e frontend Expo Web em conjunto. Após construir as imagens locais de backend e frontend uma vez, `docker compose -f compose.postgis.yaml up -d --no-build --pull never` inicia os três processos sem novos terminais. Banco e volume existentes foram preservados; frontend e rota pública da API responderam HTTP 200. O backend roda em Production no container para não aplicar automaticamente a migration bloqueada por CNPJs duplicados; a auditoria desses dados continua pendente. Consulte [Docker](05-docker.md) e [Arquitetura frontend e backend](08-arquitetura-frontend-backend.md). Nenhum arquivo da pasta `backend/` foi alterado e PDFs não foram regenerados.

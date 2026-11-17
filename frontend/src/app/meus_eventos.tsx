@@ -1,6 +1,6 @@
 import { Fredoka_700Bold } from '@expo-google-fonts/fredoka/700Bold';
 import { useFonts } from 'expo-font';
-import { router } from 'expo-router';
+import { router, type Href } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -717,7 +717,7 @@ export default function MyEventsScreen() {
         </Modal>
 
         <View style={styles.bottomNav}>
-          <NavItem icon="▦" label="Painel" />
+          <NavItem icon="▦" label="Painel" onPress={() => router.push('/painel' as Href)} />
           <NavItem active icon="▣" label="Meus eventos" />
           <Pressable
             accessibilityLabel="Criar evento"

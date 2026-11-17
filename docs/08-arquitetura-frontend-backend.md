@@ -343,6 +343,12 @@ A tela apresenta nome, e-mail, perfil de uso, situação da assinatura, data de 
 ## Ordem dos dados empresariais no cadastro — 16/11/2026
 
 Na seção “Dados empresariais” de `/cadastro_host`, o CNPJ passou a ser o primeiro campo. A razão social e o nome fantasia aparecem depois da validação visual do CNPJ, preservando máscaras, consulta automática, preenchimento sugerido, mensagens e regras dos modos de criação e edição. Alteração exclusiva de apresentação no frontend; backend e contratos não foram modificados.
+
+## Painel demonstrativo do host — 16/11/2026
+
+A implementação visual de `PaginaProHost` foi portada para a rota Expo Router `/painel`. A tela apresenta visão geral, períodos ilustrativos, métricas, gráfico, programações em foco, ideias de divulgação, planos propostos, estados demonstrativos de assinatura e modais de simulação. Os números, estabelecimentos, planos, pagamentos e assinaturas mostrados são explicitamente fictícios; nenhuma ação gera cobrança ou grava dados.
+
+O item “Painel” da navegação inferior em criação/edição de evento e em `/meus_eventos` abre a nova rota e recebe o estado visual ativo dentro dela. A adaptação para esta branch também conectou “Meus eventos” à rota existente e o avatar ao perfil já implementado. TypeScript, ESLint dos quatro arquivos envolvidos e `git diff --check` foram aprovados; `/painel` respondeu HTTP 200 em uma instância Expo temporária, encerrada após a verificação. Esta mudança é exclusiva do frontend e não altera contratos nem arquivos do backend.
 Backend, banco, containers, contratos HTTP e PDFs foram preservados.
 
 
@@ -626,3 +632,11 @@ Exemplo .http atualizado, sem mudar DTO, rota, autorização, respostas, classes
 Validações: build --no-restore com saída isolada aprovado com zero erros e nove avisos anteriores. N8nDiCheck.cs/.csproj executou o bloco efetivo de registros TravelChat extraído do Program.cs (sem iniciar o Program/host) e aprovou 38 verificações com HTTP, usuário, catálogo e filtros simulados: resolução/scopes das dependências, fluxo AppService/mappings/cliente, URL completa, timeout 30s, ausência de JWT, categorias reais, redirecionamento bloqueado, logs HTTP suprimidos, configuração inválida virando 503 sem envio e ambos os perfis locais. Primeira compilação do harness tinha conflito de nome na classe de logger; fixture corrigida, sem alteração de produção por esse erro.
 
 node --check em app.js/server.mjs/catalog.mjs aprovado; 107 testes do protótipo aprovados com API simulada, inclusive timeout sobrescrito nos testes. Sem espera real de 30/40/45 segundos, teste HTTP do middleware JWT, banco, n8n/LLM reais ou PDF. Próximo baby step: reiniciar o ambiente pelo usuário e testar uma única chamada autenticada da API com o Webhook ouvindo, conferindo categoria real e retorno combinado antes de avançar.
+
+## Execução integrada em containers — 17/11/2026
+
+O Compose da raiz agora representa o fluxo completo `frontend -> backend -> database`. O navegador acessa o Expo Web em `localhost:8081`; o frontend usa a URL pública `http://localhost:5014` para a API; dentro da rede do Compose, o backend acessa PostgreSQL pelo nome de serviço `database` e porta 5432. A porta 5434 continua sendo apenas a publicação do banco para o Windows.
+
+Backend e frontend possuem Dockerfiles próprios fora do código funcional da API. O backend é publicado em imagem .NET 10 e o frontend inicia o Metro/Expo Web em CI na porta 8081. O banco, seu volume externo e os dados existentes foram preservados. O ambiente do backend no container é Production para impedir a aplicação automática de migrations enquanto os CNPJs duplicados do banco não forem auditados. Isso também significa que o OpenAPI condicionado a Development não é exposto nessa execução.
+
+Validação em 17/11/2026: os três serviços permaneceram ativos, a rota pública de categorias e a página inicial do frontend responderam HTTP 200. Não houve alteração de rota, DTO, regra de negócio, schema, migration ou arquivo da pasta `backend/`; o protótipo externo e os PDFs não foram alterados.

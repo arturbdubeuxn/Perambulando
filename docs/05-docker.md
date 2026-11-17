@@ -144,3 +144,32 @@ Chave exclusiva de servidor, independente do JWT do usuário e da credencial Gem
 Rotas, autenticação JWT da API, DTOs e respostas permanecem iguais. Ajuda do protótipo atualizada para deixar explícito que a chave é configurada somente no servidor. Sem migração, alteração de banco, chamada à IA, edição do workflow ou exportação de PDFs.
 
 Validação desta preparação: build --no-restore aprovado com zero erros e nove avisos de nulabilidade preexistentes; node --check public/app.js aprovado; 107 testes do protótipo aprovados com API simulada (reexecução fora da sandbox após bloqueio de loopback EACCES). git diff --check sem erros. O envio autenticado ao n8n real ainda não foi testado.
+
+## Ambiente completo pelo Docker Compose — 17/11/2026
+
+O `compose.postgis.yaml` passou a iniciar os três processos do projeto: PostgreSQL/PostGIS (`database`), API .NET 10 (`backend`) e Expo Web (`frontend`). Foram adicionadas as imagens locais `perambulando/backend:dev` e `perambulando/frontend:dev`; a imagem existente `perambulando/postgres-postgis:17` e o volume externo `perambulando_pgdata` continuam reutilizados. Nenhum arquivo dentro de `backend/` foi alterado.
+
+Na primeira execução, construa as duas imagens novas e inicie o ambiente:
+
+```powershell
+docker compose -f compose.postgis.yaml build backend frontend
+docker compose -f compose.postgis.yaml up -d --no-build --pull never
+```
+
+Depois que as imagens existirem, um único comando inicia tudo sem build nem pull:
+
+```powershell
+docker compose -f compose.postgis.yaml up -d --no-build --pull never
+```
+
+Serviços locais: frontend em `http://localhost:8081`, API em `http://localhost:5014` e PostgreSQL em `127.0.0.1:5434`. Para parar os três sem apagar o volume do banco:
+
+```powershell
+docker compose -f compose.postgis.yaml down
+```
+
+O backend usa `ASPNETCORE_ENVIRONMENT=Production` no container para não executar automaticamente migrations sobre o banco local existente. Em Development, a inicialização encontrou CNPJs repetidos e a migration `AddUniqueHostCnpj` recusou prosseguir; os registros foram preservados e não houve correção ou exclusão automática. A auditoria desses duplicados e a aplicação posterior da migration permanecem pendentes.
+
+As variáveis opcionais `Geoapify__ApiKey`, `N8n__TravelChatWebhookUrl` e `N8n__TravelChatWebhookKey` podem ser fornecidas pelo ambiente do terminal antes do `compose up`. O frontend recebe `EXPO_PUBLIC_API_URL=http://localhost:5014`.
+
+Validações realizadas: configuração do Compose aprovada; imagens de backend e frontend construídas; banco saudável; três serviços ativos; `GET /api/Category/GetallCategories` respondeu HTTP 200 e o frontend respondeu HTTP 200 na porta 8081. Dois containers antigos apareceram como órfãos e um volume legado foi detectado; todos foram mantidos intactos. PDFs não foram regenerados.
