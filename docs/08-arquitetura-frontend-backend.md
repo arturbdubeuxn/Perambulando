@@ -640,3 +640,11 @@ O Compose da raiz agora representa o fluxo completo `frontend -> backend -> data
 Backend e frontend possuem Dockerfiles próprios fora do código funcional da API. O backend é publicado em imagem .NET 10 e o frontend inicia o Metro/Expo Web em CI na porta 8081. O banco, seu volume externo e os dados existentes foram preservados. O ambiente do backend no container é Production para impedir a aplicação automática de migrations enquanto os CNPJs duplicados do banco não forem auditados. Isso também significa que o OpenAPI condicionado a Development não é exposto nessa execução.
 
 Validação em 17/11/2026: os três serviços permaneceram ativos, a rota pública de categorias e a página inicial do frontend responderam HTTP 200. Não houve alteração de rota, DTO, regra de negócio, schema, migration ou arquivo da pasta `backend/`; o protótipo externo e os PDFs não foram alterados.
+
+## Padronização visual e navegação do Painel — 17/11/2026
+
+A rota `/painel` foi alinhada às telas de criação de evento e gestão de programações. O shell mobile passou a compartilhar largura, bordas e contenção visual; cabeçalho, espaçamentos, tipografia, cartões, botões e estados pressionados seguem os mesmos valores usados no restante do frontend.
+
+A barra inferior agora reutiliza o comportamento visual das demais páginas: a aba Painel apresenta fundo laranja claro, ícone e rótulo laranja, além de `accessibilityState.selected=true`; o botão central Criar evento permanece azul enquanto outra página está ativa. Meus eventos, Criar evento, perfil e Comércio mantêm navegação pelo Expo Router. Explorar continua somente visual, pois ainda não há rota implementada.
+
+Validações: ESLint em `src` e TypeScript com `--noEmit` aprovados sem erros; imagem Docker do frontend reconstruída; somente o container frontend foi recriado; `GET http://localhost:8081/painel` respondeu HTTP 200. Backend, banco, contratos HTTP, protótipo externo e PDFs foram preservados.

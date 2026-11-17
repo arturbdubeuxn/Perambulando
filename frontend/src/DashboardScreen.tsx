@@ -3,7 +3,7 @@ import { useFonts } from 'expo-font';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useState } from 'react';
-import { Image, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 const colors = { ink: '#002B5C', orange: '#FF5A0A', background: '#F8F5EE', card: '#FFFEFC', line: '#E7E0D6', muted: '#667085' };
 const periods = ['7 dias', '30 dias', '90 dias'] as const;
@@ -30,6 +30,31 @@ const statusCopy: Record<SubscriptionStatus, string> = {
 
 function Action({ label, onPress, secondary = false }: { label: string; onPress: () => void; secondary?: boolean }) {
   return <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => [styles.button, secondary && styles.secondaryButton, pressed && styles.pressed]}><Text style={[styles.buttonText, secondary && styles.secondaryText]}>{label}</Text></Pressable>;
+}
+
+function NavItem({
+  icon,
+  label,
+  active = false,
+  onPress,
+}: {
+  icon: string;
+  label: string;
+  active?: boolean;
+  onPress?: () => void;
+}) {
+  return (
+    <Pressable
+      accessibilityLabel={active ? `${label}, página atual` : label}
+      accessibilityRole="button"
+      accessibilityState={{ selected: active }}
+      onPress={onPress}
+      style={({ pressed }) => [styles.navItem, active && styles.navItemActive, pressed && styles.pressed]}
+    >
+      <Text style={[styles.navIcon, active && styles.navIconActive]}>{icon}</Text>
+      <Text style={[styles.navLabel, active && styles.navLabelActive]}>{label}</Text>
+    </Pressable>
+  );
 }
 
 export default function DashboardScreen() {
@@ -74,7 +99,7 @@ export default function DashboardScreen() {
             <Text style={styles.avatarText}>A</Text>
           </Pressable>
         </View>
-        <ScrollView contentContainerStyle={styles.content}>
+        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator>
           <View style={styles.intro}>
             <Text style={styles.eyebrow}>SEU NEGÓCIO EM MOVIMENTO</Text>
             <Text accessibilityRole="header" style={styles.title}>Seu painel</Text>
@@ -167,12 +192,22 @@ export default function DashboardScreen() {
           </>}
           {message ? <Text accessibilityRole="alert" style={styles.feedback}>{message}</Text> : null}
         </ScrollView>
-        <View style={styles.nav}>
-          <View accessibilityLabel="Painel, página atual" style={styles.navItem}><Text style={styles.orangeText}>▦</Text><Text style={[styles.navLabel, styles.orangeText]}>Painel</Text></View>
-          <Pressable accessibilityRole="button" onPress={() => router.navigate('/meus_eventos')} style={styles.navItem}><Text style={styles.disabledIcon}>▣</Text><Text style={styles.navLabel}>Meus eventos</Text></Pressable>
-          <Pressable accessibilityRole="button" accessibilityLabel="Criar evento" onPress={() => router.navigate('/')} style={styles.navItem}><View style={styles.plus}><Text style={styles.plusText}>＋</Text></View><Text style={styles.navLabel}>Criar evento</Text></Pressable>
-          <View accessibilityLabel="Explorar, indisponível" style={styles.navItem}><Text style={styles.disabledIcon}>⊙</Text><Text style={styles.navLabel}>Explorar</Text></View>
-          <Pressable accessibilityRole="button" onPress={() => router.navigate('/cadastro_host')} style={styles.navItem}><Text style={styles.disabledIcon}>▥</Text><Text style={styles.navLabel}>Comércio</Text></Pressable>
+        <View style={styles.bottomNav}>
+          <NavItem active icon="▦" label="Painel" />
+          <NavItem icon="▣" label="Meus eventos" onPress={() => router.push('/meus_eventos')} />
+          <Pressable
+            accessibilityLabel="Criar evento"
+            accessibilityRole="button"
+            onPress={() => router.push('/')}
+            style={({ pressed }) => [styles.createNavItem, pressed && styles.pressed]}
+          >
+            <View style={styles.createNavButton}>
+              <Text style={styles.createNavPlus}>+</Text>
+            </View>
+            <Text style={styles.createNavLabel}>Criar evento</Text>
+          </Pressable>
+          <NavItem icon="⊙" label="Explorar" />
+          <NavItem icon="▥" label="Comércio" onPress={() => router.push('/cadastro_host')} />
         </View>
         <Modal transparent visible={dialog !== null} animationType="fade" onRequestClose={() => setDialog(null)}>
           <View style={styles.overlay}><View accessibilityViewIsModal style={styles.dialog}><ScrollView contentContainerStyle={styles.dialogContent}>
@@ -199,26 +234,36 @@ export default function DashboardScreen() {
 }
 
 const styles = StyleSheet.create({
-  viewport: { flex: 1, alignItems: 'center', backgroundColor: '#E6DED2' },
-  shell: { flex: 1, width: '100%', maxWidth: 430, backgroundColor: colors.background },
-  header: { minHeight: 70, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: colors.card, borderBottomWidth: 1, borderColor: colors.line },
-  brand: { flexDirection: 'row', alignItems: 'center', gap: 7 }, brandName: { fontSize: 18, fontWeight: '700', color: colors.ink }, mark: { width: 42, height: 42 },
-  avatar: { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.ink, alignItems: 'center', justifyContent: 'center' }, avatarText: { color: 'white', fontWeight: '800' },
-  content: { padding: 16, paddingTop: 28, paddingBottom: 32, gap: 18 }, intro: { gap: 10 },
-  eyebrow: { color: colors.orange, fontSize: 10, letterSpacing: 1.5, fontWeight: '800' }, title: { color: colors.ink, fontSize: 32, letterSpacing: -1 },
-  body: { color: colors.muted, fontSize: 13, lineHeight: 20 }, caption: { color: colors.muted, fontSize: 11, lineHeight: 16 }, small: { color: colors.muted, fontSize: 10, lineHeight: 16 },
-  demoNotice: { backgroundColor: '#FFF0E5', borderColor: '#FFD8C2', borderWidth: 1, borderRadius: 16, padding: 15, gap: 10 },
+  viewport: { flex: 1, width: '100%', minWidth: 0, alignItems: 'center', backgroundColor: '#E6DED2' },
+  shell: { flex: 1, width: '100%', maxWidth: 430, minWidth: 0, alignSelf: 'center', overflow: 'hidden', backgroundColor: colors.background, borderColor: '#DDD8D2', borderLeftWidth: 1, borderRightWidth: 1 },
+  header: { minHeight: 70, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: colors.card, borderBottomWidth: 1, borderBottomColor: colors.line },
+  brand: { flexDirection: 'row', alignItems: 'center', gap: 7 }, brandName: { fontSize: 18, fontWeight: '700', letterSpacing: -0.5, color: colors.ink }, mark: { width: 42, height: 42 },
+  avatar: { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.ink, alignItems: 'center', justifyContent: 'center' }, avatarText: { color: colors.card, fontSize: 14, fontWeight: '800' },
+  content: { paddingHorizontal: 12, paddingTop: 34, paddingBottom: 28, gap: 14 }, intro: { paddingHorizontal: 2, paddingBottom: 10, gap: 10 },
+  eyebrow: { color: colors.orange, fontSize: 10, letterSpacing: 1.7, fontWeight: '800' }, title: { color: colors.ink, fontSize: 30, fontWeight: '400', letterSpacing: -1.2 },
+  body: { color: colors.muted, fontSize: 14, lineHeight: 21 }, caption: { color: colors.muted, fontSize: 11, lineHeight: 16 }, small: { color: colors.muted, fontSize: 10, lineHeight: 16 },
+  demoNotice: { backgroundColor: '#FFF7F1', borderColor: '#FFD8C2', borderWidth: 1, borderRadius: 18, padding: 16, gap: 10 },
   tabs: { flexDirection: 'row', padding: 4, backgroundColor: '#EEEAE2', borderRadius: 14 }, tab: { flex: 1, alignItems: 'center', paddingVertical: 12, borderRadius: 10 }, selectedTab: { backgroundColor: colors.ink }, tabText: { color: colors.muted, fontSize: 12, fontWeight: '700' }, selectedTabText: { color: 'white' },
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap' }, sectionTitle: { fontSize: 19, fontWeight: '600', color: colors.ink },
   periods: { flexDirection: 'row', gap: 6, flexWrap: 'wrap' }, period: { paddingHorizontal: 10, paddingVertical: 9, borderWidth: 1, borderColor: colors.line, borderRadius: 20, backgroundColor: colors.card }, periodActive: { borderColor: colors.orange, backgroundColor: '#FFF0E5' }, orangeText: { color: colors.orange, fontWeight: '700' },
   metrics: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 }, metric: { flexBasis: '46%', flexGrow: 1, padding: 14, backgroundColor: colors.card, borderRadius: 16, borderWidth: 1, borderColor: colors.line, gap: 8 }, metricValue: { color: colors.ink, fontSize: 29, fontWeight: '600' },
-  card: { padding: 18, backgroundColor: colors.card, borderRadius: 20, borderWidth: 1, borderColor: colors.line, gap: 12 }, cardTitle: { color: colors.ink, fontSize: 16, fontWeight: '600' },
+  card: { padding: 16, backgroundColor: colors.card, borderRadius: 20, borderWidth: 1, borderColor: colors.line, gap: 12, ...Platform.select({ web: { boxShadow: '0 8px 24px rgba(20, 18, 16, 0.035)' }, default: { elevation: 1, shadowColor: '#000000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.04, shadowRadius: 12 } }) }, cardTitle: { color: colors.ink, fontSize: 16, fontWeight: '600' },
   chart: { height: 145, flexDirection: 'row', alignItems: 'flex-end', gap: 12, paddingTop: 12 }, chartColumn: { flex: 1, gap: 8, alignItems: 'center' }, bar: { width: '100%', borderTopLeftRadius: 6, borderTopRightRadius: 6 },
   empty: { paddingVertical: 24, color: colors.muted, fontSize: 13, lineHeight: 21, textAlign: 'center' }, eventRow: { borderTopWidth: 1, borderColor: colors.line, paddingTop: 12, gap: 5 }, eventName: { color: colors.ink, fontSize: 13, fontWeight: '600' },
-  insightCard: { padding: 18, gap: 12, borderRadius: 20, backgroundColor: '#EDF2F6' }, divider: { height: 1, backgroundColor: '#D8E1E9' },
-  button: { minHeight: 46, paddingHorizontal: 12, paddingVertical: 12, alignItems: 'center', justifyContent: 'center', borderRadius: 12, backgroundColor: colors.orange }, buttonText: { color: 'white', fontSize: 12, fontWeight: '700', textAlign: 'center' }, secondaryButton: { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line }, secondaryText: { color: colors.ink }, pressed: { opacity: 0.7 },
+  insightCard: { padding: 16, gap: 12, borderRadius: 20, backgroundColor: '#EDF2F6' }, divider: { height: 1, backgroundColor: '#D8E1E9' },
+  button: { minHeight: 48, paddingHorizontal: 12, paddingVertical: 12, alignItems: 'center', justifyContent: 'center', borderRadius: 12, backgroundColor: colors.orange }, buttonText: { color: colors.card, fontSize: 12, fontWeight: '800', textAlign: 'center' }, secondaryButton: { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line }, secondaryText: { color: colors.ink }, pressed: { opacity: 0.72 },
   badge: { backgroundColor: '#EDF2F6', paddingVertical: 6, paddingHorizontal: 10, borderRadius: 20 }, badgeText: { color: colors.ink, fontSize: 11, fontWeight: '700' }, planName: { color: colors.ink, fontSize: 21, fontWeight: '600' }, price: { color: colors.ink, fontSize: 30, fontWeight: '600' }, benefit: { color: colors.ink, fontSize: 12, lineHeight: 21 }, featuredPlan: { borderColor: colors.orange, borderWidth: 2 }, currentBadge: { color: colors.orange, fontSize: 11, fontWeight: '700' }, feedback: { color: colors.ink, fontSize: 13, lineHeight: 20, padding: 16, borderRadius: 12, backgroundColor: '#E8F1E8' },
-  nav: { minHeight: 78, flexDirection: 'row', alignItems: 'flex-end', paddingBottom: 10, paddingHorizontal: 5, backgroundColor: colors.card, borderTopWidth: 1, borderColor: colors.line }, navItem: { flex: 1, minHeight: 52, alignItems: 'center', justifyContent: 'flex-end', gap: 5 }, navLabel: { color: '#8C8C93', fontSize: 8 }, disabledIcon: { color: '#8C8C93', fontSize: 19 }, plus: { width: 46, height: 46, borderRadius: 23, backgroundColor: colors.orange, alignItems: 'center', justifyContent: 'center' }, plusText: { color: 'white', fontSize: 27 },
+  bottomNav: { minHeight: 74, paddingHorizontal: 5, paddingBottom: 7, flexDirection: 'row', alignItems: 'flex-end', backgroundColor: colors.card, borderTopColor: colors.line, borderTopWidth: 1 },
+  navItem: { flex: 1, minHeight: 54, borderRadius: 12, alignItems: 'center', justifyContent: 'flex-end', gap: 3 },
+  navItemActive: { backgroundColor: '#FFF0E6' },
+  navIcon: { color: '#8C8C93', fontSize: 19, lineHeight: 20 },
+  navIconActive: { color: colors.orange },
+  navLabel: { color: '#8C8C93', fontSize: 8 },
+  navLabelActive: { color: colors.orange, fontWeight: '800' },
+  createNavItem: { flex: 1.18, minHeight: 68, alignItems: 'center', justifyContent: 'flex-end', gap: 4 },
+  createNavButton: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.ink, borderColor: colors.card, borderWidth: 4, ...Platform.select({ web: { boxShadow: '0 5px 14px rgba(0, 43, 92, 0.22)' }, default: { elevation: 4 } }) },
+  createNavPlus: { color: colors.card, fontSize: 24, fontWeight: '300', lineHeight: 25 },
+  createNavLabel: { color: colors.ink, fontSize: 8, fontWeight: '700' },
   overlay: { flex: 1, backgroundColor: 'rgba(0, 26, 55, 0.55)', alignItems: 'center', justifyContent: 'center', padding: 20 }, dialog: { width: '100%', maxWidth: 390, maxHeight: '85%', backgroundColor: colors.card, borderRadius: 22, overflow: 'hidden' }, dialogContent: { padding: 24, gap: 18 },
 });
 

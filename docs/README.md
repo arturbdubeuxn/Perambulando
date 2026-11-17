@@ -1399,3 +1399,7 @@ Pitch mobile — 13/11/2026: estilos compartilhados ajustados para celular nas d
 ### Ambiente completo no Docker — 17/11/2026
 
 O `compose.postgis.yaml` agora inicia PostgreSQL/PostGIS, backend .NET 10 e frontend Expo Web em conjunto. Após construir as imagens locais de backend e frontend uma vez, `docker compose -f compose.postgis.yaml up -d --no-build --pull never` inicia os três processos sem novos terminais. Banco e volume existentes foram preservados; frontend e rota pública da API responderam HTTP 200. O backend roda em Production no container para não aplicar automaticamente a migration bloqueada por CNPJs duplicados; a auditoria desses dados continua pendente. Consulte [Docker](05-docker.md) e [Arquitetura frontend e backend](08-arquitetura-frontend-backend.md). Nenhum arquivo da pasta `backend/` foi alterado e PDFs não foram regenerados.
+
+### Padronização da aba Painel — 17/11/2026
+
+A rota `/painel` passou a seguir o shell, cabeçalho, cartões, botões, espaçamentos e barra inferior das demais telas mobile. Quando selecionada, a aba Painel recebe fundo laranja claro, ícone e texto laranja e estado acessível de seleção; Criar evento permanece azul quando não é a página atual. ESLint, TypeScript e acesso HTTP 200 pelo container foram validados. Backend, banco, protótipo externo e PDFs foram preservados.
