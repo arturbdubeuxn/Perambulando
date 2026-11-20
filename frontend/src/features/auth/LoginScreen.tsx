@@ -17,12 +17,16 @@ import {
 } from 'react-native';
 
 import { FormField } from '../../components/FormField';
+import { setSession } from '../../lib/session';
 import { colors } from '../../theme/colors';
 import { describeLoginError, loginUser } from './loginApi';
 import { hasLoginErrors, validateLogin } from './loginValidation';
 import type { LoginErrors, LoginForm } from './loginValidation';
 
 const REGISTER_ROUTE = '/cadastro' as Href;
+// Destino depois do login. Hoje a rota / é a tela de criar evento; trocar aqui
+// quando o head definir a home do app.
+const AFTER_LOGIN_ROUTE = '/' as Href;
 
 const emptyForm: LoginForm = {
   email: '',
@@ -64,11 +68,12 @@ export default function LoginScreen() {
 
     setStatus('submitting');
     try {
-      await loginUser(form);
-      // Por enquanto o token ainda não é guardado nem há redirecionamento:
-      // isso entra na próxima subtarefa (módulo de sessão).
+      const result = await loginUser(form);
+      await setSession({ accessToken: result.accessToken });
+      // Não deixamos a senha na tela. replace evita que o "voltar" reabra o login.
       setForm(emptyForm);
       setStatus('success');
+      router.replace(AFTER_LOGIN_ROUTE);
     } catch (error) {
       setFormError(describeLoginError(error));
       setStatus('error');
@@ -172,12 +177,6 @@ export default function LoginScreen() {
             >
               <Text style={styles.primaryButtonText}>{submitting ? 'Entrando...' : 'Entrar'}</Text>
             </Pressable>
-
-            {status === 'success' && (
-              <View accessibilityRole="alert" style={styles.notice}>
-                <Text style={styles.noticeTitle}>Login realizado</Text>
-              </View>
-            )}
 
             {status === 'error' && formError !== '' && (
               <View accessibilityRole="alert" style={styles.errorNotice}>
@@ -356,16 +355,6 @@ const styles = StyleSheet.create({
     color: '#7A271A',
     fontSize: 11,
     lineHeight: 16,
-  },
-  notice: {
-    padding: 15,
-    backgroundColor: colors.successBackground,
-    borderRadius: 14,
-  },
-  noticeTitle: {
-    color: colors.success,
-    fontSize: 14,
-    fontWeight: '800',
   },
   footerRow: {
     flexDirection: 'row',
