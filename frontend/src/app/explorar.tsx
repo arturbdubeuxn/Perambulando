@@ -196,8 +196,22 @@ function EventCard({ programming }: { programming: Programming }) {
   const [imageFailed, setImageFailed] = useState(false);
   const categories = programming.categories.filter((category) => category.isActive).slice(0, 2);
 
+  const openProgramming = () => {
+    void requestJson(`/api/Programming/${programming.id}/Interactions`, {
+      method: 'POST',
+      body: JSON.stringify({ eventId: globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${programming.id}`, type: 1 }),
+      headers: { 'Content-Type': 'application/json' },
+    }).catch(() => undefined);
+    router.push({ pathname: '/programacao/[programmingId]', params: { programmingId: String(programming.id) } } as Href);
+  };
+
   return (
-    <View style={styles.eventCard}>
+    <Pressable
+      accessibilityHint="Abre os detalhes desta programação"
+      accessibilityRole="button"
+      onPress={openProgramming}
+      style={({ pressed }) => [styles.eventCard, pressed && styles.eventCardPressed]}
+    >
       <View style={styles.eventImageFrame}>
         {programming.imageUrl && !imageFailed ? (
           <Image
@@ -251,7 +265,7 @@ function EventCard({ programming }: { programming: Programming }) {
         <Text numberOfLines={2} style={styles.eventName}>{programming.name}</Text>
         <Text numberOfLines={2} style={styles.eventAddress}>⌖ {addressLabel(programming.address) || 'Local a confirmar'}</Text>
       </View>
-    </View>
+    </Pressable>
   );
 }
 
@@ -493,6 +507,7 @@ const styles = StyleSheet.create({
   seeAll: { color: colors.orange, fontSize: 10, fontWeight: '800' },
   eventList: { marginTop: 16, gap: 16 },
   eventCard: { overflow: 'hidden', borderRadius: 20, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card },
+  eventCardPressed: { opacity: 0.82, transform: [{ scale: 0.992 }] },
   eventImageFrame: { height: 190, position: 'relative', backgroundColor: '#DCE7E9' },
   eventImage: { width: '100%', height: '100%' },
   eventImageFallback: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#E9F1EF' },

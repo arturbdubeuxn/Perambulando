@@ -676,3 +676,13 @@ A nova rota `/explorar` implementa a experiência inicial do usuário comum com 
 Os cards exibem imagem ou fallback da marca, data, preço/gratuidade, endereço e até duas categorias associadas à programação pelo host. Estados de carregamento, ausência de resultados, erro da API e falha de imagem foram tratados. A barra inferior da página segue o fluxo do usuário comum e destaca Explorar; Buscar foca o campo e Perfil abre a rota existente. Os atalhos Explorar das telas de gestão também passaram a abrir a nova rota.
 
 Validações realizadas: ESLint nos quatro arquivos envolvidos, TypeScript com `--noEmit` e `git diff --check`, todos sem erros. A implementação alterou somente o frontend e a documentação; backend, endpoints, contratos, banco, protótipo externo e PDFs foram preservados. Perto de você e Favoritos permanecem visuais/inativos até suas histórias específicas.
+
+## Detalhes da programação e proximidade — 23/11/2026
+
+Os cards de `/explorar` passaram a abrir `/programacao/[programmingId]`. A tela consulta o endpoint público `GET /api/Programming/Details/{id}` e apresenta, na ordem vertical da experiência mobile: imagem e identificação da programação, data e endereço, descrição/categorias, mapa, eventos próximos, host responsável e ação de ingresso. Compartilhamento, favorito e interações reutilizam os contratos existentes; favorito e consulta de proximidade dependem do JWT da sessão.
+
+Como o `AddressDetailsDTO` atual não expõe as coordenadas persistidas, o mapa do frontend geocodifica o endereço completo registrado pelo host, guarda o resultado na sessão e exibe um mapa interativo do OpenStreetMap com marcador. Também é disponibilizado um link de pesquisa direta no Google Maps. Falha ou ausência de correspondência possui estado explícito; nenhuma chave de geocodificação do backend é enviada ao navegador.
+
+`GET /api/Nearby/GetNearProgramming/{programmingId}` continua sendo a fonte de verdade para proximidade. O frontend percorre a paginação mista, mantém somente itens do tipo `Programming` e preserva a ordem por `DistanceMeters` calculada pelo PostGIS, exibindo até quatro eventos diferentes do evento de origem no raio de 2 km. Em seguida busca os detalhes públicos desses eventos para apresentar categoria. Sem autenticação, a tela informa que é necessário entrar na conta, porque o endpoint existente é protegido.
+
+Validações: ESLint nos dois arquivos da jornada e TypeScript com `--noEmit` aprovados. Nenhum arquivo de backend, contrato, banco, protótipo externo ou PDF foi alterado. A correspondência visual do mapa depende da qualidade do endereço cadastrado e do serviço cartográfico; expor diretamente a coordenada persistida exigiria futura ampliação do DTO no backend, fora do escopo desta entrega.

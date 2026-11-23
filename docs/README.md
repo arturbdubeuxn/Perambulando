@@ -1417,3 +1417,7 @@ Datas agora possuem limite e máscara automática `dd/mm/aaaa`, e horários usam
 ### US16 — Explorar programações do usuário comum — 23/11/2026
 
 Criada a rota `/explorar` com identidade visual atual, busca e até seis categorias ativas carregadas de `Category/GetallCategories`. A listagem consulta `Programming/Filter`, portanto exibe programações ativas publicadas pelos hosts e preserva suas categorias, imagem, data, preço e endereço. Busca e seleção de categoria atualizam a consulta; carregamento, vazio, erro e fallback de imagem possuem estados próprios. A barra do usuário comum destaca Explorar, foca a busca e acessa o Perfil; Perto de você e Favoritos aguardam histórias próprias. ESLint, TypeScript e diff aprovados. Nenhum arquivo do backend, banco ou PDF foi alterado.
+
+### Detalhes e eventos próximos — 23/11/2026
+
+Tocar em uma programação de `/explorar` abre `/programacao/[programmingId]`, com imagem, data, endereço, descrição, categorias, mapa interativo, eventos próximos, host e ingresso na ordem do scroll mobile. Detalhes usam a rota pública existente; proximidade usa a rota autenticada existente e conserva a ordenação PostGIS por distância, filtrando somente programações no raio de 2 km. O mapa geocodifica e armazena em cache de sessão o endereço cadastrado, pois o DTO atual não publica a coordenada persistida. ESLint e TypeScript aprovados; backend, banco, contratos, protótipo externo e PDFs preservados.
