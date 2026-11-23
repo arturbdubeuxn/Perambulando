@@ -1420,4 +1420,12 @@ Criada a rota `/explorar` com identidade visual atual, busca e até seis categor
 
 ### Detalhes e eventos próximos — 23/11/2026
 
-Tocar em uma programação de `/explorar` abre `/programacao/[programmingId]`, com imagem, data, endereço, descrição, categorias, mapa interativo, eventos próximos, host e ingresso na ordem do scroll mobile. Detalhes usam a rota pública existente; proximidade usa a rota autenticada existente e conserva a ordenação PostGIS por distância, filtrando somente programações no raio de 2 km. O mapa geocodifica e armazena em cache de sessão o endereço cadastrado, pois o DTO atual não publica a coordenada persistida. ESLint e TypeScript aprovados; backend, banco, contratos, protótipo externo e PDFs preservados.
+Tocar em uma programação de `/explorar` abre `/programacao/[programmingId]`, com imagem, data, endereço, descrição, categorias, mapa interativo, eventos próximos, host e ingresso na ordem do scroll mobile. Detalhes usam a rota pública existente; proximidade usa a rota autenticada existente e conserva a ordenação PostGIS por distância, filtrando somente programações no raio de 2 km. O mapa geocodifica o endereço cadastrado com tentativas progressivas por logradouro/número/cidade/CEP e CEP, armazenando o resultado na sessão, pois o DTO atual não publica a coordenada persistida. ESLint e TypeScript aprovados; backend, banco, contratos, protótipo externo e PDFs preservados.
+
+### Perto de você com localização do dispositivo — 23/11/2026
+
+A nova rota `/perto_de_voce` solicita permissão somente quando o usuário toca em “Usar minha localização” e consulta `Nearby/GetNearMe` com JWT, latitude, longitude, faixa e paginação. Exibe programações e estabelecimentos registrados na ordem de distância calculada pelo backend, com quatro faixas de 0 a 20 km e estados para permissão/sessão/serviço/erros. `expo-location` e a mensagem de permissão nativa foram configurados; coordenadas não são persistidas pelo frontend. Backend, banco, contratos e PDFs preservados.
+
+### Cinco eventos mais próximos do evento aberto — 23/11/2026
+
+A seção de detalhes agora apresenta publicamente até cinco outras programações ativas/futuras, ordenadas pela distância PostGIS até o evento aberto e sem raio máximo. Um resultado distante aparece quando for a única alternativa e sai das cinco primeiras posições conforme eventos mais próximos forem cadastrados. A mudança pontual atingiu controller, app service/mapping, service, repository e frontend; não houve alteração de schema, migration ou PDF. Build do backend, ESLint e TypeScript aprovados. Consulta SQL somente leitura no banco real confirmou a ordem por distância (226,3 m antes de 601,8 m) para os dados atuais. O protótipo externo configurado não foi localizado neste computador.

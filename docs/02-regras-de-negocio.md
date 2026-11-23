@@ -1563,3 +1563,7 @@ NearbyRepository (perto de mim e de host/programação) e HostRepository.FilterA
 
 ### Correção do escopo de programações nas buscas — 16/11/2026
 Esta orientação substitui a restrição de programações por Productor descrita acima: programações podem pertencer a qualquer tipo de host. Removida essa condição de NearbyRepository e ProgrammingRepository.FilterAsync, preservando atividade do host/programação, datas e demais filtros. Hosts como destinos continuam restritos a Gastronomy e Business, antes da paginação. Painel alinhado. Compilação com zero erros e 23 avisos; sintaxe JS e 110 testes simulados do painel aprovados. Sem teste de banco real, migration ou exportação de PDFs.
+
+### Ranking global dos cinco eventos mais próximos — 23/11/2026
+
+Na consulta por programação de origem, o raio fixo de 2 km e a união com hosts foram removidos. Participam somente outras programações ativas, ainda não encerradas, pertencentes a host ativo e com `Location` válida. A distância geográfica até a programação de origem é calculada no PostgreSQL/PostGIS; a ordenação usa distância crescente e ID como desempate. A API entrega cinco itens por página. Não há corte máximo: se existir somente uma alternativa, ela é retornada independentemente da distância; novos cadastros mais próximos deslocam naturalmente os mais distantes para fora das cinco primeiras posições.

@@ -21,7 +21,13 @@
       "favicon": "./assets/perambulando-mark.png"
     },
     "plugins": [
-      "expo-router"
+      "expo-router",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Permita que o Perambulando use sua localização para mostrar eventos e estabelecimentos próximos."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

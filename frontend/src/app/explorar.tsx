@@ -462,7 +462,7 @@ export default function ExploreScreen() {
         <View style={styles.bottomNav}>
           <NavItem active icon="⌾" label="Explorar" />
           <NavItem icon="⌕" label="Buscar" onPress={() => searchInput.current?.focus()} />
-          <NavItem icon="⌖" label="Perto de você" />
+          <NavItem icon="⌖" label="Perto de você" onPress={() => router.push('/perto_de_voce' as Href)} />
           <NavItem icon="♡" label="Favoritos" />
           <NavItem icon="♙" label="Perfil" onPress={() => router.push('/perfil' as Href)} />
         </View>

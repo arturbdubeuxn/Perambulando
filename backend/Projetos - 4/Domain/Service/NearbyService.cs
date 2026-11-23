@@ -50,7 +50,8 @@ public class NearbyService : INearbyService
             throw new KeyNotFoundException("Programação indisponível.");
         }
         var origin = GetOrigin(programming.Address?.Location);
-        return await _nearbyRepository.GetNearbyAsync(origin, 0, 2000, filter, excludedProgrammingId: programmingId);
+        const int pageSize = 5;
+        return await _nearbyRepository.GetNearestProgrammingsAsync(origin, programmingId, filter.Skip, pageSize + 1);
     }
     private Point GetOrigin(Point? location)
     {

@@ -82,7 +82,7 @@ type FavoriteResponse = { programmingId: number };
 type GeoResult = { lat: string; lon: string; display_name: string };
 type Coordinates = { latitude: number; longitude: number; displayName: string };
 type LoadState = 'loading' | 'ready' | 'error';
-type NearbyState = 'loading' | 'ready' | 'empty' | 'unauthenticated' | 'error';
+type NearbyState = 'loading' | 'ready' | 'empty' | 'error';
 
 function getStorage() {
   if (Platform.OS !== 'web') return null;
@@ -150,8 +150,15 @@ function fullAddress(address: Address) {
 }
 
 async function geocodeAddress(address: Address) {
-  const query = fullAddress(address);
-  const cacheKey = `perambulando.geocode.${address.id}.${address.cep}`;
+  const cep = address.cep.replace(/\D/g, '');
+  const streetAndNumber = [address.street, address.number].filter(Boolean).join(', ');
+  const queries = [
+    [streetAndNumber, address.city, cep, 'Brasil'].filter(Boolean).join(', '),
+    [cep, 'Brasil'].filter(Boolean).join(', '),
+    [streetAndNumber, address.city, 'Brasil'].filter(Boolean).join(', '),
+    [address.street, address.city, 'Brasil'].filter(Boolean).join(', '),
+  ].filter((query, index, all) => query && all.indexOf(query) === index);
+  const cacheKey = `perambulando.geocode.v2.${address.id}.${cep}`;
   const storage = getStorage();
   const cached = storage?.getItem(cacheKey);
   if (cached) {
@@ -162,22 +169,33 @@ async function geocodeAddress(address: Address) {
     }
   }
 
-  const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=br&q=${encodeURIComponent(query)}`;
-  const response = await fetch(url, { headers: { Accept: 'application/json', 'Accept-Language': 'pt-BR' } });
-  if (!response.ok) throw new Error('O mapa não conseguiu localizar este endereço.');
-  const results = (await response.json()) as GeoResult[];
-  const first = results[0];
-  if (!first) throw new Error('O mapa não encontrou o endereço cadastrado.');
-  const coordinates = {
-    latitude: Number(first.lat),
-    longitude: Number(first.lon),
-    displayName: first.display_name,
-  };
-  if (!Number.isFinite(coordinates.latitude) || !Number.isFinite(coordinates.longitude)) {
-    throw new Error('O mapa recebeu coordenadas inválidas.');
+  for (let index = 0; index < queries.length; index += 1) {
+    if (index > 0) {
+      await new Promise((resolve) => setTimeout(resolve, 1100));
+    }
+    const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=br&q=${encodeURIComponent(queries[index])}`;
+    const response = await fetch(url, { headers: { Accept: 'application/json', 'Accept-Language': 'pt-BR' } });
+    if (!response.ok) {
+      continue;
+    }
+    const results = (await response.json()) as GeoResult[];
+    const first = results[0];
+    if (!first) {
+      continue;
+    }
+    const coordinates = {
+      latitude: Number(first.lat),
+      longitude: Number(first.lon),
+      displayName: first.display_name,
+    };
+    if (!Number.isFinite(coordinates.latitude) || !Number.isFinite(coordinates.longitude)) {
+      continue;
+    }
+    storage?.setItem(cacheKey, JSON.stringify(coordinates));
+    return coordinates;
   }
-  storage?.setItem(cacheKey, JSON.stringify(coordinates));
-  return coordinates;
+
+  throw new Error('O mapa não encontrou uma coordenada para o endereço ou CEP cadastrado.');
 }
 
 function MapView({ coordinates, address }: { coordinates: Coordinates; address: string }) {
@@ -223,7 +241,7 @@ function BottomNav() {
     <View style={styles.bottomNav}>
       {item('⌾', 'Explorar', () => router.push('/explorar' as Href))}
       {item('⌕', 'Buscar', () => router.push('/explorar' as Href))}
-      {item('⌖', 'Perto de você')}
+      {item('⌖', 'Perto de você', () => router.push('/perto_de_voce' as Href))}
       {item('♡', 'Favoritos')}
       {item('♙', 'Perfil', () => router.push('/perfil' as Href))}
     </View>
@@ -243,7 +261,7 @@ export default function ProgrammingDetailsScreen() {
   );
   const [programming, setProgramming] = useState<ProgrammingDetail | null>(null);
   const [nearby, setNearby] = useState<{ item: NearbyItem; details: ProgrammingDetail }[]>([]);
-  const [nearbyState, setNearbyState] = useState<NearbyState>(token ? 'loading' : 'unauthenticated');
+  const [nearbyState, setNearbyState] = useState<NearbyState>('loading');
   const [coordinates, setCoordinates] = useState<Coordinates | null>(null);
   const [mapState, setMapState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [mapMessage, setMapMessage] = useState('Localizando o endereço cadastrado...');
@@ -305,22 +323,13 @@ export default function ProgrammingDetailsScreen() {
 
   useEffect(() => {
     let active = true;
-    if (!token || !hasValidProgrammingId) {
+    if (!hasValidProgrammingId) {
       return () => { active = false; };
     }
 
     const loadNearby = async () => {
-      const programmingItems: NearbyItem[] = [];
-      let skip = 0;
-      for (let page = 0; page < 5 && programmingItems.length < 4; page += 1) {
-        const response = await requestJson<NearbyResponse>(`/api/Nearby/GetNearProgramming/${programmingId}?skip=${skip}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        programmingItems.push(...response.items.filter((item) => item.type === 'Programming'));
-        if (!response.hasMore) break;
-        skip += response.pageSize;
-      }
-      const selected = programmingItems.slice(0, 4);
+      const response = await requestJson<NearbyResponse>(`/api/Nearby/GetNearProgramming/${programmingId}?skip=0`);
+      const selected = response.items.filter((item) => item.type === 'Programming').slice(0, 5);
       const details = await Promise.all(selected.map((item) => requestJson<ProgrammingDetail>(`/api/Programming/Details/${item.id}`)));
       return selected.map((item, index) => ({ item, details: details[index] }));
     };
@@ -335,7 +344,7 @@ export default function ProgrammingDetailsScreen() {
         if (active) setNearbyState('error');
       });
     return () => { active = false; };
-  }, [hasValidProgrammingId, programmingId, token]);
+  }, [hasValidProgrammingId, programmingId]);
 
   const address = useMemo(() => programming ? fullAddress(programming.address) : '', [programming]);
   const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
@@ -459,10 +468,9 @@ export default function ProgrammingDetailsScreen() {
 
               <View style={styles.section}>
                 <Text style={styles.sectionTitle}>Eventos próximos</Text>
-                <Text style={styles.sectionSubtitle}>Programações em até 2 km, ordenadas pela distância real até este evento.</Text>
+                <Text style={styles.sectionSubtitle}>As 5 programações mais próximas, ordenadas pela distância real até este evento.</Text>
                 {nearbyState === 'loading' ? <View style={styles.nearbyState}><ActivityIndicator color={colors.orange} /><Text style={styles.stateText}>Calculando eventos próximos...</Text></View> : null}
-                {nearbyState === 'unauthenticated' ? <View style={styles.nearbyState}><Text style={styles.nearbyTitle}>Entre na sua conta</Text><Text style={styles.stateText}>A consulta de proximidade exige uma sessão válida.</Text></View> : null}
-                {nearbyState === 'empty' ? <View style={styles.nearbyState}><Text style={styles.nearbyTitle}>Nenhum evento próximo</Text><Text style={styles.stateText}>Não encontramos outra programação em um raio de 2 km.</Text></View> : null}
+                {nearbyState === 'empty' ? <View style={styles.nearbyState}><Text style={styles.nearbyTitle}>Nenhum outro evento</Text><Text style={styles.stateText}>Ainda não existe outra programação ativa cadastrada.</Text></View> : null}
                 {nearbyState === 'error' ? <View style={styles.nearbyState}><Text style={styles.errorTitle}>Proximidade indisponível</Text><Text style={styles.stateText}>Não foi possível calcular os eventos próximos agora.</Text></View> : null}
                 {nearbyState === 'ready' ? (
                   <View style={styles.nearbyList}>

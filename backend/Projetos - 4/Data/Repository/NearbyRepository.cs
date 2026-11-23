@@ -42,5 +42,34 @@ public class NearbyRepository : INearbyRepository
         }
         return items;
     }
+
+    public async Task<List<NearbyItem>> GetNearestProgrammingsAsync(Point origin, int excludedProgrammingId, int skip, int take)
+    {
+        var now = DateTime.UtcNow;
+        var items = await Db.Programmings.AsNoTracking()
+            .Where(programming => programming.IsActive && programming.Host.IsActive && programming.EndDate > now
+                && programming.Id != excludedProgrammingId && programming.Address.Location != null)
+            .Select(programming => new NearbyItem
+            {
+                Id = programming.Id,
+                TargetType = 1,
+                Name = programming.Name,
+                ImageUrl = programming.ImageUrl,
+                DistanceMeters = programming.Address.Location!.Distance(origin),
+                Location = programming.Address.Location
+            })
+            .OrderBy(item => item.DistanceMeters)
+            .ThenBy(item => item.Id)
+            .Skip(skip)
+            .Take(take)
+            .ToListAsync();
+
+        foreach (var item in items)
+        {
+            item.Latitude = item.Location!.Y;
+            item.Longitude = item.Location.X;
+        }
+        return items;
+    }
 }
 
