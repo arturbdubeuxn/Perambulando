@@ -730,7 +730,7 @@ export default function MyEventsScreen() {
             </View>
             <Text style={styles.createNavLabel}>Criar evento</Text>
           </Pressable>
-          <NavItem icon="⊙" label="Explorar" />
+          <NavItem icon="⊙" label="Explorar" onPress={() => router.push('/explorar' as Href)} />
           <NavItem icon="▥" label="Comércio" onPress={() => router.push('/comercio' as Href)} />
         </View>
       </View>

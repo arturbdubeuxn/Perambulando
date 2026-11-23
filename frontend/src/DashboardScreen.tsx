@@ -206,7 +206,7 @@ export default function DashboardScreen() {
             </View>
             <Text style={styles.createNavLabel}>Criar evento</Text>
           </Pressable>
-          <NavItem icon="⊙" label="Explorar" />
+          <NavItem icon="⊙" label="Explorar" onPress={() => router.push('/explorar' as Href)} />
           <NavItem icon="▥" label="Comércio" onPress={() => router.push('/comercio' as Href)} />
         </View>
         <Modal transparent visible={dialog !== null} animationType="fade" onRequestClose={() => setDialog(null)}>

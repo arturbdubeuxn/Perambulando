@@ -1413,3 +1413,7 @@ No mesmo painel, “Resumo de visitas e cliques” deixou o plano gratuito Essen
 ### Data e horário simplificados no cadastro de programação — 17/11/2026
 
 Datas agora possuem limite e máscara automática `dd/mm/aaaa`, e horários usam limite e máscara `HH:mm`. O cartão “Quando e quanto” também ganhou botão com ícone próprio de calendário, calendário mensal expansível e seletor de horário com horas e minutos separados. A digitação continua disponível para minutos fora dos atalhos de 15 minutos. O contrato ISO enviado ao backend foi preservado; ESLint, TypeScript e acesso HTTP 200 pelo frontend Docker foram validados. Backend, banco, protótipo externo e PDFs não foram alterados.
+
+### US16 — Explorar programações do usuário comum — 23/11/2026
+
+Criada a rota `/explorar` com identidade visual atual, busca e até seis categorias ativas carregadas de `Category/GetallCategories`. A listagem consulta `Programming/Filter`, portanto exibe programações ativas publicadas pelos hosts e preserva suas categorias, imagem, data, preço e endereço. Busca e seleção de categoria atualizam a consulta; carregamento, vazio, erro e fallback de imagem possuem estados próprios. A barra do usuário comum destaca Explorar, foca a busca e acessa o Perfil; Perto de você e Favoritos aguardam histórias próprias. ESLint, TypeScript e diff aprovados. Nenhum arquivo do backend, banco ou PDF foi alterado.

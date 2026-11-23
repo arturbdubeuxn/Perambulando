@@ -668,3 +668,11 @@ O cartão “Quando e quanto” do cadastro e da edição de programação passo
 Cada campo possui um botão integrado. O botão de data usa um ícone próprio de calendário, com cabeçalho e grade de dias nas cores do aplicativo, em vez do símbolo quadrado genérico. Os campos de data expandem um calendário mensal dentro do mesmo cartão, com navegação entre meses e seleção direta do dia; a seleção preenche o campo e recolhe o calendário. Os campos de horário expandem um painel que separa a escolha das 24 horas e dos minutos `00`, `15`, `30` e `45`, com confirmação explícita. Minutos diferentes continuam disponíveis pela digitação mascarada.
 
 Os seletores mantêm os valores textuais já consumidos por `parseLocalDateTime`; payload, formato ISO enviado à API e validações de início futuro/término posterior não mudaram. Os controles expõem estados expandido/selecionado para acessibilidade. ESLint e TypeScript foram aprovados, a imagem do frontend foi reconstruída e a rota de criação respondeu HTTP 200 no Docker. Nenhum arquivo do backend, contrato, banco, protótipo externo ou PDF foi alterado.
+
+## US16 — Explorar programações — 23/11/2026
+
+A nova rota `/explorar` implementa a experiência inicial do usuário comum com o cabeçalho e a paleta vigentes do Perambulando. `GET /api/Category/GetallCategories` alimenta “Qual é a sua vibe?” com até seis categorias ativas registradas no banco; tocar novamente na categoria selecionada remove o filtro. A busca textual e a categoria escolhida são enviadas a `GET /api/Programming/Filter`, com `take=20` e `skip=0`.
+
+Os cards exibem imagem ou fallback da marca, data, preço/gratuidade, endereço e até duas categorias associadas à programação pelo host. Estados de carregamento, ausência de resultados, erro da API e falha de imagem foram tratados. A barra inferior da página segue o fluxo do usuário comum e destaca Explorar; Buscar foca o campo e Perfil abre a rota existente. Os atalhos Explorar das telas de gestão também passaram a abrir a nova rota.
+
+Validações realizadas: ESLint nos quatro arquivos envolvidos, TypeScript com `--noEmit` e `git diff --check`, todos sem erros. A implementação alterou somente o frontend e a documentação; backend, endpoints, contratos, banco, protótipo externo e PDFs foram preservados. Perto de você e Favoritos permanecem visuais/inativos até suas histórias específicas.
