@@ -1429,3 +1429,13 @@ A nova rota `/perto_de_voce` solicita permissão somente quando o usuário toca 
 ### Cinco eventos mais próximos do evento aberto — 23/11/2026
 
 A seção de detalhes agora apresenta publicamente até cinco outras programações ativas/futuras, ordenadas pela distância PostGIS até o evento aberto e sem raio máximo. Um resultado distante aparece quando for a única alternativa e sai das cinco primeiras posições conforme eventos mais próximos forem cadastrados. A mudança pontual atingiu controller, app service/mapping, service, repository e frontend; não houve alteração de schema, migration ou PDF. Build do backend, ESLint e TypeScript aprovados. Consulta SQL somente leitura no banco real confirmou a ordem por distância (226,3 m antes de 601,8 m) para os dados atuais. O protótipo externo configurado não foi localizado neste computador.
+
+### Dados demonstrativos no Recife Antigo — 23/11/2026
+
+O banco local foi populado por `docker/seed-recife-antigo.sql` com 12 estabelecimentos e 16 programações demonstrativas, cobrindo todas as 12 categorias existentes. Todos os endereços ficam a no máximo 636,5 m do Marco Zero. A carga é transacional e idempotente e usa IDs reservados, CNPJs fictícios válidos e um usuário técnico sem acesso interativo. A API confirmou os 16 eventos na consulta usada por `/explorar`; frontend e API responderam HTTP 200. Nenhum schema, migration ou arquivo do backend foi alterado, e os PDFs foram preservados.
+
+Explorar também ganhou uma faixa horizontal de estabelecimentos, alimentada pelo `HostFilter` público para Gastronomia e Comércio em Recife. A consulta anônima retornou os oito hosts demonstrativos e cinco cadastros anteriores; os 16 eventos continuam na seção de programações. Somente a action de filtro foi aberta; gestão e detalhes protegidos foram preservados. Build isolado, ESLint, TypeScript e HTTP 200 aprovados.
+
+### Favoritos locais em Explorar — 23/11/2026
+
+Eventos e estabelecimentos em `/explorar` agora possuem coração clicável: contornado quando inativo e preenchido em vermelho quando salvo. O recurso funciona sem login e guarda somente os identificadores no armazenamento local do navegador. Havendo ao menos um item válido, “Seus favoritos” aparece como faixa horizontal; a aba Favoritos rola diretamente até ela, e a remoção do último item oculta a seção. ESLint e TypeScript aprovados. A persistência ainda não é sincronizada entre dispositivos/contas; backend, banco, contratos, protótipo externo e PDFs foram preservados nesta mudança.

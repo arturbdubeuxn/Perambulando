@@ -696,3 +696,17 @@ Depois da permissão, latitude e longitude atuais são enviadas somente como que
 Foram tratados: sessão ausente, serviço de localização desligado, permissão recusada, consulta em andamento, lista vazia e falha da API. As coordenadas não são gravadas no armazenamento do navegador pelo frontend. A área “Eventos próximos” dentro de uma programação continua usando a coordenada do próprio evento, conforme seu objetivo distinto.
 
 Validações: ESLint e TypeScript aprovados. Nenhum arquivo do backend, banco, endpoint ou PDF foi alterado. Na Web em produção, o navegador exige contexto seguro HTTPS para liberar geolocalização; `localhost` continua apropriado para desenvolvimento.
+
+## Estabelecimentos na página Explorar — 23/11/2026
+
+`/explorar` passou a consultar publicamente `GET /api/Host/HostFilter?Types=1&Types=2&City=Recife&Take=100&Skip=0` e exibir Gastronomia e Comércio em uma lista horizontal com imagem, tipo, nome e endereço. O limite 100 evita ocultar os oito hosts demonstrativos quando coexistirem com cadastros anteriores; a API retornou 13 no ambiente atual. Produtores continuam representados por suas programações, conforme a regra existente do filtro de hosts.
+
+O endpoint `HostFilter` foi tornado anônimo somente para essa leitura de descoberta. Operações de gestão continuam protegidas. ESLint, TypeScript, build isolado e consulta HTTP 200 foram aprovados. PDFs preservados.
+
+## Favoritos anônimos em Explorar — 23/11/2026
+
+Os cards de programação e de estabelecimento em `/explorar` passaram a exibir o mesmo controle de favorito. O coração é apenas contornado quando o item não está salvo e fica preenchido em vermelho após o toque; tocar novamente remove o item. A ação interrompe a propagação do card, portanto favoritar uma programação não abre seus detalhes acidentalmente.
+
+Esta etapa atende também visitantes sem login. As chaves `programming:{id}` e `host:{id}` são preservadas no armazenamento local do navegador em `perambulando.exploreFavorites`, sem enviar dados pessoais ou exigir JWT. Quando ao menos um dos itens salvos ainda existe nas listagens públicas carregadas, a página apresenta a seção horizontal “Seus favoritos”. A aba Favoritos da barra inferior rola a tela até essa seção; ao remover o último item, a seção volta a ficar oculta.
+
+A persistência anônima é local ao navegador/dispositivo e não sincroniza favoritos entre dispositivos ou com a conta autenticada. Essa sincronização poderá reutilizar posteriormente os endpoints autenticados de favoritos, mas não foi presumida nesta entrega. ESLint e TypeScript com `--noEmit` foram aprovados. Nenhum arquivo do backend, endpoint, contrato, banco, protótipo externo ou PDF foi alterado por esta funcionalidade.

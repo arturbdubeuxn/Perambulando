@@ -30,6 +30,7 @@ const colors = {
 
 const apiBaseUrl = (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:5014').replace(/\/$/, '');
 const accessTokenStorageKey = 'perambulando.accessToken';
+const favoritesStorageKey = 'perambulando.exploreFavorites';
 
 type Category = {
   id: number;
@@ -63,12 +64,23 @@ type Programming = {
   categories: Category[];
 };
 
+type Host = {
+  id: number;
+  typeofhost: number;
+  logoUrl: string;
+  name: string;
+  description: string;
+  address: Address;
+  isActive: boolean;
+};
+
 type UserProfile = {
   name: string;
 };
 
 type StorageLike = {
   getItem: (key: string) => string | null;
+  setItem?: (key: string, value: string) => void;
 };
 
 type LoadState = 'loading' | 'ready' | 'error';
@@ -98,6 +110,26 @@ function categoryIcon(name: string) {
 function getSessionToken() {
   if (Platform.OS !== 'web') return '';
   return (globalThis as { sessionStorage?: StorageLike }).sessionStorage?.getItem(accessTokenStorageKey) ?? '';
+}
+
+function getFavoriteKeys() {
+  if (Platform.OS !== 'web') return [] as string[];
+  try {
+    const value = (globalThis as { localStorage?: StorageLike }).localStorage?.getItem(favoritesStorageKey);
+    const parsed = value ? JSON.parse(value) : [];
+    return Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
+function storeFavoriteKeys(keys: string[]) {
+  if (Platform.OS !== 'web') return;
+  try {
+    (globalThis as { localStorage?: StorageLike }).localStorage?.setItem?.(favoritesStorageKey, JSON.stringify(keys));
+  } catch {
+    // O favorito continua ativo durante a sessão mesmo se o navegador bloquear armazenamento local.
+  }
 }
 
 async function requestJson<T>(path: string, options: RequestInit = {}) {
@@ -192,7 +224,24 @@ function CategoryButton({
   );
 }
 
-function EventCard({ programming }: { programming: Programming }) {
+function FavoriteButton({ active, label, onPress }: { active: boolean; label: string; onPress: () => void }) {
+  return (
+    <Pressable
+      accessibilityLabel={active ? `Remover ${label} dos favoritos` : `Adicionar ${label} aos favoritos`}
+      accessibilityRole="button"
+      accessibilityState={{ selected: active }}
+      onPress={(event) => {
+        event.stopPropagation();
+        onPress();
+      }}
+      style={({ pressed }) => [styles.favoriteButton, pressed && styles.pressed]}
+    >
+      <Text style={[styles.favoriteIcon, active && styles.favoriteIconActive]}>{active ? '♥' : '♡'}</Text>
+    </Pressable>
+  );
+}
+
+function EventCard({ programming, favorite, onToggleFavorite }: { programming: Programming; favorite: boolean; onToggleFavorite: () => void }) {
   const [imageFailed, setImageFailed] = useState(false);
   const categories = programming.categories.filter((category) => category.isActive).slice(0, 2);
 
@@ -242,6 +291,7 @@ function EventCard({ programming }: { programming: Programming }) {
               .toUpperCase()}
           </Text>
         </View>
+        <FavoriteButton active={favorite} label={programming.name} onPress={onToggleFavorite} />
       </View>
 
       <View style={styles.eventContent}>
@@ -269,6 +319,45 @@ function EventCard({ programming }: { programming: Programming }) {
   );
 }
 
+function HostCard({ host, favorite, onToggleFavorite }: { host: Host; favorite: boolean; onToggleFavorite: () => void }) {
+  const [imageFailed, setImageFailed] = useState(false);
+  const typeLabel = host.typeofhost === 1 ? 'Gastronomia' : 'Comércio';
+  return (
+    <View style={styles.hostCard}>
+      <View style={styles.hostImageFrame}>
+        {host.logoUrl && !imageFailed ? (
+          <Image onError={() => setImageFailed(true)} resizeMode="cover" source={{ uri: host.logoUrl }} style={styles.hostImage} />
+        ) : (
+          <View style={styles.hostImageFallback}><Text style={styles.hostImageText}>{host.name.charAt(0).toUpperCase()}</Text></View>
+        )}
+        <FavoriteButton active={favorite} label={host.name} onPress={onToggleFavorite} />
+      </View>
+      <View style={styles.hostCardCopy}>
+        <Text style={styles.hostType}>{typeLabel}</Text>
+        <Text numberOfLines={2} style={styles.hostName}>{host.name}</Text>
+        <Text numberOfLines={2} style={styles.hostAddress}>⌖ {addressLabel(host.address)}</Text>
+      </View>
+    </View>
+  );
+}
+
+function FavoriteCard({ item, onOpen, onRemove }: { item: { key: string; name: string; imageUrl: string; type: string; address: string }; onOpen?: () => void; onRemove: () => void }) {
+  const [imageFailed, setImageFailed] = useState(false);
+  return (
+    <Pressable onPress={onOpen} style={({ pressed }) => [styles.favoriteCard, onOpen && pressed && styles.eventCardPressed]}>
+      <View style={styles.favoriteImageFrame}>
+        {item.imageUrl && !imageFailed ? <Image onError={() => setImageFailed(true)} resizeMode="cover" source={{ uri: item.imageUrl }} style={styles.favoriteImage} /> : <View style={styles.favoriteImageFallback}><Text style={styles.favoriteImageFallbackText}>{item.name.charAt(0).toUpperCase()}</Text></View>}
+        <FavoriteButton active label={item.name} onPress={onRemove} />
+      </View>
+      <View style={styles.favoriteCopy}>
+        <Text style={styles.favoriteType}>{item.type}</Text>
+        <Text numberOfLines={2} style={styles.favoriteName}>{item.name}</Text>
+        <Text numberOfLines={2} style={styles.favoriteAddress}>⌖ {item.address}</Text>
+      </View>
+    </Pressable>
+  );
+}
+
 function NavItem({ icon, label, active = false, onPress }: { icon: string; label: string; active?: boolean; onPress?: () => void }) {
   return (
     <Pressable
@@ -289,6 +378,11 @@ export default function ExploreScreen() {
   const [fontsLoaded] = useFonts({ Fredoka_700Bold });
   const [categories, setCategories] = useState<Category[]>([]);
   const [programmings, setProgrammings] = useState<Programming[]>([]);
+  const [hosts, setHosts] = useState<Host[]>([]);
+  const [knownProgrammings, setKnownProgrammings] = useState<Programming[]>([]);
+  const [hostsLoading, setHostsLoading] = useState(true);
+  const [favoriteKeys, setFavoriteKeys] = useState<string[]>(getFavoriteKeys);
+  const [favoritesSectionY, setFavoritesSectionY] = useState(0);
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
   const [searchText, setSearchText] = useState('');
   const [state, setState] = useState<LoadState>('loading');
@@ -296,6 +390,7 @@ export default function ExploreScreen() {
   const [userInitial, setUserInitial] = useState('U');
   const programmingRequest = useRef(0);
   const searchInput = useRef<ComponentRef<typeof TextInput>>(null);
+  const pageScroll = useRef<ComponentRef<typeof ScrollView>>(null);
 
   useEffect(() => {
     let active = true;
@@ -308,6 +403,17 @@ export default function ExploreScreen() {
           setState('error');
           setMessage(error instanceof Error ? error.message : 'Não foi possível carregar as categorias.');
         }
+      });
+
+    requestJson<Host[]>('/api/Host/HostFilter?Types=1&Types=2&City=Recife&Take=100&Skip=0')
+      .then((items) => {
+        if (active) setHosts(items.filter((item) => item.isActive));
+      })
+      .catch(() => {
+        if (active) setHosts([]);
+      })
+      .finally(() => {
+        if (active) setHostsLoading(false);
       });
 
     const token = getSessionToken();
@@ -339,6 +445,11 @@ export default function ExploreScreen() {
         .then((items) => {
           if (programmingRequest.current !== requestId) return;
           setProgrammings(items.filter((item) => item.isActive));
+          setKnownProgrammings((current) => {
+            const merged = new Map(current.map((item) => [item.id, item]));
+            items.filter((item) => item.isActive).forEach((item) => merged.set(item.id, item));
+            return [...merged.values()];
+          });
           setState('ready');
           setMessage('');
         })
@@ -360,6 +471,24 @@ export default function ExploreScreen() {
   }, [searchText, selectedCategoryId]);
 
   const selectedCategory = categories.find((category) => category.id === selectedCategoryId);
+  const favoriteSet = new Set(favoriteKeys);
+  const toggleFavorite = (key: string) => {
+    setFavoriteKeys((current) => {
+      const next = current.includes(key) ? current.filter((item) => item !== key) : [...current, key];
+      storeFavoriteKeys(next);
+      return next;
+    });
+  };
+  const favoriteItems = favoriteKeys.flatMap((key) => {
+    const [kind, rawId] = key.split(':');
+    const id = Number(rawId);
+    if (kind === 'programming') {
+      const programming = knownProgrammings.find((item) => item.id === id);
+      return programming ? [{ key, name: programming.name, imageUrl: programming.imageUrl, type: programming.categories[0]?.name ?? 'Programação', address: addressLabel(programming.address), programmingId: programming.id }] : [];
+    }
+    const host = hosts.find((item) => item.id === id);
+    return host ? [{ key, name: host.name, imageUrl: host.logoUrl, type: host.typeofhost === 1 ? 'Gastronomia' : 'Comércio', address: addressLabel(host.address) }] : [];
+  });
 
   return (
     <View style={styles.viewport}>
@@ -367,7 +496,7 @@ export default function ExploreScreen() {
         <StatusBar style="dark" />
         <Header fontsLoaded={fontsLoaded} initial={userInitial} />
 
-        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator>
+        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled" ref={pageScroll} showsVerticalScrollIndicator>
           <View style={styles.hero}>
             <Text style={styles.heroEyebrow}>DESCUBRA SUA CIDADE</Text>
             <Text style={styles.heroTitle}>Bora perambular?</Text>
@@ -393,6 +522,43 @@ export default function ExploreScreen() {
               ) : null}
             </View>
           </View>
+
+          <View style={styles.section}>
+            <View style={styles.sectionHeadingRow}>
+              <View style={styles.sectionHeadingCopy}>
+                <Text style={styles.sectionTitle}>Estabelecimentos no Recife Antigo</Text>
+                <Text style={styles.sectionSubtitle}>Gastronomia e comércio para conhecer durante o passeio.</Text>
+              </View>
+            </View>
+            {hostsLoading ? <View style={styles.inlineLoading}><ActivityIndicator color={colors.orange} /></View> : null}
+            {!hostsLoading && hosts.length > 0 ? (
+              <ScrollView horizontal contentContainerStyle={styles.hostList} showsHorizontalScrollIndicator={false}>
+                {hosts.map((host) => <HostCard favorite={favoriteSet.has(`host:${host.id}`)} host={host} key={host.id} onToggleFavorite={() => toggleFavorite(`host:${host.id}`)} />)}
+              </ScrollView>
+            ) : null}
+            {!hostsLoading && hosts.length === 0 ? <Text style={styles.hostEmpty}>Nenhum estabelecimento disponível agora.</Text> : null}
+          </View>
+
+          {favoriteItems.length > 0 ? (
+            <View onLayout={(event) => setFavoritesSectionY(event.nativeEvent.layout.y)} style={styles.section}>
+              <View style={styles.sectionHeadingRow}>
+                <View style={styles.sectionHeadingCopy}>
+                  <Text style={styles.sectionTitle}>Seus favoritos</Text>
+                  <Text style={styles.sectionSubtitle}>Eventos e estabelecimentos que você salvou para não perder.</Text>
+                </View>
+              </View>
+              <ScrollView horizontal contentContainerStyle={styles.favoriteList} showsHorizontalScrollIndicator={false}>
+                {favoriteItems.map((item) => (
+                  <FavoriteCard
+                    item={item}
+                    key={item.key}
+                    onOpen={'programmingId' in item ? () => router.push({ pathname: '/programacao/[programmingId]', params: { programmingId: String(item.programmingId) } } as Href) : undefined}
+                    onRemove={() => toggleFavorite(item.key)}
+                  />
+                ))}
+              </ScrollView>
+            </View>
+          ) : null}
 
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Qual é a sua vibe?</Text>
@@ -453,7 +619,7 @@ export default function ExploreScreen() {
 
             {state === 'ready' && programmings.length > 0 ? (
               <View style={styles.eventList}>
-                {programmings.map((programming) => <EventCard key={programming.id} programming={programming} />)}
+                {programmings.map((programming) => <EventCard favorite={favoriteSet.has(`programming:${programming.id}`)} key={programming.id} onToggleFavorite={() => toggleFavorite(`programming:${programming.id}`)} programming={programming} />)}
               </View>
             ) : null}
           </View>
@@ -463,7 +629,7 @@ export default function ExploreScreen() {
           <NavItem active icon="⌾" label="Explorar" />
           <NavItem icon="⌕" label="Buscar" onPress={() => searchInput.current?.focus()} />
           <NavItem icon="⌖" label="Perto de você" onPress={() => router.push('/perto_de_voce' as Href)} />
-          <NavItem icon="♡" label="Favoritos" />
+          <NavItem icon="♡" label="Favoritos" onPress={favoriteItems.length > 0 ? () => pageScroll.current?.scrollTo({ animated: true, y: favoritesSectionY }) : undefined} />
           <NavItem icon="♙" label="Perfil" onPress={() => router.push('/perfil' as Href)} />
         </View>
       </View>
@@ -506,6 +672,30 @@ const styles = StyleSheet.create({
   sectionHeadingCopy: { flex: 1 },
   seeAll: { color: colors.orange, fontSize: 10, fontWeight: '800' },
   eventList: { marginTop: 16, gap: 16 },
+  hostList: { paddingTop: 16, paddingRight: 20, gap: 12 },
+  hostCard: { width: 205, overflow: 'hidden', borderRadius: 18, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card },
+  hostImageFrame: { position: 'relative', width: '100%', height: 112 },
+  hostImage: { width: '100%', height: 112 },
+  hostImageFallback: { width: '100%', height: 112, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.hero },
+  hostImageText: { color: colors.card, fontSize: 30, fontWeight: '800' },
+  hostCardCopy: { minHeight: 105, padding: 12 },
+  hostType: { color: colors.orange, fontSize: 8, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.7 },
+  hostName: { marginTop: 5, color: colors.ink, fontSize: 14, lineHeight: 18, fontWeight: '800' },
+  hostAddress: { marginTop: 8, color: colors.muted, fontSize: 9, lineHeight: 13 },
+  hostEmpty: { marginTop: 14, color: colors.muted, fontSize: 11 },
+  favoriteButton: { position: 'absolute', top: 12, right: 12, width: 38, height: 38, zIndex: 3, alignItems: 'center', justifyContent: 'center', borderRadius: 19, backgroundColor: colors.card, ...Platform.select({ web: { boxShadow: '0 4px 12px rgba(0,43,92,0.16)' }, default: { elevation: 4 } }) },
+  favoriteIcon: { color: '#F25555', fontSize: 22, lineHeight: 24 },
+  favoriteIconActive: { color: '#EF4444' },
+  favoriteList: { paddingTop: 16, paddingRight: 20, gap: 12 },
+  favoriteCard: { width: 195, overflow: 'hidden', borderRadius: 18, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card },
+  favoriteImageFrame: { position: 'relative', height: 125, backgroundColor: '#DCE7E9' },
+  favoriteImage: { width: '100%', height: '100%' },
+  favoriteImageFallback: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.hero },
+  favoriteImageFallbackText: { color: colors.card, fontSize: 28, fontWeight: '800' },
+  favoriteCopy: { minHeight: 98, padding: 12 },
+  favoriteType: { color: colors.orange, fontSize: 8, fontWeight: '800' },
+  favoriteName: { marginTop: 5, color: colors.ink, fontSize: 14, lineHeight: 18, fontWeight: '800' },
+  favoriteAddress: { marginTop: 7, color: colors.muted, fontSize: 9, lineHeight: 13 },
   eventCard: { overflow: 'hidden', borderRadius: 20, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card },
   eventCardPressed: { opacity: 0.82, transform: [{ scale: 0.992 }] },
   eventImageFrame: { height: 190, position: 'relative', backgroundColor: '#DCE7E9' },
