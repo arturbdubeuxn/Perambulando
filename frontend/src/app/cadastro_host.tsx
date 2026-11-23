@@ -1034,10 +1034,10 @@ export default function HostRegistrationScreen() {
 
               <Field
                 error={errors.userName}
-                label="Nome completo *"
+                label="Usuário *"
                 maxLength={256}
                 onChangeText={(value) => updateUser('name', value)}
-                placeholder="Nome e sobrenome"
+                placeholder="usuario123"
                 value={userDraft.name}
               />
               <Field
