@@ -4,6 +4,8 @@ public class NearbyItemResponseDTO
     public int Id { get; set; }
     public string Type { get; set; } = string.Empty; //host ou programação
     public string Name { get; set; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
+    public string Address { get; set; } = string.Empty;
     public string? ImageUrl { get; set; }
     public double DistanceMeters { get; set; }
     public double Latitude { get; set; }

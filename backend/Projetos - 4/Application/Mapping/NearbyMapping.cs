@@ -27,7 +27,8 @@ public class NearbyMapping : INearbyMapping
             Items = items.Take(pageSize).Select(item => new NearbyItemResponseDTO
             {
                 Id = item.Id, Type = item.TargetType == 0 ? "Host" : "Programming",
-                Name = item.Name, ImageUrl = item.ImageUrl, DistanceMeters = item.DistanceMeters,
+                Name = item.Name, Description = item.Description, Address = item.Address,
+                ImageUrl = item.ImageUrl, DistanceMeters = item.DistanceMeters,
                 Latitude = item.Latitude, Longitude = item.Longitude
             }).ToList()
         };

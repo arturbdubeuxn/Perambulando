@@ -19,18 +19,11 @@ public class NearbyController : ControllerBase
         _userManager = userManager;
     }    
     [HttpGet("GetNearMe")]
-    [Authorize]
+    [AllowAnonymous]
     public async Task<IActionResult> GetNearMe([FromQuery] NearbyUserFilterDTO dto)
     {
         try
         {
-            var userId = _userManager.GetUserId(User);
-
-            if (string.IsNullOrWhiteSpace(userId))
-            {
-                return Problem(statusCode: StatusCodes.Status401Unauthorized,
-                    title: "Usuário não autenticado");
-            }
             return Ok(await _nearbyAppService.GetNearMeAsync(dto));
         }
         catch (ArgumentException ex)

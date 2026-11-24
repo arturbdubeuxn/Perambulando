@@ -18,6 +18,8 @@ public class NearbyRepository : INearbyRepository
                     select new NearbyItem
                     {
                         Id = host.Id, TargetType = 0, Name = host.Name, ImageUrl = host.LogoUrl,
+                        Description = host.Description,
+                        Address = host.Address.Street + ", " + host.Address.Number + " - " + host.Address.Neighborhood + ", " + host.Address.City,
                         DistanceMeters = host.Address.Location!.Distance(origin),
                         Location = host.Address.Location
                     };
@@ -29,6 +31,8 @@ public class NearbyRepository : INearbyRepository
                            select new NearbyItem
                            {
                                Id = programming.Id, TargetType = 1, Name = programming.Name, ImageUrl = programming.ImageUrl,
+                               Description = programming.Description,
+                               Address = programming.Address.Street + ", " + programming.Address.Number + " - " + programming.Address.Neighborhood + ", " + programming.Address.City,
                                DistanceMeters = programming.Address.Location!.Distance(origin),
                                Location = programming.Address.Location
                            };
@@ -54,6 +58,8 @@ public class NearbyRepository : INearbyRepository
                 Id = programming.Id,
                 TargetType = 1,
                 Name = programming.Name,
+                Description = programming.Description,
+                Address = programming.Address.Street + ", " + programming.Address.Number + " - " + programming.Address.Neighborhood + ", " + programming.Address.City,
                 ImageUrl = programming.ImageUrl,
                 DistanceMeters = programming.Address.Location!.Distance(origin),
                 Location = programming.Address.Location

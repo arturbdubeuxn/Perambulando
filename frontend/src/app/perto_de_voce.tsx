@@ -3,7 +3,7 @@ import { useFonts } from 'expo-font';
 import * as Location from 'expo-location';
 import { router, type Href } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useCallback, useEffect, useState } from 'react';
+import { createElement, useCallback, useEffect, useId, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -37,6 +37,8 @@ type NearbyItem = {
   id: number;
   type: 'Host' | 'Programming';
   name: string;
+  description: string;
+  address: string;
   imageUrl?: string;
   distanceMeters: number;
   latitude: number;
@@ -44,7 +46,7 @@ type NearbyItem = {
 };
 type NearbyResponse = { items: NearbyItem[]; skip: number; pageSize: number; hasMore: boolean };
 type UserProfile = { name: string };
-type ScreenState = 'unauthenticated' | 'idle' | 'locating' | 'loading' | 'ready' | 'empty' | 'denied' | 'services-off' | 'error';
+type ScreenState = 'idle' | 'locating' | 'loading' | 'ready' | 'empty' | 'denied' | 'services-off' | 'error';
 
 const ranges = [
   { value: 0, label: 'Até 2 km' },
@@ -58,9 +60,9 @@ function getSessionToken() {
   return (globalThis as { sessionStorage?: StorageLike }).sessionStorage?.getItem(accessTokenStorageKey) ?? '';
 }
 
-async function requestJson<T>(path: string, token: string) {
+async function requestJson<T>(path: string, token = '') {
   const response = await fetch(`${apiBaseUrl}${path}`, {
-    headers: { Accept: 'application/json', Authorization: `Bearer ${token}` },
+    headers: { Accept: 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
   });
   const body = (await response.json().catch(() => null)) as T | { detail?: string; title?: string } | null;
   if (!response.ok) {
@@ -104,18 +106,86 @@ function NavItem({ active = false, icon, label, onPress }: { active?: boolean; i
   );
 }
 
+function NearbyMap({ origin, items, onSelect }: { origin: Coordinates; items: NearbyItem[]; onSelect: (item: NearbyItem) => void }) {
+  const mapId = `nearby-map-${useId()}`;
+
+  useEffect(() => {
+    if (Platform.OS !== 'web') return;
+    const receiveSelection = (event: MessageEvent) => {
+      const data = event.data as { source?: string; mapId?: string; key?: string } | null;
+      if (data?.source !== 'perambulando-nearby-map' || data.mapId !== mapId || !data.key) return;
+      const selected = items.find((item) => `${item.type}-${item.id}` === data.key);
+      if (selected) onSelect(selected);
+    };
+    globalThis.addEventListener('message', receiveSelection);
+    return () => globalThis.removeEventListener('message', receiveSelection);
+  }, [items, mapId, onSelect]);
+
+  if (Platform.OS !== 'web') {
+    return (
+      <View style={styles.nativeMapFallback}>
+        <Text style={styles.nativeMapIcon}>⌖</Text>
+        <Text style={styles.nativeMapText}>O mapa interativo está disponível na versão Web.</Text>
+      </View>
+    );
+  }
+
+  const markerData = JSON.stringify(items.map((item) => ({
+    key: `${item.type}-${item.id}`,
+    name: item.name,
+    imageUrl: item.imageUrl ?? '',
+    latitude: item.latitude,
+    longitude: item.longitude,
+  }))).replace(/</g, '\\u003c');
+  const mapDocument = `<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+html,body,#map{height:100%;margin:0;background:#e8eee9} .leaflet-control-attribution{font:9px/1.2 Arial,sans-serif}
+.place-marker{position:relative;width:52px;height:64px;filter:drop-shadow(0 5px 5px rgba(0,43,92,.28))}
+.place-marker img,.place-marker span{position:absolute;top:0;left:2px;width:46px;height:46px;border:3px solid #ff5a0a;border-radius:50%;box-sizing:border-box;background:#fff;object-fit:cover}
+.place-marker span{display:flex;align-items:center;justify-content:center;color:#002b5c;font:800 17px Arial,sans-serif}
+.place-marker i{position:absolute;left:18px;top:39px;width:15px;height:15px;background:#ff5a0a;transform:rotate(45deg);border-radius:0 0 4px 0;z-index:-1}
+.user-pin{width:18px;height:18px;border:4px solid #fff;border-radius:50%;background:#1976d2;box-shadow:0 2px 8px rgba(0,43,92,.38)}
+</style></head><body><div id="map"></div><script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script><script>
+(function(){
+var items=${markerData}; var mapId=${JSON.stringify(mapId)};
+var map=L.map('map',{zoomControl:true}).setView([${origin.latitude},${origin.longitude}],14);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap'}).addTo(map);
+var bounds=L.latLngBounds([[${origin.latitude},${origin.longitude}]]);
+L.marker([${origin.latitude},${origin.longitude}],{icon:L.divIcon({html:'<div class="user-pin"></div>',className:'',iconSize:[26,26],iconAnchor:[13,13]})}).addTo(map).bindTooltip('Sua localização');
+function safe(value){return String(value||'').replace(/[&<>"']/g,function(char){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]})}
+items.forEach(function(item){
+  var visual=item.imageUrl?'<img src="'+safe(item.imageUrl)+'" alt="">':'<span>'+safe(item.name.charAt(0).toUpperCase())+'</span>';
+  var icon=L.divIcon({html:'<div class="place-marker">'+visual+'<i></i></div>',className:'',iconSize:[52,66],iconAnchor:[26,64]});
+  L.marker([item.latitude,item.longitude],{icon:icon,title:item.name}).addTo(map).on('click',function(){parent.postMessage({source:'perambulando-nearby-map',mapId:mapId,key:item.key},'*')});
+  bounds.extend([item.latitude,item.longitude]);
+});
+if(items.length){map.fitBounds(bounds,{padding:[45,45],maxZoom:16})}
+})();
+</script></body></html>`;
+
+  return createElement('iframe', {
+    srcDoc: mapDocument,
+    title: 'Mapa dos locais mais próximos',
+    sandbox: 'allow-scripts',
+    style: { width: '100%', height: '100%', border: 0 },
+  });
+}
+
 export default function NearMeScreen() {
   const { width: viewportWidth } = useWindowDimensions();
   const [fontsLoaded] = useFonts({ Fredoka_700Bold });
   const [token] = useState(getSessionToken);
   const [userInitial, setUserInitial] = useState('U');
-  const [state, setState] = useState<ScreenState>(token ? 'idle' : 'unauthenticated');
-  const [message, setMessage] = useState(token ? 'Toque em “Usar minha localização” para permitir o acesso.' : 'Entre na sua conta para encontrar lugares próximos.');
+  const [state, setState] = useState<ScreenState>('idle');
+  const [message, setMessage] = useState('Toque em “Usar minha localização” para permitir o acesso.');
   const [coordinates, setCoordinates] = useState<Coordinates | null>(null);
   const [distanceRange, setDistanceRange] = useState(0);
   const [items, setItems] = useState<NearbyItem[]>([]);
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<NearbyItem | null>(null);
 
   const loadNearby = useCallback(async (location: Coordinates, range: number, skip = 0) => {
     const query = new URLSearchParams({
@@ -128,12 +198,6 @@ export default function NearMeScreen() {
   }, [token]);
 
   const requestLocation = useCallback(async () => {
-    if (!token) {
-      setState('unauthenticated');
-      setMessage('Entre na sua conta para encontrar lugares próximos.');
-      return;
-    }
-
     setState('locating');
     setMessage('Solicitando sua localização...');
     try {
@@ -161,6 +225,7 @@ export default function NearMeScreen() {
       setMessage('Calculando o que está perto de você...');
       const response = await loadNearby(nextCoordinates, distanceRange);
       setItems(response.items);
+      setSelectedItem(null);
       setHasMore(response.hasMore);
       setState(response.items.length > 0 ? 'ready' : 'empty');
       setMessage(response.items.length > 0 ? '' : 'Não encontramos resultados nesta faixa de distância.');
@@ -168,7 +233,7 @@ export default function NearMeScreen() {
       setState('error');
       setMessage(error instanceof Error ? error.message : 'Não foi possível obter sua localização.');
     }
-  }, [distanceRange, loadNearby, token]);
+  }, [distanceRange, loadNearby]);
 
   useEffect(() => {
     let active = true;
@@ -190,6 +255,7 @@ export default function NearMeScreen() {
     try {
       const response = await loadNearby(coordinates, range);
       setItems(response.items);
+      setSelectedItem(null);
       setHasMore(response.hasMore);
       setState(response.items.length > 0 ? 'ready' : 'empty');
       setMessage(response.items.length > 0 ? '' : 'Não encontramos resultados nesta faixa de distância.');
@@ -263,35 +329,35 @@ export default function NearMeScreen() {
 
             {showStateCard ? (
               <View accessibilityRole={state === 'error' ? 'alert' : undefined} style={[styles.stateCard, state === 'error' && styles.errorCard]}>
-                {state === 'locating' || state === 'loading' ? <ActivityIndicator color={colors.orange} /> : <Text style={styles.stateIcon}>{state === 'unauthenticated' ? '♧' : '⌖'}</Text>}
+                {state === 'locating' || state === 'loading' ? <ActivityIndicator color={colors.orange} /> : <Text style={styles.stateIcon}>⌖</Text>}
                 <Text style={[styles.stateTitle, state === 'error' && styles.errorText]}>
-                  {state === 'unauthenticated' ? 'Entre na sua conta' : state === 'idle' ? 'Encontre o que está por perto' : state === 'denied' ? 'Permissão necessária' : state === 'services-off' ? 'Localização desativada' : state === 'empty' ? 'Nada por aqui ainda' : state === 'error' ? 'Localização indisponível' : 'Localizando você'}
+                  {state === 'idle' ? 'Encontre o que está por perto' : state === 'denied' ? 'Permissão necessária' : state === 'services-off' ? 'Localização desativada' : state === 'empty' ? 'Nada por aqui ainda' : state === 'error' ? 'Localização indisponível' : 'Localizando você'}
                 </Text>
                 <Text style={styles.stateMessage}>{message}</Text>
-                {state === 'unauthenticated' ? <Pressable onPress={() => router.push('/cadastro_host' as Href)} style={styles.stateButton}><Text style={styles.stateButtonText}>Acessar cadastro</Text></Pressable> : null}
                 {state === 'denied' || state === 'services-off' || state === 'error' || state === 'empty' ? <Pressable onPress={requestLocation} style={styles.outlineButton}><Text style={styles.outlineButtonText}>Tentar novamente</Text></Pressable> : null}
               </View>
             ) : null}
 
-            {state === 'ready' ? (
-              <View style={styles.resultList}>
-                {items.map((item) => (
-                  <Pressable
-                    accessibilityRole={item.type === 'Programming' ? 'button' : undefined}
-                    disabled={item.type !== 'Programming'}
-                    key={`${item.type}-${item.id}`}
-                    onPress={() => openItem(item)}
-                    style={({ pressed }) => [styles.resultCard, pressed && styles.pressed]}
-                  >
-                    {item.imageUrl ? <Image resizeMode="cover" source={{ uri: item.imageUrl }} style={styles.resultImage} /> : <View style={styles.resultFallback}><Text style={styles.resultFallbackText}>{item.name.charAt(0).toUpperCase()}</Text></View>}
-                    <View style={styles.resultCopy}>
-                      <Text style={styles.resultType}>{item.type === 'Programming' ? 'PROGRAMAÇÃO' : 'ESTABELECIMENTO'}</Text>
-                      <Text numberOfLines={2} style={styles.resultName}>{item.name}</Text>
-                      <Text style={styles.resultDistance}>⌖ {formatDistance(item.distanceMeters)} de você</Text>
+            {state === 'ready' && coordinates ? (
+              <View style={styles.mapArea}>
+                <View style={styles.mapFrame}>
+                  <NearbyMap items={items} onSelect={setSelectedItem} origin={coordinates} />
+                  {selectedItem ? (
+                    <View style={styles.selectedCard}>
+                      <Pressable accessibilityLabel="Fechar detalhes do local" accessibilityRole="button" onPress={() => setSelectedItem(null)} style={styles.closeCardButton}>
+                        <Text style={styles.closeCardText}>×</Text>
+                      </Pressable>
+                      {selectedItem.imageUrl ? <Image resizeMode="cover" source={{ uri: selectedItem.imageUrl }} style={styles.selectedImage} /> : <View style={styles.selectedFallback}><Text style={styles.selectedFallbackText}>{selectedItem.name.charAt(0).toUpperCase()}</Text></View>}
+                      <View style={styles.selectedCopy}>
+                        <Text style={styles.selectedType}>{selectedItem.type === 'Programming' ? 'PROGRAMAÇÃO' : 'ESTABELECIMENTO'} · {formatDistance(selectedItem.distanceMeters)}</Text>
+                        <Text numberOfLines={1} style={styles.selectedName}>{selectedItem.name}</Text>
+                        <Text numberOfLines={2} style={styles.selectedDescription}>{selectedItem.description || selectedItem.address}</Text>
+                        <Text numberOfLines={1} style={styles.selectedAddress}>⌖ {selectedItem.address}</Text>
+                        {selectedItem.type === 'Programming' ? <Pressable accessibilityRole="button" onPress={() => openItem(selectedItem)} style={styles.detailsButton}><Text style={styles.detailsButtonText}>Ver programação</Text></Pressable> : null}
+                      </View>
                     </View>
-                    {item.type === 'Programming' ? <Text style={styles.resultArrow}>›</Text> : null}
-                  </Pressable>
-                ))}
+                  ) : null}
+                </View>
                 {hasMore ? <Pressable disabled={loadingMore} onPress={loadMore} style={styles.moreButton}>{loadingMore ? <ActivityIndicator color={colors.ink} /> : <Text style={styles.moreButtonText}>Carregar mais</Text>}</Pressable> : null}
                 {message ? <Text accessibilityRole="alert" style={styles.inlineError}>{message}</Text> : null}
               </View>
@@ -344,21 +410,27 @@ const styles = StyleSheet.create({
   stateTitle: { color: colors.ink, fontSize: 14, fontWeight: '800', textAlign: 'center' },
   errorText: { color: colors.danger },
   stateMessage: { maxWidth: 300, color: colors.muted, fontSize: 11, lineHeight: 17, textAlign: 'center' },
-  stateButton: { minWidth: 190, minHeight: 44, marginTop: 4, alignItems: 'center', justifyContent: 'center', borderRadius: 12, backgroundColor: colors.ink },
-  stateButtonText: { color: colors.card, fontSize: 11, fontWeight: '800' },
   outlineButton: { minWidth: 155, minHeight: 42, marginTop: 4, alignItems: 'center', justifyContent: 'center', borderRadius: 12, borderWidth: 1, borderColor: colors.ink },
   outlineButtonText: { color: colors.ink, fontSize: 10, fontWeight: '800' },
-  resultList: { marginTop: 16, gap: 10 },
-  resultCard: { minHeight: 88, padding: 10, flexDirection: 'row', alignItems: 'center', gap: 11, borderRadius: 18, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card },
-  resultImage: { width: 68, height: 68, borderRadius: 14 },
-  resultFallback: { width: 68, height: 68, alignItems: 'center', justifyContent: 'center', borderRadius: 14, backgroundColor: colors.ink },
-  resultFallbackText: { color: colors.card, fontSize: 22, fontWeight: '800' },
-  resultCopy: { flex: 1 },
-  resultType: { color: colors.orange, fontSize: 8, fontWeight: '800', letterSpacing: 0.8 },
-  resultName: { marginTop: 4, color: colors.ink, fontSize: 13, lineHeight: 17, fontWeight: '800' },
-  resultDistance: { marginTop: 6, color: colors.muted, fontSize: 9 },
-  resultArrow: { color: colors.orange, fontSize: 25 },
-  moreButton: { minHeight: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 13, borderWidth: 1, borderColor: colors.ink },
+  mapArea: { marginTop: 16, gap: 10 },
+  mapFrame: { position: 'relative', height: 455, overflow: 'hidden', borderRadius: 22, borderWidth: 1, borderColor: colors.line, backgroundColor: '#E8EEE9' },
+  nativeMapFallback: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#E8EEE9' },
+  nativeMapIcon: { color: colors.orange, fontSize: 30 },
+  nativeMapText: { maxWidth: 240, color: colors.muted, fontSize: 11, lineHeight: 17, textAlign: 'center' },
+  selectedCard: { position: 'absolute', left: 12, right: 12, bottom: 12, minHeight: 145, padding: 11, paddingRight: 36, flexDirection: 'row', gap: 11, borderRadius: 18, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card, ...Platform.select({ web: { boxShadow: '0 8px 24px rgba(0,43,92,0.24)' }, default: { elevation: 8 } }) },
+  closeCardButton: { position: 'absolute', top: 7, right: 7, width: 28, height: 28, zIndex: 3, alignItems: 'center', justifyContent: 'center', borderRadius: 14, backgroundColor: colors.orangeSoft },
+  closeCardText: { color: colors.orange, fontSize: 22, lineHeight: 23, fontWeight: '700' },
+  selectedImage: { width: 94, minHeight: 123, borderRadius: 14 },
+  selectedFallback: { width: 94, minHeight: 123, alignItems: 'center', justifyContent: 'center', borderRadius: 14, backgroundColor: colors.ink },
+  selectedFallbackText: { color: colors.card, fontSize: 28, fontWeight: '800' },
+  selectedCopy: { flex: 1, minWidth: 0, paddingTop: 3 },
+  selectedType: { paddingRight: 12, color: colors.orange, fontSize: 8, fontWeight: '800', letterSpacing: 0.4 },
+  selectedName: { marginTop: 4, paddingRight: 8, color: colors.ink, fontSize: 14, lineHeight: 18, fontWeight: '800' },
+  selectedDescription: { marginTop: 4, color: colors.muted, fontSize: 9, lineHeight: 13 },
+  selectedAddress: { marginTop: 4, color: colors.muted, fontSize: 8, lineHeight: 11 },
+  detailsButton: { alignSelf: 'flex-start', minHeight: 27, marginTop: 7, paddingHorizontal: 10, alignItems: 'center', justifyContent: 'center', borderRadius: 9, backgroundColor: colors.ink },
+  detailsButtonText: { color: colors.card, fontSize: 8, fontWeight: '800' },
+  moreButton: { minHeight: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 13, borderWidth: 1, borderColor: colors.ink, backgroundColor: colors.card },
   moreButtonText: { color: colors.ink, fontSize: 11, fontWeight: '800' },
   inlineError: { color: colors.danger, fontSize: 10, lineHeight: 15, textAlign: 'center' },
   bottomNav: { minHeight: 72, paddingHorizontal: 6, paddingBottom: 5, flexDirection: 'row', alignItems: 'center', borderTopWidth: 1, borderTopColor: colors.line, backgroundColor: colors.card },

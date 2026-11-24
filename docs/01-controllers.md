@@ -1439,3 +1439,8 @@ NearbyRepository (perto de mim e de host/programação) e HostRepository.FilterA
 
 ### Correção do escopo de programações nas buscas — 16/11/2026
 Esta orientação substitui a restrição de programações por Productor descrita acima: programações podem pertencer a qualquer tipo de host. Removida essa condição de NearbyRepository e ProgrammingRepository.FilterAsync, preservando atividade do host/programação, datas e demais filtros. Hosts como destinos continuam restritos a Gastronomy e Business, antes da paginação. Painel alinhado. Compilação com zero erros e 23 avisos; sintaxe JS e 110 testes simulados do painel aprovados. Sem teste de banco real, migration ou exportação de PDFs.
+## Perto de você público e mapa interativo — 24/11/2026
+
+`GET /api/Nearby/GetNearMe` passou a usar `[AllowAnonymous]`. Latitude, longitude, faixa e paginação continuam obrigatoriamente validadas pelo fluxo existente; a action somente deixou de exigir identidade porque a consulta não lê nem altera dados do usuário. Quando o navegador possui uma sessão, o frontend continua enviando o JWT; sem sessão, omite o cabeçalho e recebe o mesmo catálogo público. `GetNearHost` e as operações de gestão permanecem autenticadas.
+
+O retorno de cada item próximo agora inclui também `description` e `address`, além dos campos anteriores de identidade, tipo, imagem, distância e coordenadas. Isso permite montar o cartão do marcador sem abrir endpoints protegidos ou realizar uma consulta adicional por item. Não houve mudança de verbo, rota, filtros, ordenação ou paginação.

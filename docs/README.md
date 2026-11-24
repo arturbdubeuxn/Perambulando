@@ -1439,3 +1439,8 @@ Explorar também ganhou uma faixa horizontal de estabelecimentos, alimentada pel
 ### Favoritos locais em Explorar — 23/11/2026
 
 Eventos e estabelecimentos em `/explorar` agora possuem coração clicável: contornado quando inativo e preenchido em vermelho quando salvo. O recurso funciona sem login e guarda somente os identificadores no armazenamento local do navegador. Havendo ao menos um item válido, “Seus favoritos” aparece como faixa horizontal; a aba Favoritos rola diretamente até ela, e a remoção do último item oculta a seção. ESLint e TypeScript aprovados. A persistência ainda não é sincronizada entre dispositivos/contas; backend, banco, contratos, protótipo externo e PDFs foram preservados nesta mudança.
+### Mapa público em Perto de você — 24/11/2026
+
+`/perto_de_voce` agora funciona com ou sem login: solicita a localização por ação do visitante, envia o JWT somente quando a sessão o possui e consulta o `GetNearMe` público. Os resultados aparecem em mapa OpenStreetMap/Leaflet com imagem sobre cada pino. Tocar no marcador abre um cartão inferior com imagem, descrição, endereço e distância; `×` fecha o cartão e programações podem abrir seus detalhes.
+
+O item de proximidade passou a retornar `description` e `address`; filtros, ordenação PostGIS, faixas e paginação foram preservados. Build do backend, ESLint e TypeScript aprovados. Teste HTTP isolado sem JWT retornou dez itens reais e os novos campos. Sem migration, mudança de banco, CORS, `Program.cs` ou PDF. O protótipo externo configurado não foi localizado nesta máquina.

@@ -1567,3 +1567,8 @@ Esta orientação substitui a restrição de programações por Productor descri
 ### Ranking global dos cinco eventos mais próximos — 23/11/2026
 
 Na consulta por programação de origem, o raio fixo de 2 km e a união com hosts foram removidos. Participam somente outras programações ativas, ainda não encerradas, pertencentes a host ativo e com `Location` válida. A distância geográfica até a programação de origem é calculada no PostgreSQL/PostGIS; a ordenação usa distância crescente e ID como desempate. A API entrega cinco itens por página. Não há corte máximo: se existir somente uma alternativa, ela é retornada independentemente da distância; novos cadastros mais próximos deslocam naturalmente os mais distantes para fora das cinco primeiras posições.
+## Descoberta pública por proximidade — 24/11/2026
+
+A descoberta “Perto de você” pode ser usada sem login depois de o visitante autorizar a localização do dispositivo. As coordenadas são usadas como origem da consulta e não são persistidas pelo frontend. Uma sessão existente conserva o envio do JWT, mas a ausência dele não impede a leitura do catálogo público.
+
+Continuam valendo as quatro faixas de distância, a ordenação crescente pela distância PostGIS, a paginação e os filtros de disponibilidade: somente hosts ativos de Gastronomia/Comércio com coordenadas e programações ativas, futuras e vinculadas a host ativo podem aparecer. A abertura pública não autoriza criação, edição, exclusão ou consulta de dados privados.

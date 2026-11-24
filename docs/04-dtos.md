@@ -1420,3 +1420,6 @@ Corrigido fluxo em que selecionar hosts/programações apenas guardava escolhas 
 
 ### Campos de horários das paradas — 16/11/2026
 O compositor de paradas aparece dentro do formulário de criação do roteiro quando há opções selecionadas. Cada parada exibe Data e horário de início e Data e horário de fim, em datetime-local, com preenchimento obrigatório no fluxo guiado e atualização automática do DTO a cada edição. Estilos de largura fluida para mobile. API e banco sem alterações. Sintaxe JavaScript e 110 testes simulados aprovados; inspeção visual em navegador não executada nesta alteração. PDFs preservados.
+## Complemento do item de proximidade — 24/11/2026
+
+`NearbyItemResponseDTO` acrescentou dois campos textuais de saída: `Description`, com a descrição pública do host ou da programação, e `Address`, montado a partir de logradouro, número, bairro e cidade do endereço vinculado. Os campos anteriores `Id`, `Type`, `Name`, `ImageUrl`, `DistanceMeters`, `Latitude` e `Longitude` foram preservados. DTOs de entrada, validações e schema do banco não mudaram.
