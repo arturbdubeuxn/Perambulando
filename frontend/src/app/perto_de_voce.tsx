@@ -46,6 +46,7 @@ type NearbyItem = {
 };
 type NearbyResponse = { items: NearbyItem[]; skip: number; pageSize: number; hasMore: boolean };
 type UserProfile = { name: string };
+type Category = { id: number; name: string; isActive: boolean };
 type ScreenState = 'idle' | 'locating' | 'loading' | 'ready' | 'empty' | 'denied' | 'services-off' | 'error';
 
 function getSessionToken() {
@@ -183,14 +184,17 @@ export default function NearMeScreen() {
   const [message, setMessage] = useState('Toque em “Usar minha localização” para permitir o acesso.');
   const [coordinates, setCoordinates] = useState<Coordinates | null>(null);
   const [distanceKm, setDistanceKm] = useState(1);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState<number[]>([]);
   const [items, setItems] = useState<NearbyItem[]>([]);
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [selectedItem, setSelectedItem] = useState<NearbyItem | null>(null);
   const [mapFocusKey, setMapFocusKey] = useState<string | undefined>();
   const [mapSectionY, setMapSectionY] = useState(0);
-  const lastLoadedDistance = useRef<number | null>(null);
+  const lastLoadedQuery = useRef('');
   const pageScroll = useRef<ComponentRef<typeof ScrollView>>(null);
+  const filterKey = `${distanceKm}|${selectedCategoryIds.join(',')}`;
 
   const loadNearby = useCallback(async (location: Coordinates, maxDistanceKm: number, skip = 0) => {
     const query = new URLSearchParams({
@@ -199,20 +203,22 @@ export default function NearMeScreen() {
       MaxDistanceKm: String(maxDistanceKm),
       Skip: String(skip),
     });
+    selectedCategoryIds.forEach((categoryId) => query.append('CategoriesId', String(categoryId)));
     return requestJson<NearbyResponse>(`/api/Nearby/GetNearMe?${query.toString()}`, token);
-  }, [token]);
+  }, [selectedCategoryIds, token]);
 
   const loadMapItems = useCallback(async (location: Coordinates, maxDistanceKm: number) => {
     let response = await loadNearby(location, maxDistanceKm);
     const combined = [...response.items];
     let availableTypes = new Set(combined.map((item) => item.type));
-    while (response.hasMore && availableTypes.size < 2 && combined.length < 50) {
+    const requiredTypes = selectedCategoryIds.length > 0 ? 1 : 2;
+    while (response.hasMore && availableTypes.size < requiredTypes && combined.length < 50) {
       response = await loadNearby(location, maxDistanceKm, combined.length);
       combined.push(...response.items);
       availableTypes = new Set(combined.map((item) => item.type));
     }
     return { ...response, items: combined };
-  }, [loadNearby]);
+  }, [loadNearby, selectedCategoryIds.length]);
 
   const requestLocation = useCallback(async () => {
     setState('locating');
@@ -240,7 +246,7 @@ export default function NearMeScreen() {
       setState('loading');
       setMessage('Calculando o que está perto de você...');
       const response = await loadMapItems(nextCoordinates, distanceKm);
-      lastLoadedDistance.current = distanceKm;
+      lastLoadedQuery.current = filterKey;
       setCoordinates(nextCoordinates);
       setItems(response.items);
       setSelectedItem(null);
@@ -252,10 +258,13 @@ export default function NearMeScreen() {
       setState('error');
       setMessage(error instanceof Error ? error.message : 'Não foi possível obter sua localização.');
     }
-  }, [distanceKm, loadMapItems]);
+  }, [distanceKm, filterKey, loadMapItems]);
 
   useEffect(() => {
     let active = true;
+    requestJson<Category[]>('/api/Category/GetallCategories')
+      .then((result) => { if (active) setCategories(result.filter((category) => category.isActive)); })
+      .catch(() => undefined);
     if (token) {
       requestJson<UserProfile>('/api/User/Profile', token)
         .then((profile) => {
@@ -267,13 +276,13 @@ export default function NearMeScreen() {
   }, [token]);
 
   useEffect(() => {
-    if (!coordinates || lastLoadedDistance.current === distanceKm) return;
+    if (!coordinates || lastLoadedQuery.current === filterKey) return;
     let active = true;
     const timer = setTimeout(() => {
       void loadMapItems(coordinates, distanceKm)
         .then((response) => {
           if (!active) return;
-          lastLoadedDistance.current = distanceKm;
+          lastLoadedQuery.current = filterKey;
           setItems(response.items);
           setSelectedItem(null);
           setMapFocusKey(undefined);
@@ -291,7 +300,17 @@ export default function NearMeScreen() {
       active = false;
       clearTimeout(timer);
     };
-  }, [coordinates, distanceKm, loadMapItems]);
+  }, [coordinates, distanceKm, filterKey, loadMapItems]);
+
+  const toggleCategory = (categoryId: number) => {
+    setSelectedCategoryIds((current) => current.includes(categoryId) ? current.filter((id) => id !== categoryId) : [...current, categoryId]);
+    setSelectedItem(null);
+    setMapFocusKey(undefined);
+    if (coordinates) {
+      setState('loading');
+      setMessage('Aplicando os filtros de categoria...');
+    }
+  };
 
   const loadMore = async () => {
     if (!coordinates || loadingMore) return;
@@ -370,6 +389,14 @@ export default function NearMeScreen() {
           <View onLayout={(event) => setMapSectionY(event.nativeEvent.layout.y)} style={styles.section}>
             <Text style={styles.sectionTitle}>Mais próximos primeiro</Text>
             <Text style={styles.sectionSubtitle}>Resultados registrados no Perambulando e ordenados pela distância real.</Text>
+
+            {categories.length > 0 ? <View style={styles.categoryFilter}>
+              <Pressable accessibilityRole="button" accessibilityState={{ selected: selectedCategoryIds.length === 0 }} onPress={() => { if (selectedCategoryIds.length === 0) return; setSelectedCategoryIds([]); setSelectedItem(null); setMapFocusKey(undefined); if (coordinates) { setState('loading'); setMessage('Exibindo todas as categorias...'); } }} style={[styles.categoryBullet, selectedCategoryIds.length === 0 && styles.categoryBulletActive]}><Text style={[styles.categoryBulletText, selectedCategoryIds.length === 0 && styles.categoryBulletTextActive]}>Todas</Text></Pressable>
+              {categories.map((category) => {
+                const selected = selectedCategoryIds.includes(category.id);
+                return <Pressable accessibilityRole="button" accessibilityState={{ selected }} key={category.id} onPress={() => toggleCategory(category.id)} style={[styles.categoryBullet, selected && styles.categoryBulletActive]}><Text style={[styles.categoryBulletText, selected && styles.categoryBulletTextActive]}>{category.name}</Text></Pressable>;
+              })}
+            </View> : null}
 
             {showStateCard ? (
               <View accessibilityRole={state === 'error' ? 'alert' : undefined} style={[styles.stateCard, state === 'error' && styles.errorCard]}>
@@ -460,6 +487,11 @@ const styles = StyleSheet.create({
   section: { paddingHorizontal: 20, paddingVertical: 22, borderBottomWidth: 1, borderBottomColor: colors.line },
   sectionTitle: { color: colors.ink, fontSize: 20, fontWeight: '800', letterSpacing: -0.5 },
   sectionSubtitle: { marginTop: 5, color: colors.muted, fontSize: 10, lineHeight: 15 },
+  categoryFilter: { marginTop: 14, flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
+  categoryBullet: { minHeight: 32, paddingHorizontal: 11, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', borderRadius: 16, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card },
+  categoryBulletActive: { borderColor: colors.orange, backgroundColor: colors.orangeSoft },
+  categoryBulletText: { color: colors.muted, fontSize: 9, fontWeight: '700' },
+  categoryBulletTextActive: { color: colors.orange, fontWeight: '800' },
   distanceControl: { marginTop: 14, padding: 14, borderRadius: 18, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card },
   distanceHeader: { marginBottom: 5, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
   distanceHint: { flex: 1, color: colors.muted, fontSize: 10, lineHeight: 14 },

@@ -1580,3 +1580,7 @@ Na jornada “Perto de você”, o visitante escolhe um raio inteiro de 1 a 20 k
 Em `GetNearMe`, programações ativas/futuras continuam aparecendo normalmente. Um host ativo de Gastronomia ou Comércio aparece como estabelecimento somente quando seu endereço não está sediando uma programação ativa/futura. A comparação usa `AddressId`, e não apenas o proprietário: criar uma programação em outro endereço não oculta a sede do estabelecimento, enquanto uma programação de outro produtor no mesmo endereço evita o marcador duplicado.
 
 A seção “Mais perto de mim” continua selecionando os cinco menores `DistanceMeters` do resultado misto final. Portanto os cinco podem ser todos eventos, todos estabelecimentos independentes ou qualquer combinação entre os dois, conforme a localização real.
+
+## Filtro simultâneo de categorias na proximidade — 24/11/2026
+
+O visitante pode selecionar nenhuma, uma ou várias categorias em “Perto de você”. Nenhuma seleção conserva o catálogo misto atual. Com seleção, uma programação participa do resultado quando possui ao menos uma das categorias escolhidas (combinação OU); estabelecimentos independentes são omitidos porque hosts não possuem vínculo de categoria. O filtro é aplicado antes de `Skip`/`Take`, evitando páginas vazias produzidas por filtragem apenas visual.

@@ -11,8 +11,10 @@ public class NearbyRepository : INearbyRepository
         int? excludedHostId = null, int? excludedProgrammingId = null)
     {
         var now = DateTime.UtcNow;
+        var categoryIds = filter.CategoriesId ?? new List<int>();
         var hosts = from host in Db.Hosts.AsNoTracking()
-                    where host.IsActive && (host.Typeofhost == Hosts.TypeofHost.Gastronomy || host.Typeofhost == Hosts.TypeofHost.Business) && (!excludedHostId.HasValue || host.Id != excludedHostId.Value)
+                    where categoryIds.Count == 0
+                        && host.IsActive && (host.Typeofhost == Hosts.TypeofHost.Gastronomy || host.Typeofhost == Hosts.TypeofHost.Business) && (!excludedHostId.HasValue || host.Id != excludedHostId.Value)
                         && !Db.Programmings.Any(programming => programming.IsActive && programming.EndDate > now && programming.AddressId == host.AddressId)
                         && host.Address.Location != null && host.Address.Location.IsWithinDistance(origin, maxMeters)
                         && (minMeters == 0 || host.Address.Location.Distance(origin) > minMeters)
@@ -26,6 +28,7 @@ public class NearbyRepository : INearbyRepository
                     };
         var programmings = from programming in Db.Programmings.AsNoTracking()
                            where programming.IsActive && programming.Host.IsActive && programming.EndDate > now
+                               && (categoryIds.Count == 0 || Db.ProgrammingXCategories.Any(link => link.ProgrammingId == programming.Id && link.Category.IsActive && categoryIds.Contains(link.CategoryId)))
                                && (!excludedProgrammingId.HasValue || programming.Id != excludedProgrammingId.Value)
                                && programming.Address.Location != null && programming.Address.Location.IsWithinDistance(origin, maxMeters)
                                && (minMeters == 0 || programming.Address.Location.Distance(origin) > minMeters)

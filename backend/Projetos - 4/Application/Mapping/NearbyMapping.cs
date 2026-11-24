@@ -13,6 +13,7 @@ public class NearbyMapping : INearbyMapping
             Longitude = dto.Longitude,
             DistanceRange = dto.DistanceRange,
             MaxDistanceKm = dto.MaxDistanceKm,
+            CategoriesId = dto.CategoriesId?.Distinct().ToList(),
             Skip = dto.Skip
         };
     }

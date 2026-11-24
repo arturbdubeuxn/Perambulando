@@ -11,6 +11,8 @@ public class NearbyUserFilterDTO
     public NearbyFilter.NearbyDistanceRange DistanceRange { get; set; } = NearbyFilter.NearbyDistanceRange.UpTo2Km;
     [Range(1d, 20d)]
     public double? MaxDistanceKm { get; set; }
+    [MaxLength(100)]
+    public List<int>? CategoriesId { get; set; }
     [Range(0, int.MaxValue)]
     public int Skip { get; set; }
 }

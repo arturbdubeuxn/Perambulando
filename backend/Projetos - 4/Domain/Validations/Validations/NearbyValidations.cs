@@ -36,6 +36,10 @@ public class NearbyValidations : INearbyValidations
         {
             throw new ArgumentException("Informe uma distância máxima entre 1 e 20 km.");
         }
+        if (filter.CategoriesId is { Count: > 100 } || filter.CategoriesId?.Any(categoryId => categoryId <= 0) == true)
+        {
+            throw new ArgumentException("Informe no máximo 100 categorias com IDs maiores que zero.");
+        }
     }
     public void ValidateDestination(int id, int skip)
     {

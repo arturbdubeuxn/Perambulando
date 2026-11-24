@@ -761,3 +761,19 @@ O Painel passou a usar o JWT da sessão para carregar `GetAllHostsbyUserId`, `Us
 Em Explorar, visitantes continuam usando favoritos locais. Com JWT, programações favoritas são sincronizadas por `Favorite/GetAllByUserId`, `Favorite/{id}/Create` e `Favorite/{id}/Delete`; favoritos de estabelecimentos permanecem locais porque o backend não oferece esse contrato. As categorias completas alimentam a nova edição de até três preferências por `GetUserCategoriesPreferences`, `AddCategoryToUser` e `EditCategoryToUser`, enquanto “Qual é a sua vibe?” continua limitada visualmente a seis categorias.
 
 Nenhum controller, DTO, service, banco, migration, CORS ou `Program.cs` foi alterado nesta integração. ESLint e TypeScript foram aprovados; PDFs não foram regenerados.
+
+### Destaques da semana com navegação horizontal — 24/11/2026
+
+A listagem de programações em destaque de `/explorar` passou de coluna vertical para `ScrollView` horizontal. Os cards possuem largura mobile fixa, deixam parte do próximo item visível e usam desaceleração com encaixe por card para indicar e facilitar drag/toque lateral. Favorito, abertura de detalhes, filtros e dados vindos de `Programming/Filter` foram preservados. Mudança somente no frontend; backend, banco e PDFs não foram alterados.
+
+### Mais próximos de você em Explorar — 24/11/2026
+
+Entre Favoritos e as categorias de `/explorar`, foi criada uma faixa horizontal alimentada por `GET /api/Nearby/GetNearMe`. Quando a permissão já existe, a tela reutiliza a localização sem novo aviso; caso contrário, o visitante decide pelo botão “Usar minha localização”. Latitude/longitude não são persistidas pelo frontend.
+
+Os resultados misturam programações e estabelecimentos cadastrados, conservam a ordem de `distanceMeters` fornecida pela API e mostram cinco cards inicialmente. “Mostrar mais” revela cinco itens já recebidos ou busca a página seguinte por `Skip`, repetindo o incremento até o fim dos resultados em 20 km. Os cards mantêm scroll lateral; programações abrem seus detalhes e estabelecimentos direcionam para a aba Comércio. Estados de permissão, carregamento, vazio e erro foram tratados. Nenhuma mudança de backend, banco ou PDF.
+
+### Bullets de categorias no mapa — 24/11/2026
+
+Logo após o título “Mais próximos primeiro”, `/perto_de_voce` consulta `Category/GetallCategories` e monta bullets para todas as categorias ativas. “Todas” limpa a seleção; os demais bullets aceitam seleção múltipla. Cada mudança repete a consulta espacial com `CategoriesId` repetido e atualiza mapa, pins, card selecionado, paginação e lista dos cinco mais próximos.
+
+O backend recebeu somente o campo de filtro em DTO/model/mapping/validação e a condição no repository. Sem categoria, hosts e programações continuam como antes; com categoria, apenas programações que atendam a qualquer seleção são retornadas. Build isolado do backend, ESLint e TypeScript aprovados. Testes HTTP reais confirmaram seleção simples, combinação e rejeição de ID inválido. O protótipo externo configurado não foi localizado nesta máquina; PDFs não foram regenerados.

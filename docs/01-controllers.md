@@ -1447,3 +1447,7 @@ O retorno de cada item próximo agora inclui também `description` e `address`, 
 ## Raio deslizante em GetNearMe — 24/11/2026
 
 `GET /api/Nearby/GetNearMe` passou a aceitar opcionalmente `MaxDistanceKm`, entre 1 e 20. Quando informado, o servidor pesquisa do ponto de origem até o raio exato solicitado, sempre com limite inferior zero. Quando ausente, `DistanceRange` continua funcionando como antes, preservando consumidores existentes. Latitude, longitude, `Skip`, ordenação e paginação foram mantidos.
+
+## Categorias combináveis em GetNearMe — 24/11/2026
+
+`GET /api/Nearby/GetNearMe` passou a aceitar a query opcional e repetível `CategoriesId`, por exemplo `CategoriesId=1&CategoriesId=2`. Sem o parâmetro, a resposta mista de programações e estabelecimentos permanece inalterada. Com uma ou mais categorias, a consulta retorna somente programações vinculadas a pelo menos uma categoria selecionada, mantendo raio, ordenação espacial e paginação. IDs menores ou iguais a zero e listas acima de cem itens retornam 400.

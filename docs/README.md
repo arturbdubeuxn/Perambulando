@@ -1470,3 +1470,15 @@ O refinamento seguinte condensou também os textos e reduziu o padding vertical 
 ### Frontend conectado aos contratos existentes — 24/11/2026
 
 Comércio agora lista e filtra hosts reais por `HostFilter` e consulta suas programações por `Programming/Filter`. O Painel usa hosts do usuário, perfil, assinatura, resumo, série diária e ranking reais, preservando demonstração identificada quando o plano retorna `403`. Explorar sincroniza favoritos de programação com a conta autenticada, mantém o modo local para visitantes e hosts, e permite consultar/salvar até três preferências de categoria. Nenhuma rota ou contrato de backend foi criada para esta etapa; ESLint e TypeScript aprovados, PDFs preservados.
+
+#### Destaques em faixa horizontal — 24/11/2026
+
+“Destaques da semana” em `/explorar` agora usa cards em scroll horizontal com drag/toque, encaixe e prévia do próximo item. Dados, favoritos e navegação para detalhes continuam inalterados; sem mudança de backend ou PDF.
+
+#### Mais próximos dentro de Explorar — 24/11/2026
+
+Explorar ganhou, entre Favoritos e as categorias, uma faixa horizontal com eventos e estabelecimentos de `Nearby/GetNearMe`. A tela exibe cinco itens ordenados pela distância e “Mostrar mais” avança de cinco em cinco, carregando novas páginas quando necessário. A permissão de localização continua explícita quando ainda não foi concedida; sem alteração de backend ou PDF.
+
+#### Categorias combináveis no mapa — 24/11/2026
+
+“Perto de você” agora exibe todas as categorias ativas como bullets multisseleção abaixo de “Mais próximos primeiro”. O frontend envia `CategoriesId` repetido, e `GetNearMe` filtra antes da ordenação/paginação por correspondência com qualquer categoria escolhida. Sem seleção, o resultado misto anterior é preservado. Build, ESLint, TypeScript e HTTP real aprovados; sem schema, migration ou PDF.

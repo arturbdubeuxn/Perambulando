@@ -1426,3 +1426,7 @@ O compositor de paradas aparece dentro do formulário de criação do roteiro qu
 ## Distância máxima no filtro do usuário — 24/11/2026
 
 `NearbyUserFilterDTO` acrescentou `MaxDistanceKm` (`double?`) com validação de 1 a 20. O campo é opcional para manter compatibilidade com `DistanceRange`; quando presente, tem precedência sobre a faixa enumerada. Nenhum DTO de destino, entidade persistida ou schema foi alterado.
+
+## Categorias no filtro de proximidade — 24/11/2026
+
+`NearbyUserFilterDTO` acrescentou `CategoriesId` (`List<int>?`) com limite de cem entradas. O mapping remove IDs repetidos e o domínio rejeita valores menores ou iguais a zero. `NearbyFilter` espelha a lista apenas em memória (`NotMapped`); DTOs de resposta, entidades persistidas e schema continuam iguais.

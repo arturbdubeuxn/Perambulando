@@ -1,5 +1,6 @@
 import { Fredoka_700Bold } from '@expo-google-fonts/fredoka/700Bold';
 import { useFonts } from 'expo-font';
+import * as Location from 'expo-location';
 import { router, type Href } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { type ComponentRef, useEffect, useRef, useState } from 'react';
@@ -81,6 +82,23 @@ type UserProfile = {
 type FavoriteResponse = {
   programmingId: number;
 };
+
+type NearbyItem = {
+  id: number;
+  type: 'Host' | 'Programming';
+  name: string;
+  description: string;
+  address: string;
+  imageUrl: string | null;
+  distanceMeters: number;
+};
+
+type NearbyResponse = {
+  items: NearbyItem[];
+  hasMore: boolean;
+};
+
+type NearbyState = 'idle' | 'locating' | 'loading' | 'ready' | 'empty' | 'denied' | 'error';
 
 type StorageLike = {
   getItem: (key: string) => string | null;
@@ -169,6 +187,11 @@ function formatPrice(programming: Programming) {
   const formatter = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
   if (programming.minPrice === programming.maxPrice) return formatter.format(programming.minPrice);
   return `A partir de ${formatter.format(programming.minPrice)}`;
+}
+
+function formatDistance(meters: number) {
+  if (meters < 1000) return `${Math.max(0, Math.round(meters))} m`;
+  return `${(meters / 1000).toFixed(1).replace('.', ',')} km`;
 }
 
 function addressLabel(address: Address) {
@@ -362,6 +385,26 @@ function FavoriteCard({ item, onOpen, onRemove }: { item: { key: string; name: s
   );
 }
 
+function NearbyCard({ item }: { item: NearbyItem }) {
+  const [imageFailed, setImageFailed] = useState(false);
+  const openItem = () => {
+    if (item.type === 'Programming') {
+      router.push({ pathname: '/programacao/[programmingId]', params: { programmingId: String(item.id) } } as Href);
+    } else {
+      router.push('/comercio' as Href);
+    }
+  };
+  return (
+    <Pressable accessibilityHint="Abre as informações deste local" accessibilityRole="button" onPress={openItem} style={({ pressed }) => [styles.nearbyCard, pressed && styles.eventCardPressed]}>
+      <View style={styles.nearbyImageFrame}>
+        {item.imageUrl && !imageFailed ? <Image onError={() => setImageFailed(true)} resizeMode="cover" source={{ uri: item.imageUrl }} style={styles.nearbyImage} /> : <View style={styles.nearbyImageFallback}><Text style={styles.nearbyImageFallbackText}>{item.name.charAt(0).toUpperCase()}</Text></View>}
+        <View style={styles.nearbyDistanceBadge}><Text style={styles.nearbyDistanceText}>⌖ {formatDistance(item.distanceMeters)}</Text></View>
+      </View>
+      <View style={styles.nearbyCopy}><Text style={styles.nearbyType}>{item.type === 'Programming' ? 'PROGRAMAÇÃO' : 'ESTABELECIMENTO'}</Text><Text numberOfLines={2} style={styles.nearbyName}>{item.name}</Text><Text numberOfLines={2} style={styles.nearbyAddress}>{item.address || 'Endereço não informado'}</Text></View>
+    </Pressable>
+  );
+}
+
 function NavItem({ icon, label, active = false, onPress }: { icon: string; label: string; active?: boolean; onPress?: () => void }) {
   return (
     <Pressable
@@ -393,6 +436,12 @@ export default function ExploreScreen() {
   const [preferenceDraft, setPreferenceDraft] = useState<number[]>([]);
   const [preferenceSaving, setPreferenceSaving] = useState(false);
   const [preferenceMessage, setPreferenceMessage] = useState('');
+  const [nearbyItems, setNearbyItems] = useState<NearbyItem[]>([]);
+  const [nearbyVisibleCount, setNearbyVisibleCount] = useState(5);
+  const [nearbyHasMore, setNearbyHasMore] = useState(false);
+  const [nearbyState, setNearbyState] = useState<NearbyState>('idle');
+  const [nearbyMessage, setNearbyMessage] = useState('Use sua localização para ordenar eventos e estabelecimentos pela distância.');
+  const nearbyCoordinates = useRef<{ latitude: number; longitude: number } | null>(null);
   const [favoritesSectionY, setFavoritesSectionY] = useState(0);
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
   const [searchText, setSearchText] = useState('');
@@ -473,6 +522,69 @@ export default function ExploreScreen() {
       active = false;
     };
   }, [token]);
+
+  const loadNearby = async (latitude: number, longitude: number, skip = 0) => {
+    const query = new URLSearchParams({ Latitude: String(latitude), Longitude: String(longitude), MaxDistanceKm: '20', Skip: String(skip) });
+    return requestJson<NearbyResponse>(`/api/Nearby/GetNearMe?${query.toString()}`, token ? { headers: { Authorization: `Bearer ${token}` } } : {});
+  };
+
+  const requestCurrentLocation = async (requestPermission = true) => {
+    setNearbyState('locating');
+    setNearbyMessage('Obtendo sua localização...');
+    try {
+      let permission = await Location.getForegroundPermissionsAsync();
+      if (permission.status !== 'granted' && requestPermission) permission = await Location.requestForegroundPermissionsAsync();
+      if (permission.status !== 'granted') {
+        setNearbyState('denied');
+        setNearbyMessage('Autorize a localização para ver os lugares mais próximos.');
+        return;
+      }
+      const current = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      const coordinates = { latitude: current.coords.latitude, longitude: current.coords.longitude };
+      nearbyCoordinates.current = coordinates;
+      setNearbyState('loading');
+      setNearbyMessage('Ordenando os lugares mais próximos...');
+      const response = await loadNearby(coordinates.latitude, coordinates.longitude);
+      setNearbyItems(response.items);
+      setNearbyVisibleCount(5);
+      setNearbyHasMore(response.hasMore);
+      setNearbyState(response.items.length > 0 ? 'ready' : 'empty');
+      setNearbyMessage(response.items.length > 0 ? '' : 'Nenhum evento ou estabelecimento foi encontrado em até 20 km.');
+    } catch (error) {
+      setNearbyState('error');
+      setNearbyMessage(error instanceof Error ? error.message : 'Não foi possível consultar os locais próximos.');
+    }
+  };
+
+  useEffect(() => {
+    let active = true;
+    Location.getForegroundPermissionsAsync().then((permission) => {
+      if (active && permission.status === 'granted') void requestCurrentLocation(false);
+    }).catch(() => undefined);
+    return () => { active = false; };
+    // A localização é reutilizada automaticamente somente quando a permissão já foi concedida.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const showMoreNearby = async () => {
+    if (nearbyVisibleCount < nearbyItems.length) {
+      setNearbyVisibleCount((current) => Math.min(current + 5, nearbyItems.length));
+      return;
+    }
+    const coordinates = nearbyCoordinates.current;
+    if (!coordinates || !nearbyHasMore) return;
+    setNearbyState('loading');
+    try {
+      const response = await loadNearby(coordinates.latitude, coordinates.longitude, nearbyItems.length);
+      setNearbyItems((current) => [...current, ...response.items]);
+      setNearbyVisibleCount((current) => current + Math.min(5, response.items.length));
+      setNearbyHasMore(response.hasMore);
+      setNearbyState('ready');
+    } catch (error) {
+      setNearbyState('error');
+      setNearbyMessage(error instanceof Error ? error.message : 'Não foi possível carregar mais opções.');
+    }
+  };
 
   useEffect(() => {
     const requestId = programmingRequest.current + 1;
@@ -658,6 +770,14 @@ export default function ExploreScreen() {
 
           {favoriteMessage ? <Text accessibilityRole="alert" style={styles.syncMessage}>{favoriteMessage}</Text> : null}
 
+          <View style={styles.section}>
+            <View style={styles.sectionHeadingRow}><View style={styles.sectionHeadingCopy}><Text style={styles.sectionTitle}>Mais próximos de você</Text><Text style={styles.sectionSubtitle}>Eventos e estabelecimentos ordenados pela distância real.</Text></View></View>
+            {(nearbyState === 'idle' || nearbyState === 'denied' || nearbyState === 'error') ? <View style={styles.nearbyStateCard}><Text style={styles.nearbyStateText}>{nearbyMessage}</Text><Pressable onPress={() => void requestCurrentLocation(true)} style={styles.nearbyLocationButton}><Text style={styles.nearbyLocationButtonText}>{nearbyState === 'idle' ? 'Usar minha localização' : 'Tentar novamente'}</Text></Pressable></View> : null}
+            {(nearbyState === 'locating' || (nearbyState === 'loading' && nearbyItems.length === 0)) ? <View style={styles.inlineLoading}><ActivityIndicator color={colors.orange} /><Text style={styles.nearbyStateText}>{nearbyMessage}</Text></View> : null}
+            {nearbyState === 'empty' ? <View style={styles.nearbyStateCard}><Text style={styles.nearbyStateText}>{nearbyMessage}</Text></View> : null}
+            {nearbyItems.length > 0 ? <><ScrollView horizontal contentContainerStyle={styles.nearbyList} showsHorizontalScrollIndicator={false}>{nearbyItems.slice(0, nearbyVisibleCount).map((item) => <NearbyCard item={item} key={`${item.type}-${item.id}`} />)}</ScrollView>{nearbyVisibleCount < nearbyItems.length || nearbyHasMore ? <Pressable disabled={nearbyState === 'loading'} onPress={() => void showMoreNearby()} style={styles.showMoreNearby}>{nearbyState === 'loading' ? <ActivityIndicator color={colors.ink} /> : <Text style={styles.showMoreNearbyText}>Mostrar mais</Text>}</Pressable> : null}</> : null}
+          </View>
+
           {token ? (
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Minhas preferências</Text>
@@ -728,9 +848,16 @@ export default function ExploreScreen() {
             ) : null}
 
             {state === 'ready' && programmings.length > 0 ? (
-              <View style={styles.eventList}>
+              <ScrollView
+                contentContainerStyle={styles.eventList}
+                decelerationRate="fast"
+                disableIntervalMomentum
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                snapToInterval={300}
+              >
                 {programmings.map((programming) => <EventCard favorite={favoriteSet.has(`programming:${programming.id}`)} key={programming.id} onToggleFavorite={() => void toggleFavorite(`programming:${programming.id}`)} programming={programming} />)}
-              </View>
+              </ScrollView>
             ) : null}
           </View>
         </ScrollView>
@@ -791,7 +918,7 @@ const styles = StyleSheet.create({
   sectionHeadingRow: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12 },
   sectionHeadingCopy: { flex: 1 },
   seeAll: { color: colors.orange, fontSize: 10, fontWeight: '800' },
-  eventList: { marginTop: 16, gap: 16 },
+  eventList: { paddingTop: 16, paddingRight: 20, gap: 16 },
   hostList: { paddingTop: 16, paddingRight: 20, gap: 12 },
   hostCard: { width: 205, overflow: 'hidden', borderRadius: 18, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card },
   hostImageFrame: { position: 'relative', width: '100%', height: 112 },
@@ -816,7 +943,25 @@ const styles = StyleSheet.create({
   favoriteType: { color: colors.orange, fontSize: 8, fontWeight: '800' },
   favoriteName: { marginTop: 5, color: colors.ink, fontSize: 14, lineHeight: 18, fontWeight: '800' },
   favoriteAddress: { marginTop: 7, color: colors.muted, fontSize: 9, lineHeight: 13 },
-  eventCard: { overflow: 'hidden', borderRadius: 20, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card },
+  nearbyList: { paddingTop: 16, paddingRight: 20, gap: 12 },
+  nearbyCard: { width: 205, overflow: 'hidden', borderRadius: 18, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card },
+  nearbyImageFrame: { position: 'relative', height: 122, backgroundColor: '#DCE7E9' },
+  nearbyImage: { width: '100%', height: '100%' },
+  nearbyImageFallback: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.hero },
+  nearbyImageFallbackText: { color: colors.card, fontSize: 30, fontWeight: '800' },
+  nearbyDistanceBadge: { position: 'absolute', left: 9, bottom: 9, paddingHorizontal: 8, paddingVertical: 5, borderRadius: 10, backgroundColor: colors.orange },
+  nearbyDistanceText: { color: colors.card, fontSize: 8, fontWeight: '800' },
+  nearbyCopy: { minHeight: 98, padding: 12 },
+  nearbyType: { color: colors.orange, fontSize: 8, fontWeight: '800', letterSpacing: 0.6 },
+  nearbyName: { marginTop: 5, color: colors.ink, fontSize: 14, lineHeight: 18, fontWeight: '800' },
+  nearbyAddress: { marginTop: 7, color: colors.muted, fontSize: 9, lineHeight: 13 },
+  nearbyStateCard: { marginTop: 14, padding: 16, alignItems: 'center', gap: 10, borderRadius: 16, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card },
+  nearbyStateText: { color: colors.muted, fontSize: 10, lineHeight: 15, textAlign: 'center' },
+  nearbyLocationButton: { minHeight: 40, paddingHorizontal: 18, alignItems: 'center', justifyContent: 'center', borderRadius: 12, backgroundColor: colors.ink },
+  nearbyLocationButtonText: { color: colors.card, fontSize: 10, fontWeight: '800' },
+  showMoreNearby: { minHeight: 42, marginTop: 12, alignItems: 'center', justifyContent: 'center', borderRadius: 12, borderWidth: 1, borderColor: colors.ink, backgroundColor: colors.card },
+  showMoreNearbyText: { color: colors.ink, fontSize: 10, fontWeight: '800' },
+  eventCard: { width: 284, overflow: 'hidden', borderRadius: 20, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card },
   eventCardPressed: { opacity: 0.82, transform: [{ scale: 0.992 }] },
   eventImageFrame: { height: 190, position: 'relative', backgroundColor: '#DCE7E9' },
   eventImage: { width: '100%', height: '100%' },

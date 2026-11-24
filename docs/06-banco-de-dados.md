@@ -735,3 +735,7 @@ A primeira transmissão do SQL pelo pipe do Windows PowerShell substituiu caract
 A projeção de hosts em `NearbyRepository.GetNearbyAsync` passou a usar `NOT EXISTS` contra `Programmings` ativas e futuras no mesmo `AddressId`. Não houve alteração de tabela, coluna, índice ou migration. Programções continuam projetadas separadamente e o `Concat` permanece ordenado por distância, tipo e ID.
 
 Validação somente leitura em uma instância isolada, usando raio de 1 km a partir do Marco Zero, retornou 24 itens: 19 programações e 5 estabelecimentos sem programação ativa/futura no mesmo endereço. O SQL gerado pelo EF continha o `NOT EXISTS` esperado. Nenhum registro foi alterado.
+
+## Filtro espacial por categorias existentes — 24/11/2026
+
+O filtro opcional de `GetNearMe` reutiliza `ProgrammingXCategories` e `Categories` por `EXISTS`, exigindo categoria ativa e vínculo com qualquer ID selecionado. Nenhuma tabela, coluna, índice, migration ou registro foi criado/alterado. Em teste somente leitura no banco local, a consulta sem categoria retornou dez itens mistos; categoria 1 retornou duas programações; categorias 1 ou 2 retornaram cinco programações; ID -1 foi rejeitado com HTTP 400.
