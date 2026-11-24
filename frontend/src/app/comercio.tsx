@@ -113,7 +113,7 @@ export default function CommerceScreen() {
             </Pressable>;
           })}</View> : null}
         </ScrollView>
-        <View style={styles.bottomNav}><NavItem icon="⌾" label="Explorar" onPress={() => router.push('/explorar' as Href)} /><NavItem icon="⌕" label="Buscar" onPress={() => router.push('/explorar' as Href)} /><NavItem icon="⌖" label="Perto de você" onPress={() => router.push('/perto_de_voce' as Href)} /><NavItem icon="♡" label="Favoritos" onPress={() => router.push('/explorar' as Href)} /><NavItem active icon="▥" label="Comércio" /></View>
+        <View style={styles.bottomNav}><NavItem icon="⌾" label="Explorar" onPress={() => router.push('/explorar' as Href)} /><NavItem icon="⌕" label="Buscar" onPress={() => router.push('/explorar' as Href)} /><NavItem icon="⌖" label="Perto de você" onPress={() => router.push('/perto_de_voce' as Href)} /><NavItem icon="♡" label="Favoritos" onPress={() => router.push('/favoritos' as Href)} /><NavItem active icon="▥" label="Comércio" /></View>
       </View>
     </View>
   );

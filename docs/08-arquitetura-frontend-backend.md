@@ -679,11 +679,11 @@ Validações realizadas: ESLint nos quatro arquivos envolvidos, TypeScript com `
 
 ## Detalhes da programação e proximidade — 23/11/2026
 
-Os cards de `/explorar` passaram a abrir `/programacao/[programmingId]`. A tela consulta o endpoint público `GET /api/Programming/Details/{id}` e apresenta, na ordem vertical da experiência mobile: imagem e identificação da programação, data e endereço, descrição/categorias, mapa, eventos próximos, host responsável e ação de ingresso. Compartilhamento, favorito e interações reutilizam os contratos existentes; favorito e consulta de proximidade dependem do JWT da sessão.
+Os cards de `/explorar` passaram a abrir `/programacao/[programmingId]`. A tela consulta o endpoint público `GET /api/Programming/Details/{id}` e apresenta, na ordem vertical da experiência mobile: imagem e identificação da programação, data e endereço, descrição/categorias, mapa, locais próximos, host responsável e ação de ingresso. Compartilhamento, favorito e interações reutilizam os contratos existentes; favoritos vinculados à conta dependem do JWT da sessão.
 
 Como o `AddressDetailsDTO` atual não expõe as coordenadas persistidas, o mapa do frontend geocodifica os dados registrados pelo host, guarda o resultado na sessão e exibe um mapa interativo do OpenStreetMap com marcador. Para evitar falha por complemento ou bairro divergente, a resolução tenta progressivamente logradouro/número/cidade/CEP, CEP, logradouro/número/cidade e logradouro/cidade, respeitando intervalo entre tentativas e sem recuar para o centro genérico da cidade. Também é disponibilizado um link de pesquisa direta no Google Maps. Falha ou ausência de correspondência possui estado explícito; nenhuma chave de geocodificação do backend é enviada ao navegador.
 
-`GET /api/Nearby/GetNearProgramming/{programmingId}` continua sendo a fonte de verdade para proximidade. A action agora é pública e retorna somente as cinco programações ativas/futuras mais próximas, sem limite máximo de distância, preservando a ordem por `DistanceMeters` calculada pelo PostGIS. O frontend busca os detalhes públicos desses eventos para apresentar categoria. Um evento distante continua visível enquanto não existirem cinco alternativas mais próximas.
+Em 24/11/2026, a seção visual foi renomeada de “Eventos próximos” para “Locais próximos” e passou a consumir o `GET /api/Nearby/GetNearMe` público usando a coordenada resolvida do evento, raio de 20 km e paginação existente. O frontend exclui a própria programação, mantém os cinco primeiros resultados pela ordem de `DistanceMeters` e aceita tanto `Programming` quanto `Host`. Para programações, consulta os detalhes públicos e mostra a primeira categoria; hosts recebem o rótulo “Estabelecimento”. Cards de programação abrem seus detalhes e cards de host direcionam à listagem de Comércio.
 
 Validações: ESLint nos dois arquivos da jornada e TypeScript com `--noEmit` aprovados. Nenhum arquivo de backend, contrato, banco, protótipo externo ou PDF foi alterado. A correspondência visual do mapa depende da qualidade do endereço cadastrado e do serviço cartográfico; expor diretamente a coordenada persistida exigiria futura ampliação do DTO no backend, fora do escopo desta entrega.
 
@@ -693,7 +693,7 @@ Criada a rota `/perto_de_voce`, acessível pela aba correspondente de Explorar e
 
 Depois da permissão, latitude e longitude atuais são enviadas somente como query string autenticada para `GET /api/Nearby/GetNearMe`. A tela permite as quatro faixas já aceitas pelo backend (até 2 km, 2–5 km, 5–10 km e 10–20 km), conserva a ordenação por `DistanceMeters`, pagina de dez em dez e diferencia programações de estabelecimentos. Programções abrem seus detalhes; o contrato atual não fornece uma rota de detalhe de host ao item de proximidade, portanto o card de estabelecimento permanece informativo.
 
-Foram tratados: sessão ausente, serviço de localização desligado, permissão recusada, consulta em andamento, lista vazia e falha da API. As coordenadas não são gravadas no armazenamento do navegador pelo frontend. A área “Eventos próximos” dentro de uma programação continua usando a coordenada do próprio evento, conforme seu objetivo distinto.
+Foram tratados: sessão ausente, serviço de localização desligado, permissão recusada, consulta em andamento, lista vazia e falha da API. As coordenadas não são gravadas no armazenamento do navegador pelo frontend. A área “Locais próximos” dentro de uma programação usa a coordenada resolvida do próprio evento, conforme seu objetivo distinto.
 
 Validações: ESLint e TypeScript aprovados. Nenhum arquivo do backend, banco, endpoint ou PDF foi alterado. Na Web em produção, o navegador exige contexto seguro HTTPS para liberar geolocalização; `localhost` continua apropriado para desenvolvimento.
 
@@ -777,3 +777,19 @@ Os resultados misturam programações e estabelecimentos cadastrados, conservam 
 Logo após o título “Mais próximos primeiro”, `/perto_de_voce` consulta `Category/GetallCategories` e monta bullets para todas as categorias ativas. “Todas” limpa a seleção; os demais bullets aceitam seleção múltipla. Cada mudança repete a consulta espacial com `CategoriesId` repetido e atualiza mapa, pins, card selecionado, paginação e lista dos cinco mais próximos.
 
 O backend recebeu somente o campo de filtro em DTO/model/mapping/validação e a condição no repository. Sem categoria, hosts e programações continuam como antes; com categoria, apenas programações que atendam a qualquer seleção são retornadas. Build isolado do backend, ESLint e TypeScript aprovados. Testes HTTP reais confirmaram seleção simples, combinação e rejeição de ID inválido. O protótipo externo configurado não foi localizado nesta máquina; PDFs não foram regenerados.
+
+## Página de favoritos do usuário — 24/11/2026
+
+A rota Expo `/favoritos` reúne programações e estabelecimentos marcados pelo coração em uma única lista vertical. Cada card abre o fluxo correspondente e o coração preenchido permite remover o item; a aba Favoritos permanece destacada na navegação inferior. Visitantes leem os identificadores salvos em `perambulando.exploreFavorites`. Usuários autenticados também consultam `GET /api/Favorite/GetAllByUserId` e sincronizam favoritos locais de programação por `POST /api/Favorite/{programmingId}/Create`; a remoção autenticada de programação usa `PATCH /api/Favorite/{programmingId}/Delete`. Os detalhes de programação vêm de `GET /api/Programming/Details/{programmingId}` e os estabelecimentos locais são resolvidos pela listagem paginada de `GET /api/Host/HostFilter`.
+
+O backend ainda não oferece persistência de favoritos de host vinculada à conta; por isso estabelecimentos permanecem no armazenamento local, inclusive durante uma sessão autenticada. A interface não apresenta essa limitação como sincronização entre dispositivos.
+
+Implementação exclusiva do frontend. ESLint, TypeScript e a consulta HTTP pública de hosts foram aprovados; a navegação para `/favoritos` foi conectada em Explorar, Perto de você, Comércio e detalhes da programação. A integração autenticada em navegador com JWT real permanece pendente; nenhum contrato, banco, protótipo externo ou PDF foi alterado.
+
+Correção na mesma data: os detalhes públicos de programação não incluem `isActive`; a rota já responde somente quando o item está disponível. A página deixou de exigir essa propriedade ausente antes de montar os cards, evitando descartar todas as programações favoritas enquanto os estabelecimentos apareciam normalmente. A resposta real de `Programming/Details` foi conferida sem alterar o contrato.
+
+## Retorno dos detalhes ao ponto selecionado no mapa — 24/11/2026
+
+Em `/perto_de_voce`, o card flutuante de uma programação passou a abrir seus detalhes tanto pelo card inteiro quanto pelo botão “Ver programação”. A navegação envia `origin=nearby-map` com `router.push`, mantendo a instância do mapa na pilha; assim, o botão voltar dos detalhes recupera o mesmo marcador e card selecionados, raio, categorias e posição de rolagem. Se a página de detalhes for aberta sem histórico de navegação, o fallback usa `/perto_de_voce` quando a origem informada for o mapa e `/explorar` nos demais casos.
+
+Mudança exclusiva do frontend, sem novo endpoint ou alteração de contrato. ESLint e TypeScript foram aprovados; backend, banco, protótipo externo e PDFs foram preservados.

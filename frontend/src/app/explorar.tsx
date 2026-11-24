@@ -442,7 +442,6 @@ export default function ExploreScreen() {
   const [nearbyState, setNearbyState] = useState<NearbyState>('idle');
   const [nearbyMessage, setNearbyMessage] = useState('Use sua localização para ordenar eventos e estabelecimentos pela distância.');
   const nearbyCoordinates = useRef<{ latitude: number; longitude: number } | null>(null);
-  const [favoritesSectionY, setFavoritesSectionY] = useState(0);
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
   const [searchText, setSearchText] = useState('');
   const [state, setState] = useState<LoadState>('loading');
@@ -509,7 +508,7 @@ export default function ExploreScreen() {
           const details = await Promise.all([...serverIds].map((id) => requestJson<Programming>(`/api/Programming/Details/${id}`).catch(() => null)));
           if (active) setKnownProgrammings((current) => {
             const merged = new Map(current.map((item) => [item.id, item]));
-            details.forEach((item) => { if (item?.isActive) merged.set(item.id, item); });
+            details.forEach((item) => { if (item) merged.set(item.id, item); });
             return [...merged.values()];
           });
         })
@@ -748,7 +747,7 @@ export default function ExploreScreen() {
           </View>
 
           {favoriteItems.length > 0 ? (
-            <View onLayout={(event) => setFavoritesSectionY(event.nativeEvent.layout.y)} style={styles.section}>
+            <View style={styles.section}>
               <View style={styles.sectionHeadingRow}>
                 <View style={styles.sectionHeadingCopy}>
                   <Text style={styles.sectionTitle}>Seus favoritos</Text>
@@ -866,7 +865,7 @@ export default function ExploreScreen() {
           <NavItem active icon="⌾" label="Explorar" />
           <NavItem icon="⌕" label="Buscar" onPress={() => searchInput.current?.focus()} />
           <NavItem icon="⌖" label="Perto de você" onPress={() => router.push('/perto_de_voce' as Href)} />
-          <NavItem icon="♡" label="Favoritos" onPress={favoriteItems.length > 0 ? () => pageScroll.current?.scrollTo({ animated: true, y: favoritesSectionY }) : undefined} />
+          <NavItem icon="♡" label="Favoritos" onPress={() => router.push('/favoritos' as Href)} />
           <NavItem icon="♙" label="Perfil" onPress={() => router.push('/perfil' as Href)} />
         </View>
       </View>

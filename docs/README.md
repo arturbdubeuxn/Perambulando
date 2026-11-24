@@ -1426,9 +1426,9 @@ Tocar em uma programação de `/explorar` abre `/programacao/[programmingId]`, c
 
 A nova rota `/perto_de_voce` solicita permissão somente quando o usuário toca em “Usar minha localização” e consulta `Nearby/GetNearMe` com JWT, latitude, longitude, faixa e paginação. Exibe programações e estabelecimentos registrados na ordem de distância calculada pelo backend, com quatro faixas de 0 a 20 km e estados para permissão/sessão/serviço/erros. `expo-location` e a mensagem de permissão nativa foram configurados; coordenadas não são persistidas pelo frontend. Backend, banco, contratos e PDFs preservados.
 
-### Cinco eventos mais próximos do evento aberto — 23/11/2026
+### Cinco locais mais próximos do evento aberto — atualizado em 24/11/2026
 
-A seção de detalhes agora apresenta publicamente até cinco outras programações ativas/futuras, ordenadas pela distância PostGIS até o evento aberto e sem raio máximo. Um resultado distante aparece quando for a única alternativa e sai das cinco primeiras posições conforme eventos mais próximos forem cadastrados. A mudança pontual atingiu controller, app service/mapping, service, repository e frontend; não houve alteração de schema, migration ou PDF. Build do backend, ESLint e TypeScript aprovados. Consulta SQL somente leitura no banco real confirmou a ordem por distância (226,3 m antes de 601,8 m) para os dados atuais. O protótipo externo configurado não foi localizado neste computador.
+A seção “Locais próximos” apresenta até cinco programações ou estabelecimentos, ordenados pela distância real até o evento aberto. O frontend reutiliza `Nearby/GetNearMe` com a coordenada resolvida do evento, ignora o próprio evento e avança páginas quando necessário; programações mantêm sua categoria e abrem os detalhes, enquanto hosts recebem o rótulo Estabelecimento e abrem Comércio. ESLint, TypeScript e consulta HTTP mista aprovados. Nenhum arquivo de backend, contrato, banco ou PDF foi alterado nesta atualização; `GetNearProgramming` permanece disponível para outros consumidores.
 
 ### Dados demonstrativos no Recife Antigo — 23/11/2026
 
@@ -1482,3 +1482,13 @@ Explorar ganhou, entre Favoritos e as categorias, uma faixa horizontal com event
 #### Categorias combináveis no mapa — 24/11/2026
 
 “Perto de você” agora exibe todas as categorias ativas como bullets multisseleção abaixo de “Mais próximos primeiro”. O frontend envia `CategoriesId` repetido, e `GetNearMe` filtra antes da ordenação/paginação por correspondência com qualquer categoria escolhida. Sem seleção, o resultado misto anterior é preservado. Build, ESLint, TypeScript e HTTP real aprovados; sem schema, migration ou PDF.
+
+#### Página de favoritos — 24/11/2026
+
+Criada a rota `/favoritos`, com programações e estabelecimentos salvos em rolagem vertical, acesso ao fluxo correspondente e remoção pelo coração preenchido. Visitantes usam os favoritos locais; quando há JWT, a página consulta e altera as programações favoritas pelos endpoints existentes e sincroniza as locais ainda não salvas na conta. Como não existe endpoint de favorito de host, estabelecimentos continuam locais. A aba está conectada e destacada na navegação inferior. ESLint, TypeScript e consulta pública de hosts aprovados; backend, banco, contratos, protótipo externo e PDFs preservados. Consulte [Arquitetura frontend e backend](08-arquitetura-frontend-backend.md).
+
+Correção: programações deixaram de ser descartadas por uma verificação de `isActive`, propriedade que não integra a resposta pública de detalhes. Eventos e estabelecimentos favoritados agora compartilham a listagem conforme o esperado.
+
+#### Detalhes com retorno ao ponto do mapa — 24/11/2026
+
+O card de programação selecionado em `/perto_de_voce` agora abre os detalhes pelo card inteiro ou pelo botão. A tela é empilhada sobre o mapa, e voltar recupera marcador, card, filtros, raio e rolagem anteriores; acessos sem histórico possuem fallback coerente com a origem. ESLint e TypeScript aprovados, sem alteração de backend, banco, contrato ou PDF.

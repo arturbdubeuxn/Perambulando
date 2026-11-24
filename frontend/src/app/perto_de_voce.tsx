@@ -328,7 +328,7 @@ export default function NearMeScreen() {
 
   const openItem = (item: NearbyItem) => {
     if (item.type === 'Programming') {
-      router.push({ pathname: '/programacao/[programmingId]', params: { programmingId: String(item.id) } } as Href);
+      router.push({ pathname: '/programacao/[programmingId]', params: { programmingId: String(item.id), origin: 'nearby-map' } } as Href);
     }
   };
 
@@ -414,8 +414,8 @@ export default function NearMeScreen() {
                 <View style={styles.mapFrame}>
                   <NearbyMap focusKey={mapFocusKey} items={items} onSelect={setSelectedItem} origin={coordinates} />
                   {selectedItem ? (
-                    <View style={styles.selectedCard}>
-                      <Pressable accessibilityLabel="Fechar detalhes do local" accessibilityRole="button" onPress={() => setSelectedItem(null)} style={styles.closeCardButton}>
+                    <Pressable accessibilityHint={selectedItem.type === 'Programming' ? 'Abre os detalhes desta programação' : undefined} accessibilityRole={selectedItem.type === 'Programming' ? 'button' : undefined} onPress={selectedItem.type === 'Programming' ? () => openItem(selectedItem) : undefined} style={styles.selectedCard}>
+                      <Pressable accessibilityLabel="Fechar detalhes do local" accessibilityRole="button" onPress={(event) => { event.stopPropagation(); setSelectedItem(null); }} style={styles.closeCardButton}>
                         <Text style={styles.closeCardText}>×</Text>
                       </Pressable>
                       {selectedItem.imageUrl ? <Image resizeMode="cover" source={{ uri: selectedItem.imageUrl }} style={styles.selectedImage} /> : <View style={styles.selectedFallback}><Text style={styles.selectedFallbackText}>{selectedItem.name.charAt(0).toUpperCase()}</Text></View>}
@@ -424,9 +424,9 @@ export default function NearMeScreen() {
                         <Text numberOfLines={1} style={styles.selectedName}>{selectedItem.name}</Text>
                         <Text numberOfLines={2} style={styles.selectedDescription}>{selectedItem.description || selectedItem.address}</Text>
                         <Text numberOfLines={1} style={styles.selectedAddress}>⌖ {selectedItem.address}</Text>
-                        {selectedItem.type === 'Programming' ? <Pressable accessibilityRole="button" onPress={() => openItem(selectedItem)} style={styles.detailsButton}><Text style={styles.detailsButtonText}>Ver programação</Text></Pressable> : null}
+                        {selectedItem.type === 'Programming' ? <Pressable accessibilityRole="button" onPress={(event) => { event.stopPropagation(); openItem(selectedItem); }} style={styles.detailsButton}><Text style={styles.detailsButtonText}>Ver programação</Text></Pressable> : null}
                       </View>
-                    </View>
+                    </Pressable>
                   ) : null}
                 </View>
                 {hasMore ? <Pressable disabled={loadingMore} onPress={loadMore} style={styles.moreButton}>{loadingMore ? <ActivityIndicator color={colors.ink} /> : <Text style={styles.moreButtonText}>Carregar mais</Text>}</Pressable> : null}
@@ -458,7 +458,7 @@ export default function NearMeScreen() {
           <NavItem icon="⌾" label="Explorar" onPress={() => router.push('/explorar' as Href)} />
           <NavItem icon="⌕" label="Buscar" onPress={() => router.push('/explorar' as Href)} />
           <NavItem active icon="⌖" label="Perto de você" />
-          <NavItem icon="♡" label="Favoritos" />
+          <NavItem icon="♡" label="Favoritos" onPress={() => router.push('/favoritos' as Href)} />
           <NavItem icon="♙" label="Perfil" onPress={() => router.push('/perfil' as Href)} />
         </View>
       </View>

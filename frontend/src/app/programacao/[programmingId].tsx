@@ -242,15 +242,17 @@ function BottomNav() {
       {item('⌾', 'Explorar', () => router.push('/explorar' as Href))}
       {item('⌕', 'Buscar', () => router.push('/explorar' as Href))}
       {item('⌖', 'Perto de você', () => router.push('/perto_de_voce' as Href))}
-      {item('♡', 'Favoritos')}
+      {item('♡', 'Favoritos', () => router.push('/favoritos' as Href))}
       {item('♙', 'Perfil', () => router.push('/perfil' as Href))}
     </View>
   );
 }
 
 export default function ProgrammingDetailsScreen() {
-  const params = useLocalSearchParams<{ programmingId?: string | string[] }>();
+  const params = useLocalSearchParams<{ programmingId?: string | string[]; origin?: string | string[] }>();
   const programmingId = Number(Array.isArray(params.programmingId) ? params.programmingId[0] : params.programmingId);
+  const origin = Array.isArray(params.origin) ? params.origin[0] : params.origin;
+  const cameFromNearbyMap = origin === 'nearby-map';
   const hasValidProgrammingId = Number.isInteger(programmingId) && programmingId > 0;
   const { width: viewportWidth } = useWindowDimensions();
   const [fontsLoaded] = useFonts({ Fredoka_700Bold });
@@ -260,7 +262,7 @@ export default function ProgrammingDetailsScreen() {
     hasValidProgrammingId ? 'Carregando a programação...' : 'A programação informada é inválida.',
   );
   const [programming, setProgramming] = useState<ProgrammingDetail | null>(null);
-  const [nearby, setNearby] = useState<{ item: NearbyItem; details: ProgrammingDetail }[]>([]);
+  const [nearby, setNearby] = useState<{ item: NearbyItem; label: string }[]>([]);
   const [nearbyState, setNearbyState] = useState<NearbyState>('loading');
   const [coordinates, setCoordinates] = useState<Coordinates | null>(null);
   const [mapState, setMapState] = useState<'loading' | 'ready' | 'error'>('loading');
@@ -317,21 +319,41 @@ export default function ProgrammingDetailsScreen() {
         if (!active) return;
         setMapState('error');
         setMapMessage(error instanceof Error ? error.message : 'Não foi possível carregar o mapa.');
+        setNearbyState('error');
       });
     return () => { active = false; };
   }, [programming]);
 
   useEffect(() => {
     let active = true;
-    if (!hasValidProgrammingId) {
+    if (!hasValidProgrammingId || !coordinates) {
       return () => { active = false; };
     }
 
     const loadNearby = async () => {
-      const response = await requestJson<NearbyResponse>(`/api/Nearby/GetNearProgramming/${programmingId}?skip=0`);
-      const selected = response.items.filter((item) => item.type === 'Programming').slice(0, 5);
-      const details = await Promise.all(selected.map((item) => requestJson<ProgrammingDetail>(`/api/Programming/Details/${item.id}`)));
-      return selected.map((item, index) => ({ item, details: details[index] }));
+      const selected: NearbyItem[] = [];
+      let skip = 0;
+      let hasMore = true;
+      while (selected.length < 5 && hasMore) {
+        const query = new URLSearchParams({
+          Latitude: String(coordinates.latitude),
+          Longitude: String(coordinates.longitude),
+          MaxDistanceKm: '20',
+          Skip: String(skip),
+        });
+        const response = await requestJson<NearbyResponse>(`/api/Nearby/GetNearMe?${query.toString()}`);
+        response.items.forEach((item) => {
+          if (selected.length < 5 && !(item.type === 'Programming' && item.id === programmingId)) selected.push(item);
+        });
+        skip += response.items.length;
+        hasMore = response.hasMore && response.items.length > 0;
+      }
+      const categoryEntries = await Promise.all(selected.map(async (item) => {
+        if (item.type === 'Host') return { item, label: 'Estabelecimento' };
+        const details = await requestJson<ProgrammingDetail>(`/api/Programming/Details/${item.id}`).catch(() => null);
+        return { item, label: details?.categories[0]?.name ?? 'Programação' };
+      }));
+      return categoryEntries;
     };
 
     loadNearby()
@@ -344,7 +366,7 @@ export default function ProgrammingDetailsScreen() {
         if (active) setNearbyState('error');
       });
     return () => { active = false; };
-  }, [hasValidProgrammingId, programmingId]);
+  }, [coordinates, hasValidProgrammingId, programmingId]);
 
   const address = useMemo(() => programming ? fullAddress(programming.address) : '', [programming]);
   const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
@@ -386,12 +408,24 @@ export default function ProgrammingDetailsScreen() {
   };
 
   const openNearby = (item: NearbyItem) => {
+    if (item.type === 'Host') {
+      router.push('/comercio' as Href);
+      return;
+    }
     void requestJson(`/api/Programming/${programmingId}/Interactions`, {
       method: 'POST',
       body: JSON.stringify({ eventId: createEventId(), type: 3 }),
       headers: token ? { Authorization: `Bearer ${token}` } : undefined,
     }).catch(() => undefined);
     router.push({ pathname: '/programacao/[programmingId]', params: { programmingId: String(item.id) } } as Href);
+  };
+
+  const goBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+    router.replace(cameFromNearbyMap ? '/perto_de_voce' as Href : '/explorar' as Href);
   };
 
   return (
@@ -412,7 +446,7 @@ export default function ProgrammingDetailsScreen() {
           <View style={styles.fullState}><ActivityIndicator color={colors.orange} /><Text style={styles.stateText}>{message}</Text></View>
         ) : null}
         {state === 'error' ? (
-          <View style={styles.fullState}><Text style={styles.errorTitle}>Programação indisponível</Text><Text style={styles.stateText}>{message}</Text><Pressable onPress={() => router.back()} style={styles.outlineButton}><Text style={styles.outlineButtonText}>Voltar</Text></Pressable></View>
+          <View style={styles.fullState}><Text style={styles.errorTitle}>Programação indisponível</Text><Text style={styles.stateText}>{message}</Text><Pressable onPress={goBack} style={styles.outlineButton}><Text style={styles.outlineButtonText}>{cameFromNearbyMap ? 'Voltar ao mapa' : 'Voltar'}</Text></Pressable></View>
         ) : null}
 
         {state === 'ready' && programming ? (
@@ -426,7 +460,7 @@ export default function ProgrammingDetailsScreen() {
                 )}
                 <View style={styles.heroShade} />
                 <View style={styles.heroActions}>
-                  <Pressable accessibilityLabel="Voltar" onPress={() => router.back()} style={styles.roundAction}><Text style={styles.roundActionText}>‹</Text></Pressable>
+                  <Pressable accessibilityLabel={cameFromNearbyMap ? 'Voltar ao ponto selecionado no mapa' : 'Voltar'} onPress={goBack} style={styles.roundAction}><Text style={styles.roundActionText}>‹</Text></Pressable>
                   <View style={styles.heroActionsRight}>
                     <Pressable accessibilityLabel="Favoritar" disabled={favoriteBusy} onPress={toggleFavorite} style={styles.roundAction}><Text style={[styles.roundIcon, favorite && styles.favoriteActive]}>{favorite ? '♥' : '♡'}</Text></Pressable>
                     <Pressable accessibilityLabel="Compartilhar" onPress={shareProgramming} style={styles.roundAction}><Text style={styles.roundIcon}>↗</Text></Pressable>
@@ -467,17 +501,17 @@ export default function ProgrammingDetailsScreen() {
               </View>
 
               <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Eventos próximos</Text>
-                <Text style={styles.sectionSubtitle}>As 5 programações mais próximas, ordenadas pela distância real até este evento.</Text>
-                {nearbyState === 'loading' ? <View style={styles.nearbyState}><ActivityIndicator color={colors.orange} /><Text style={styles.stateText}>Calculando eventos próximos...</Text></View> : null}
-                {nearbyState === 'empty' ? <View style={styles.nearbyState}><Text style={styles.nearbyTitle}>Nenhum outro evento</Text><Text style={styles.stateText}>Ainda não existe outra programação ativa cadastrada.</Text></View> : null}
-                {nearbyState === 'error' ? <View style={styles.nearbyState}><Text style={styles.errorTitle}>Proximidade indisponível</Text><Text style={styles.stateText}>Não foi possível calcular os eventos próximos agora.</Text></View> : null}
+                <Text style={styles.sectionTitle}>Locais próximos</Text>
+                <Text style={styles.sectionSubtitle}>As 5 programações ou estabelecimentos mais próximos, ordenados pela distância real até este evento.</Text>
+                {nearbyState === 'loading' ? <View style={styles.nearbyState}><ActivityIndicator color={colors.orange} /><Text style={styles.stateText}>Calculando locais próximos...</Text></View> : null}
+                {nearbyState === 'empty' ? <View style={styles.nearbyState}><Text style={styles.nearbyTitle}>Nenhum outro local</Text><Text style={styles.stateText}>Ainda não existem programações ou estabelecimentos próximos cadastrados.</Text></View> : null}
+                {nearbyState === 'error' ? <View style={styles.nearbyState}><Text style={styles.errorTitle}>Proximidade indisponível</Text><Text style={styles.stateText}>Não foi possível calcular os locais próximos agora.</Text></View> : null}
                 {nearbyState === 'ready' ? (
                   <View style={styles.nearbyList}>
-                    {nearby.map(({ item, details }) => (
-                      <Pressable key={item.id} onPress={() => openNearby(item)} style={({ pressed }) => [styles.nearbyCard, pressed && styles.pressed]}>
+                    {nearby.map(({ item, label }) => (
+                      <Pressable key={`${item.type}-${item.id}`} onPress={() => openNearby(item)} style={({ pressed }) => [styles.nearbyCard, pressed && styles.pressed]}>
                         {item.imageUrl ? <Image resizeMode="cover" source={{ uri: item.imageUrl }} style={styles.nearbyImage} /> : <View style={styles.nearbyImageFallback}><Text style={styles.nearbyImageText}>{item.name.charAt(0).toUpperCase()}</Text></View>}
-                        <View style={styles.nearbyCopy}><Text numberOfLines={1} style={styles.nearbyName}>{item.name}</Text><Text style={styles.nearbyCategory}>{details.categories[0]?.name ?? 'Programação'}</Text><Text style={styles.nearbyDistance}>⌖ {formatDistance(item.distanceMeters)}</Text></View>
+                        <View style={styles.nearbyCopy}><Text numberOfLines={1} style={styles.nearbyName}>{item.name}</Text><Text style={styles.nearbyCategory}>{label}</Text><Text style={styles.nearbyDistance}>⌖ {formatDistance(item.distanceMeters)}</Text></View>
                         <Text style={styles.nearbyArrow}>›</Text>
                       </Pressable>
                     ))}
