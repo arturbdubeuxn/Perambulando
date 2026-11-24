@@ -13,6 +13,7 @@ public class NearbyRepository : INearbyRepository
         var now = DateTime.UtcNow;
         var hosts = from host in Db.Hosts.AsNoTracking()
                     where host.IsActive && (host.Typeofhost == Hosts.TypeofHost.Gastronomy || host.Typeofhost == Hosts.TypeofHost.Business) && (!excludedHostId.HasValue || host.Id != excludedHostId.Value)
+                        && !Db.Programmings.Any(programming => programming.IsActive && programming.EndDate > now && programming.AddressId == host.AddressId)
                         && host.Address.Location != null && host.Address.Location.IsWithinDistance(origin, maxMeters)
                         && (minMeters == 0 || host.Address.Location.Distance(origin) > minMeters)
                     select new NearbyItem

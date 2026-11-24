@@ -719,3 +719,45 @@ Ao selecionar um marcador, o iframe envia somente a chave pública do item ao co
 O frontend solicita a localização somente após a ação explícita do visitante. `Authorization` é enviado quando existe JWT na sessão e omitido caso contrário. A API tornou apenas `GetNearMe` anônimo e ampliou seu item de resposta com descrição/endereço; banco, migrations, CORS e `Program.cs` foram preservados. O mapa interativo implementado atende o alvo Expo Web atual; fora da Web, a tela informa a indisponibilidade do mapa até a adoção de um componente cartográfico nativo.
 
 Validações: build isolado do backend aprovado sem erros (23 avisos anteriores), ESLint e TypeScript aprovados. Uma instância isolada em Production, sem migrations, respondeu HTTP 200 sem JWT e retornou dez itens reais com os novos campos. O protótipo externo configurado em `C:/Users/Artur/Documents/ChatGPT/Perambulando/prototipo-api` não existe nesta máquina; PDFs não foram regenerados.
+### Marcador alinhado à marca Perambulando — 24/11/2026
+
+O marcador dos resultados do mapa passou a reproduzir a linguagem visual da marca: corpo de pin em degradê laranja, aro branco, ponta inferior, base oval e três raios laterais. A imagem do evento ou estabelecimento ocupa o núcleo circular do pin; na ausência de imagem, permanece o fallback com a inicial em azul-marinho. Interação, coordenadas, card inferior e contrato da API foram preservados. Mudança somente no frontend; backend, banco e PDFs não foram alterados nesta etapa.
+## Controle deslizante de distância — 24/11/2026
+
+Os quatro botões fixos de distância em `/perto_de_voce` foram substituídos por uma régua deslizante semelhante a um controle de volume. O valor inicial é 1 km, o limite é 20 km e o valor corrente fica visível em uma etiqueta. Na Web, o controle aceita arraste, toque e teclado; no fallback nativo atual, botões de menos/mais percorrem os mesmos valores.
+
+Após 300 ms sem nova movimentação, o frontend consulta `GetNearMe` com `MaxDistanceKm`, reduzindo chamadas enquanto o visitante arrasta. O mapa e os marcadores são substituídos somente pela resposta mais recente do controle. O backend converte o valor para metros e aplica o raio de zero até o limite escolhido; `DistanceRange` foi preservado como fallback compatível. Sem alteração de banco, migration, CORS ou `Program.cs`.
+
+Validações: ESLint e TypeScript aprovados; build isolado do backend aprovado sem erros e com 23 avisos anteriores. Teste HTTP sem JWT aprovou 1 km e 20 km com status 200 e rejeitou 0,5 km com status 400. A instância isolada foi encerrada; PDFs não foram regenerados.
+## Cinco resultados mais perto de mim — 24/11/2026
+
+Abaixo da paginação do mapa, `/perto_de_voce` passou a exibir “Mais perto de mim” com até cinco resultados, independentemente de serem programações ou estabelecimentos. A lista conserva a ordenação crescente por `distanceMeters` e apresenta posição, imagem/fallback, tipo, nome e distância.
+
+Ao tocar em um item, a tela rola de volta para a seção do mapa, o Leaflet centraliza e aproxima o marcador correspondente e o mesmo card inferior de detalhes é aberto. A seleção usa a chave composta por tipo e ID, evitando colisão entre um host e uma programação com o mesmo número.
+
+A primeira carga continua paginada, mas, quando a página inicial possui somente um tipo, o frontend busca páginas adicionais até encontrar programações e estabelecimentos disponíveis no raio, atingir o fim ou acumular cinquenta itens. Os itens permanecem ordenados pela API e `Carregar mais` continua disponível quando ainda houver resultados. Assim o mapa representa ambos os tipos sem alterar o repository, o contrato ou a regra espacial. ESLint e TypeScript aprovados; backend, banco, migrations e PDFs não foram alterados nesta etapa.
+## Correção dos estabelecimentos no mapa — 24/11/2026
+
+O mapa e “Mais perto de mim” continuam consumindo um único resultado misto e ordenado. A origem dos itens de tipo `Host` foi refinada no repository: somente estabelecimentos de Gastronomia/Comércio sem programação ativa/futura sediada no mesmo `AddressId` são unidos às programações. Isso evita duplicar um local como estabelecimento e evento, sem esconder uma sede quando seu responsável promove evento em outro endereço.
+
+Build isolado do backend, ESLint e TypeScript aprovados. Teste HTTP real sem JWT em 1 km retornou 19 programações e 5 estabelecimentos independentes; a instância isolada foi encerrada. Sem migration, mudança de schema ou PDF.
+### Altura compacta do mapa mobile — 24/11/2026
+
+O mapa de `/perto_de_voce` voltou à camada padrão do OpenStreetMap existente antes das tentativas de remoção de símbolos e customização de paleta. Somente a altura do quadro foi reduzida de 455 para 360 pixels, liberando espaço vertical para `Carregar mais` e `Mais perto de mim` em telas de celular. Pins, card inferior, zoom, foco, consulta e backend foram preservados. ESLint e TypeScript aprovados; PDFs não foram regenerados.
+
+No ajuste mobile seguinte, a altura foi reduzida novamente, de 360 para 285 pixels. A alteração afeta somente o quadro visual; controles do Leaflet, marcadores e seleção continuam dentro da mesma área responsiva.
+### Cabeçalho de localização compacto — 24/11/2026
+
+O bloco inicial de `/perto_de_voce` teve padding vertical, tamanho/altura de linha do título, descrição e margem do botão reduzidos para liberar espaço em telas de celular. O botão passou de altura mínima 48 para 42 pixels, e seu rótulo é mantido em uma linha. Texto, ação de permissão e estados foram preservados. Mudança somente visual no frontend; backend, banco e PDFs não foram alterados.
+
+Em um segundo ajuste, o conteúdo foi condensado para evitar que título, explicação e chamada do botão quebrem em muitas linhas. O bloco passou a usar 12 pixels de padding vertical, título de 20 pixels e botão de 36 pixels de altura mínima. A finalidade da mensagem e a solicitação de localização permanecem as mesmas.
+
+## Integração dos fluxos restantes do frontend — 24/11/2026
+
+A aba Comércio deixou de reutilizar a tela de perfil e passou a consultar publicamente `GET /api/Host/HostFilter`, com busca por nome e filtros de Gastronomia/Comércio. Ao expandir um estabelecimento, contatos, endereço e faixa estimada são exibidos a partir do contrato existente; `GET /api/Programming/Filter?HostId=...` carrega suas programações, inclusive o estado válido de estabelecimento sem eventos.
+
+O Painel passou a usar o JWT da sessão para carregar `GetAllHostsbyUserId`, `User/Profile`, `Subscription/MySubscription` e, por host/período, `Statistics/Summary`, `Statistics/Daily` e `Statistics/Ranking`. Respostas reais alimentam cards, gráfico e ranking. Um `403` de estatísticas, esperado quando o plano não concede acesso, apresenta explicação e mantém a demonstração explicitamente identificada; falhas de assinatura não impedem a carga dos estabelecimentos. Ativação e cancelamento somente são enviados após a ação do usuário.
+
+Em Explorar, visitantes continuam usando favoritos locais. Com JWT, programações favoritas são sincronizadas por `Favorite/GetAllByUserId`, `Favorite/{id}/Create` e `Favorite/{id}/Delete`; favoritos de estabelecimentos permanecem locais porque o backend não oferece esse contrato. As categorias completas alimentam a nova edição de até três preferências por `GetUserCategoriesPreferences`, `AddCategoryToUser` e `EditCategoryToUser`, enquanto “Qual é a sua vibe?” continua limitada visualmente a seis categorias.
+
+Nenhum controller, DTO, service, banco, migration, CORS ou `Program.cs` foi alterado nesta integração. ESLint e TypeScript foram aprovados; PDFs não foram regenerados.

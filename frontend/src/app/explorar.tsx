@@ -78,6 +78,10 @@ type UserProfile = {
   name: string;
 };
 
+type FavoriteResponse = {
+  programmingId: number;
+};
+
 type StorageLike = {
   getItem: (key: string) => string | null;
   setItem?: (key: string, value: string) => void;
@@ -376,12 +380,19 @@ function NavItem({ icon, label, active = false, onPress }: { icon: string; label
 export default function ExploreScreen() {
   const { width: viewportWidth } = useWindowDimensions();
   const [fontsLoaded] = useFonts({ Fredoka_700Bold });
+  const [token] = useState(getSessionToken);
   const [categories, setCategories] = useState<Category[]>([]);
   const [programmings, setProgrammings] = useState<Programming[]>([]);
   const [hosts, setHosts] = useState<Host[]>([]);
   const [knownProgrammings, setKnownProgrammings] = useState<Programming[]>([]);
   const [hostsLoading, setHostsLoading] = useState(true);
   const [favoriteKeys, setFavoriteKeys] = useState<string[]>(getFavoriteKeys);
+  const [favoriteBusy, setFavoriteBusy] = useState<string[]>([]);
+  const [favoriteMessage, setFavoriteMessage] = useState('');
+  const [preferenceIds, setPreferenceIds] = useState<number[]>([]);
+  const [preferenceDraft, setPreferenceDraft] = useState<number[]>([]);
+  const [preferenceSaving, setPreferenceSaving] = useState(false);
+  const [preferenceMessage, setPreferenceMessage] = useState('');
   const [favoritesSectionY, setFavoritesSectionY] = useState(0);
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
   const [searchText, setSearchText] = useState('');
@@ -396,7 +407,7 @@ export default function ExploreScreen() {
     let active = true;
     requestJson<Category[]>('/api/Category/GetallCategories')
       .then((items) => {
-        if (active) setCategories(items.filter((item) => item.isActive).slice(0, 6));
+        if (active) setCategories(items.filter((item) => item.isActive));
       })
       .catch((error) => {
         if (active) {
@@ -416,19 +427,52 @@ export default function ExploreScreen() {
         if (active) setHostsLoading(false);
       });
 
-    const token = getSessionToken();
     if (token) {
       requestJson<UserProfile>('/api/User/Profile', { headers: { Authorization: `Bearer ${token}` } })
         .then((profile) => {
           if (active) setUserInitial(profile.name.trim().charAt(0).toUpperCase() || 'U');
         })
         .catch(() => undefined);
+
+      requestJson<Category[]>('/api/Category/GetUserCategoriesPreferences', { headers: { Authorization: `Bearer ${token}` } })
+        .then((items) => {
+          if (!active) return;
+          const ids = items.filter((item) => item.isActive).map((item) => item.id);
+          setPreferenceIds(ids);
+          setPreferenceDraft(ids);
+        })
+        .catch(() => {
+          if (active) setPreferenceMessage('Não foi possível carregar suas preferências.');
+        });
+
+      requestJson<FavoriteResponse[]>('/api/Favorite/GetAllByUserId', { headers: { Authorization: `Bearer ${token}` } })
+        .then(async (serverFavorites) => {
+          if (!active) return;
+          const localKeys = getFavoriteKeys();
+          const localProgrammingIds = localKeys.filter((key) => key.startsWith('programming:')).map((key) => Number(key.split(':')[1])).filter(Number.isInteger);
+          const serverIds = new Set(serverFavorites.map((item) => item.programmingId));
+          const missingIds = localProgrammingIds.filter((id) => !serverIds.has(id));
+          await Promise.all(missingIds.map((id) => requestJson(`/api/Favorite/${id}/Create`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } }).then(() => serverIds.add(id)).catch(() => undefined)));
+          if (!active) return;
+          const mergedKeys = [...localKeys.filter((key) => key.startsWith('host:')), ...[...serverIds].map((id) => `programming:${id}`)];
+          setFavoriteKeys(mergedKeys);
+          storeFavoriteKeys(mergedKeys);
+          const details = await Promise.all([...serverIds].map((id) => requestJson<Programming>(`/api/Programming/Details/${id}`).catch(() => null)));
+          if (active) setKnownProgrammings((current) => {
+            const merged = new Map(current.map((item) => [item.id, item]));
+            details.forEach((item) => { if (item?.isActive) merged.set(item.id, item); });
+            return [...merged.values()];
+          });
+        })
+        .catch(() => {
+          if (active) setFavoriteMessage('Seus favoritos locais continuam disponíveis, mas não foi possível sincronizá-los.');
+        });
     }
 
     return () => {
       active = false;
     };
-  }, []);
+  }, [token]);
 
   useEffect(() => {
     const requestId = programmingRequest.current + 1;
@@ -472,12 +516,64 @@ export default function ExploreScreen() {
 
   const selectedCategory = categories.find((category) => category.id === selectedCategoryId);
   const favoriteSet = new Set(favoriteKeys);
-  const toggleFavorite = (key: string) => {
+  const updateLocalFavorite = (key: string, active: boolean) => {
     setFavoriteKeys((current) => {
-      const next = current.includes(key) ? current.filter((item) => item !== key) : [...current, key];
+      const next = active ? [...new Set([...current, key])] : current.filter((item) => item !== key);
       storeFavoriteKeys(next);
       return next;
     });
+  };
+  const toggleFavorite = async (key: string) => {
+    if (favoriteBusy.includes(key)) return;
+    const wasFavorite = favoriteKeys.includes(key);
+    const [kind, rawId] = key.split(':');
+    const programmingId = Number(rawId);
+    updateLocalFavorite(key, !wasFavorite);
+    setFavoriteMessage('');
+    if (!token || kind !== 'programming' || !Number.isInteger(programmingId)) return;
+    setFavoriteBusy((current) => [...current, key]);
+    try {
+      await requestJson(`/api/Favorite/${programmingId}/${wasFavorite ? 'Delete' : 'Create'}`, {
+        method: wasFavorite ? 'PATCH' : 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+    } catch (error) {
+      updateLocalFavorite(key, wasFavorite);
+      setFavoriteMessage(error instanceof Error ? error.message : 'Não foi possível atualizar o favorito.');
+    } finally {
+      setFavoriteBusy((current) => current.filter((item) => item !== key));
+    }
+  };
+
+  const togglePreference = (categoryId: number) => {
+    setPreferenceMessage('');
+    setPreferenceDraft((current) => {
+      if (current.includes(categoryId)) return current.filter((id) => id !== categoryId);
+      if (current.length >= 3) {
+        setPreferenceMessage('Selecione no máximo 3 categorias.');
+        return current;
+      }
+      return [...current, categoryId];
+    });
+  };
+
+  const savePreferences = async () => {
+    if (!token || preferenceSaving) return;
+    setPreferenceSaving(true);
+    setPreferenceMessage('');
+    try {
+      await requestJson('/api/Category/' + (preferenceIds.length === 0 ? 'AddCategoryToUser' : 'EditCategoryToUser'), {
+        method: preferenceIds.length === 0 ? 'POST' : 'PUT',
+        body: JSON.stringify(preferenceDraft),
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      });
+      setPreferenceIds(preferenceDraft);
+      setPreferenceMessage('Preferências atualizadas.');
+    } catch (error) {
+      setPreferenceMessage(error instanceof Error ? error.message : 'Não foi possível atualizar suas preferências.');
+    } finally {
+      setPreferenceSaving(false);
+    }
   };
   const favoriteItems = favoriteKeys.flatMap((key) => {
     const [kind, rawId] = key.split(':');
@@ -533,7 +629,7 @@ export default function ExploreScreen() {
             {hostsLoading ? <View style={styles.inlineLoading}><ActivityIndicator color={colors.orange} /></View> : null}
             {!hostsLoading && hosts.length > 0 ? (
               <ScrollView horizontal contentContainerStyle={styles.hostList} showsHorizontalScrollIndicator={false}>
-                {hosts.map((host) => <HostCard favorite={favoriteSet.has(`host:${host.id}`)} host={host} key={host.id} onToggleFavorite={() => toggleFavorite(`host:${host.id}`)} />)}
+                {hosts.map((host) => <HostCard favorite={favoriteSet.has(`host:${host.id}`)} host={host} key={host.id} onToggleFavorite={() => void toggleFavorite(`host:${host.id}`)} />)}
               </ScrollView>
             ) : null}
             {!hostsLoading && hosts.length === 0 ? <Text style={styles.hostEmpty}>Nenhum estabelecimento disponível agora.</Text> : null}
@@ -553,10 +649,24 @@ export default function ExploreScreen() {
                     item={item}
                     key={item.key}
                     onOpen={'programmingId' in item ? () => router.push({ pathname: '/programacao/[programmingId]', params: { programmingId: String(item.programmingId) } } as Href) : undefined}
-                    onRemove={() => toggleFavorite(item.key)}
+                    onRemove={() => void toggleFavorite(item.key)}
                   />
                 ))}
               </ScrollView>
+            </View>
+          ) : null}
+
+          {favoriteMessage ? <Text accessibilityRole="alert" style={styles.syncMessage}>{favoriteMessage}</Text> : null}
+
+          {token ? (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Minhas preferências</Text>
+              <Text style={styles.sectionSubtitle}>Escolha até 3 categorias para personalizar suas sugestões.</Text>
+              <View style={styles.preferenceList}>
+                {categories.map((category) => <Pressable accessibilityState={{ selected: preferenceDraft.includes(category.id) }} key={category.id} onPress={() => togglePreference(category.id)} style={[styles.preferenceChip, preferenceDraft.includes(category.id) && styles.preferenceChipActive]}><Text style={[styles.preferenceChipText, preferenceDraft.includes(category.id) && styles.preferenceChipTextActive]}>{category.name}</Text></Pressable>)}
+              </View>
+              <Pressable disabled={preferenceSaving || preferenceDraft.join(',') === preferenceIds.join(',')} onPress={() => void savePreferences()} style={[styles.preferenceButton, (preferenceSaving || preferenceDraft.join(',') === preferenceIds.join(',')) && styles.preferenceButtonDisabled]}>{preferenceSaving ? <ActivityIndicator color={colors.card} /> : <Text style={styles.preferenceButtonText}>Salvar preferências</Text>}</Pressable>
+              {preferenceMessage ? <Text accessibilityRole="alert" style={styles.preferenceMessage}>{preferenceMessage}</Text> : null}
             </View>
           ) : null}
 
@@ -565,7 +675,7 @@ export default function ExploreScreen() {
             <Text style={styles.sectionSubtitle}>Escolha uma categoria e deixe a cidade te levar.</Text>
             {categories.length > 0 ? (
               <View style={styles.categoryGrid}>
-                {categories.map((category, index) => (
+                {categories.slice(0, 6).map((category, index) => (
                   <CategoryButton
                     category={category}
                     index={index}
@@ -619,7 +729,7 @@ export default function ExploreScreen() {
 
             {state === 'ready' && programmings.length > 0 ? (
               <View style={styles.eventList}>
-                {programmings.map((programming) => <EventCard favorite={favoriteSet.has(`programming:${programming.id}`)} key={programming.id} onToggleFavorite={() => toggleFavorite(`programming:${programming.id}`)} programming={programming} />)}
+                {programmings.map((programming) => <EventCard favorite={favoriteSet.has(`programming:${programming.id}`)} key={programming.id} onToggleFavorite={() => void toggleFavorite(`programming:${programming.id}`)} programming={programming} />)}
               </View>
             ) : null}
           </View>
@@ -667,6 +777,16 @@ const styles = StyleSheet.create({
   categoryIconText: { fontSize: 18, fontWeight: '800' },
   categoryName: { color: colors.ink, fontSize: 10, lineHeight: 13, fontWeight: '700', textAlign: 'center' },
   categoryNameSelected: { color: colors.orange },
+  syncMessage: { marginHorizontal: 16, marginTop: 12, padding: 10, color: colors.muted, fontSize: 10, lineHeight: 15, borderRadius: 12, backgroundColor: colors.orangeSoft },
+  preferenceList: { marginTop: 14, flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  preferenceChip: { minHeight: 34, paddingHorizontal: 11, alignItems: 'center', justifyContent: 'center', borderRadius: 17, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card },
+  preferenceChipActive: { borderColor: colors.orange, backgroundColor: colors.orangeSoft },
+  preferenceChipText: { color: colors.muted, fontSize: 9, fontWeight: '700' },
+  preferenceChipTextActive: { color: colors.orange },
+  preferenceButton: { minHeight: 42, marginTop: 13, alignItems: 'center', justifyContent: 'center', borderRadius: 12, backgroundColor: colors.ink },
+  preferenceButtonDisabled: { opacity: 0.45 },
+  preferenceButtonText: { color: colors.card, fontSize: 10, fontWeight: '800' },
+  preferenceMessage: { marginTop: 8, color: colors.muted, fontSize: 10, lineHeight: 15 },
   inlineLoading: { minHeight: 100, alignItems: 'center', justifyContent: 'center' },
   sectionHeadingRow: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12 },
   sectionHeadingCopy: { flex: 1 },

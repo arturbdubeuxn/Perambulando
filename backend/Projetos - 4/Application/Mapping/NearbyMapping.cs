@@ -7,7 +7,14 @@ public class NearbyMapping : INearbyMapping
     public NearbyFilter ToModel(NearbyUserFilterDTO dto)
     {
         ArgumentNullException.ThrowIfNull(dto);
-        return new NearbyFilter { Latitude = dto.Latitude, Longitude = dto.Longitude, DistanceRange = dto.DistanceRange, Skip = dto.Skip };
+        return new NearbyFilter
+        {
+            Latitude = dto.Latitude,
+            Longitude = dto.Longitude,
+            DistanceRange = dto.DistanceRange,
+            MaxDistanceKm = dto.MaxDistanceKm,
+            Skip = dto.Skip
+        };
     }
     public NearbyFilter ToModel(NearbyDestinationFilterDTO dto)
     {

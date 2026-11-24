@@ -1444,3 +1444,6 @@ Esta orientação substitui a restrição de programações por Productor descri
 `GET /api/Nearby/GetNearMe` passou a usar `[AllowAnonymous]`. Latitude, longitude, faixa e paginação continuam obrigatoriamente validadas pelo fluxo existente; a action somente deixou de exigir identidade porque a consulta não lê nem altera dados do usuário. Quando o navegador possui uma sessão, o frontend continua enviando o JWT; sem sessão, omite o cabeçalho e recebe o mesmo catálogo público. `GetNearHost` e as operações de gestão permanecem autenticadas.
 
 O retorno de cada item próximo agora inclui também `description` e `address`, além dos campos anteriores de identidade, tipo, imagem, distância e coordenadas. Isso permite montar o cartão do marcador sem abrir endpoints protegidos ou realizar uma consulta adicional por item. Não houve mudança de verbo, rota, filtros, ordenação ou paginação.
+## Raio deslizante em GetNearMe — 24/11/2026
+
+`GET /api/Nearby/GetNearMe` passou a aceitar opcionalmente `MaxDistanceKm`, entre 1 e 20. Quando informado, o servidor pesquisa do ponto de origem até o raio exato solicitado, sempre com limite inferior zero. Quando ausente, `DistanceRange` continua funcionando como antes, preservando consumidores existentes. Latitude, longitude, `Skip`, ordenação e paginação foram mantidos.

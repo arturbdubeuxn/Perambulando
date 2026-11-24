@@ -730,3 +730,8 @@ Criado `docker/seed-recife-antigo.sql`, idempotente por IDs reservados, para ali
 Todas as coordenadas ficam no Recife Antigo, entre 0 e 636,5 metros do Marco Zero na verificação PostGIS. A execução transacional confirmou 12 hosts, 16 programações e 30 vínculos de categoria. `GET /api/Programming/Filter?take=100&skip=0` retornou os 16 registros demonstrativos e 19 programações ativas/futuras no total; com o `take=20` atual de `/explorar`, todos os registros presentes aparecem na listagem. Frontend e API responderam HTTP 200 depois da carga.
 
 A primeira transmissão do SQL pelo pipe do Windows PowerShell substituiu caracteres acentuados por `?`; a mesma transação idempotente foi reaplicada como arquivo UTF-8 dentro do container, corrigindo os nomes. Nenhuma tabela, coluna, migration ou código do backend foi alterado. PDFs não foram regenerados.
+## Consulta espacial sem duplicar sede e evento — 24/11/2026
+
+A projeção de hosts em `NearbyRepository.GetNearbyAsync` passou a usar `NOT EXISTS` contra `Programmings` ativas e futuras no mesmo `AddressId`. Não houve alteração de tabela, coluna, índice ou migration. Programções continuam projetadas separadamente e o `Concat` permanece ordenado por distância, tipo e ID.
+
+Validação somente leitura em uma instância isolada, usando raio de 1 km a partir do Marco Zero, retornou 24 itens: 19 programações e 5 estabelecimentos sem programação ativa/futura no mesmo endereço. O SQL gerado pelo EF continha o `NOT EXISTS` esperado. Nenhum registro foi alterado.

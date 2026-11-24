@@ -1423,3 +1423,6 @@ O compositor de paradas aparece dentro do formulário de criação do roteiro qu
 ## Complemento do item de proximidade — 24/11/2026
 
 `NearbyItemResponseDTO` acrescentou dois campos textuais de saída: `Description`, com a descrição pública do host ou da programação, e `Address`, montado a partir de logradouro, número, bairro e cidade do endereço vinculado. Os campos anteriores `Id`, `Type`, `Name`, `ImageUrl`, `DistanceMeters`, `Latitude` e `Longitude` foram preservados. DTOs de entrada, validações e schema do banco não mudaram.
+## Distância máxima no filtro do usuário — 24/11/2026
+
+`NearbyUserFilterDTO` acrescentou `MaxDistanceKm` (`double?`) com validação de 1 a 20. O campo é opcional para manter compatibilidade com `DistanceRange`; quando presente, tem precedência sobre a faixa enumerada. Nenhum DTO de destino, entidade persistida ou schema foi alterado.

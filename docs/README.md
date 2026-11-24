@@ -1444,3 +1444,29 @@ Eventos e estabelecimentos em `/explorar` agora possuem coração clicável: con
 `/perto_de_voce` agora funciona com ou sem login: solicita a localização por ação do visitante, envia o JWT somente quando a sessão o possui e consulta o `GetNearMe` público. Os resultados aparecem em mapa OpenStreetMap/Leaflet com imagem sobre cada pino. Tocar no marcador abre um cartão inferior com imagem, descrição, endereço e distância; `×` fecha o cartão e programações podem abrir seus detalhes.
 
 O item de proximidade passou a retornar `description` e `address`; filtros, ordenação PostGIS, faixas e paginação foram preservados. Build do backend, ESLint e TypeScript aprovados. Teste HTTP isolado sem JWT retornou dez itens reais e os novos campos. Sem migration, mudança de banco, CORS, `Program.cs` ou PDF. O protótipo externo configurado não foi localizado nesta máquina.
+#### Pin do mapa com identidade da marca — 24/11/2026
+
+Os marcadores de `/perto_de_voce` foram redesenhados com o formato e os elementos visuais da logo Perambulando: pin laranja, núcleo branco com a imagem do local, base oval e raios laterais. O fallback usa a inicial em azul-marinho. Funcionalidade e backend foram preservados; PDFs não foram regenerados.
+### Distância por régua deslizante — 24/11/2026
+
+`/perto_de_voce` agora inicia em 1 km e permite arrastar uma régua até 20 km, exibindo o raio atual. O frontend aguarda 300 ms após o movimento e envia `MaxDistanceKm`; a API aplica o raio exato em metros e mantém `DistanceRange` compatível quando o novo parâmetro não é informado. ESLint, TypeScript, build e testes HTTP de 1/20 km aprovados; 0,5 km retornou 400. Sem migration, banco ou PDF novo.
+### Mais perto de mim e foco no mapa — 24/11/2026
+
+A tela `/perto_de_voce` ganhou uma lista dos cinco eventos ou estabelecimentos com menor distância abaixo de `Carregar mais`. Selecionar um item retorna ao mapa, centraliza seu pin e abre o card inferior já existente. A carga inicial procura os dois tipos em páginas adicionais quando a primeira contém somente um deles, mantendo ordem, raio e paginação da API. ESLint e TypeScript aprovados; sem mudança de backend, banco ou PDF nesta etapa.
+### Estabelecimentos sem evento sediado no mapa — 24/11/2026
+
+`GetNearMe` agora inclui como estabelecimento somente hosts ativos de Gastronomia/Comércio cujo endereço não sedia programação ativa/futura. Eventos permanecem no mapa, e “Mais perto de mim” continua escolhendo os cinco itens de menor distância entre eventos e estabelecimentos independentes. Em teste real de 1 km: 19 eventos e 5 estabelecimentos; build, ESLint e TypeScript aprovados. Sem schema, migration ou PDF novo.
+#### Mapa mais compacto no celular — 24/11/2026
+
+O mapa de `/perto_de_voce` foi restaurado ao fundo OpenStreetMap anterior e teve sua altura reduzida de 455 para 360 pixels. A mudança libera espaço para paginação e a lista dos cinco mais próximos sem alterar pins, card ou consulta. Backend, banco e PDFs preservados.
+
+A altura mobile foi posteriormente reduzida para 285 pixels, mantendo largura, marcadores, controles e comportamento do card selecionado.
+#### Cabeçalho compacto em Perto de você — 24/11/2026
+
+Título, descrição, espaçamentos e botão de localização foram compactados para ocupar menos altura no celular. O rótulo do botão permanece em uma linha. Sem mudança funcional, backend, banco ou PDF.
+
+O refinamento seguinte condensou também os textos e reduziu o padding vertical para 12 pixels, o título para 20 pixels e o botão para 36 pixels de altura mínima. A caixa azul preserva a mesma ação, mas libera mais espaço para o controle de distância e o mapa.
+
+### Frontend conectado aos contratos existentes — 24/11/2026
+
+Comércio agora lista e filtra hosts reais por `HostFilter` e consulta suas programações por `Programming/Filter`. O Painel usa hosts do usuário, perfil, assinatura, resumo, série diária e ranking reais, preservando demonstração identificada quando o plano retorna `403`. Explorar sincroniza favoritos de programação com a conta autenticada, mantém o modo local para visitantes e hosts, e permite consultar/salvar até três preferências de categoria. Nenhuma rota ou contrato de backend foi criada para esta etapa; ESLint e TypeScript aprovados, PDFs preservados.
