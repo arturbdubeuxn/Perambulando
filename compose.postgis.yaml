@@ -17,6 +17,43 @@ services:
       timeout: 5s
       retries: 5
 
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    image: perambulando/backend:dev
+    container_name: perambulando-backend
+    restart: unless-stopped
+    environment:
+      # Evita aplicar migrations automaticamente ao iniciar sobre o banco local existente.
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:5014
+      ConnectionStrings__DefaultConnection: Host=database;Port=5432;Database=perambulando;Username=perambulando;Password=perambulando_dev_only
+      Geoapify__ApiKey: ${Geoapify__ApiKey:-}
+      N8n__TravelChatWebhookUrl: ${N8n__TravelChatWebhookUrl:-http://host.docker.internal:5678/webhook-test/perambulando-travelchat}
+      N8n__TravelChatWebhookKey: ${N8n__TravelChatWebhookKey:-}
+    ports:
+      - "127.0.0.1:5014:5014"
+    depends_on:
+      database:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    image: perambulando/frontend:dev
+    container_name: perambulando-frontend
+    restart: unless-stopped
+    environment:
+      CI: "1"
+      EXPO_PUBLIC_API_URL: http://localhost:5014
+    ports:
+      - "127.0.0.1:8081:8081"
+    depends_on:
+      backend:
+        condition: service_started
+
 volumes:
   postgres_data:
     external: true

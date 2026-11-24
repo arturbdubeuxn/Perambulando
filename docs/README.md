@@ -767,6 +767,10 @@ O avatar “A” dos cabeçalhos agora abre `/perfil`. A página usa o endpoint 
 
 O formulário de host agora inicia os dados empresariais pelo CNPJ e apresenta razão social e nome fantasia em seguida. O comportamento de consulta e autopreenchimento foi preservado. Mudança exclusiva do frontend, sem alterações no backend ou em contratos. Consulte [Arquitetura frontend e backend](08-arquitetura-frontend-backend.md).
 
+## Painel demonstrativo do host — 16/11/2026
+
+A rota `/painel` da branch `PaginaProHost` foi integrada ao frontend atual. Ela reúne métricas e planos em modo demonstrativo, sem dados reais, cobrança ou persistência, e está conectada ao item “Painel” da navbar. As rotas atuais de perfil, criação de evento, meus eventos e cadastro de comércio foram preservadas. TypeScript, ESLint e a resposta HTTP 200 da rota foram validados. Nenhum arquivo do backend foi alterado nesta etapa. Consulte [Arquitetura frontend e backend](08-arquitetura-frontend-backend.md).
+
 ## US17 — primeira etapa preparada em 27/10/2026
 
 Implementados no código: Subscription e configuração EF, repository, service, app service, mapping, interfaces, DTO e controller. Rotas autenticadas: POST /api/Subscription/Activate, GET /api/Subscription/MySubscription e PATCH /api/Subscription/Cancel. Titular vem do JWT; não há corpo de entrada. Retorno 200 com Id, Status, StartsAt e ExpiresAt (camelCase no JSON). Status numérico: 0 Inactive, 1 Active, 2 Cancelled, 3 Expired (calculado). Sem assinatura, datas/Id nulos e Status Inactive. Identidade ausente/inativa: 401. Simulação desabilitada: Activate retorna 403.
@@ -1107,6 +1111,10 @@ Verificações: build sem erros/dez avisos anteriores; 33 verificações integra
 
 Preparados MinPrice/MaxPrice em decimal? numeric(12,2), com obrigatoriedade para gastronomia/comércio no cadastro/edição e valores nulos preservados para legado. Faixa estimada por pessoa, não negativa, até duas casas e mínimo <= máximo; produtores não recebem preços. DTOs, mapping, service, configuração EF, exemplos .http e protótipo atualizados. Perfil do host agora inclui OpeningWeek, carregado com dias/períodos pelo repository, além dos valores e programações.
 
+Atualização de frontend em 17/11/2026: `/cadastro_host` voltou a exibir os campos de valor mínimo e máximo quando o tipo selecionado é Gastronomia ou Comércio. A interface valida preenchimento, duas casas decimais e ordem da faixa, envia números no contrato existente e recupera os valores na edição. Para Produtor de eventos, os campos ficam ocultos e os valores são enviados como nulos. Backend, banco e PDFs não foram alterados nesta atualização.
+
+Na mesma data, a aba “Comércio” passou a abrir `/comercio`, que reutiliza a tela `/perfil`. Assim, ambas exibem os mesmos dados cadastrais, plano e estados de sessão, e as barras inferiores deixaram de direcionar essa aba ao cadastro de host. Backend, banco e PDFs preservados.
+
 Build isolado aprovado sem erros/nove avisos anteriores; 77 verificações integradas PostgreSQL/Identity reais com APIs externas simuladas e 101 testes do protótipo aprovados. Banco descartável removido; principal preservado. Nenhuma migration criada/aplicada e nenhum PDF exportado. Migration anterior de horários foi informada como aplicada pelo usuário; as novas colunas monetárias ainda exigem outra migration antes de executar esta versão da API contra o banco principal.
 
 
@@ -1391,3 +1399,74 @@ Protótipo da porta 5174 ampliado com acesso demonstrativo, perfil/preferências
 
 
 Pitch mobile — 13/11/2026: estilos compartilhados ajustados para celular nas duas jornadas (navegação, formulários, cards, horários, diálogos e painel). Verificação de layouts em 320/390/768px, sem transbordamento horizontal nos pontos medidos; seis testes do protótipo aprovados. Detalhes no README do pitch. Backend e PDFs preservados.
+
+### Ambiente completo no Docker — 17/11/2026
+
+O `compose.postgis.yaml` agora inicia PostgreSQL/PostGIS, backend .NET 10 e frontend Expo Web em conjunto. Após construir as imagens locais de backend e frontend uma vez, `docker compose -f compose.postgis.yaml up -d --no-build --pull never` inicia os três processos sem novos terminais. Banco e volume existentes foram preservados; frontend e rota pública da API responderam HTTP 200. O backend roda em Production no container para não aplicar automaticamente a migration bloqueada por CNPJs duplicados; a auditoria desses dados continua pendente. Consulte [Docker](05-docker.md) e [Arquitetura frontend e backend](08-arquitetura-frontend-backend.md). Nenhum arquivo da pasta `backend/` foi alterado e PDFs não foram regenerados.
+
+### Padronização da aba Painel — 17/11/2026
+
+A rota `/painel` passou a seguir o shell, cabeçalho, cartões, botões, espaçamentos e barra inferior das demais telas mobile. Quando selecionada, a aba Painel recebe fundo laranja claro, ícone e texto laranja e estado acessível de seleção; Criar evento permanece azul quando não é a página atual. ESLint, TypeScript e acesso HTTP 200 pelo container foram validados. Backend, banco, protótipo externo e PDFs foram preservados.
+
+No mesmo painel, “Resumo de visitas e cliques” deixou o plano gratuito Essencial e passou a constar explicitamente nos planos demonstrativos pagos Impulso e Destaque. Não houve implementação de cobrança ou alteração do backend.
+
+### Data e horário simplificados no cadastro de programação — 17/11/2026
+
+Datas agora possuem limite e máscara automática `dd/mm/aaaa`, e horários usam limite e máscara `HH:mm`. O cartão “Quando e quanto” também ganhou botão com ícone próprio de calendário, calendário mensal expansível e seletor de horário com horas e minutos separados. A digitação continua disponível para minutos fora dos atalhos de 15 minutos. O contrato ISO enviado ao backend foi preservado; ESLint, TypeScript e acesso HTTP 200 pelo frontend Docker foram validados. Backend, banco, protótipo externo e PDFs não foram alterados.
+
+### US16 — Explorar programações do usuário comum — 23/11/2026
+
+Criada a rota `/explorar` com identidade visual atual, busca e até seis categorias ativas carregadas de `Category/GetallCategories`. A listagem consulta `Programming/Filter`, portanto exibe programações ativas publicadas pelos hosts e preserva suas categorias, imagem, data, preço e endereço. Busca e seleção de categoria atualizam a consulta; carregamento, vazio, erro e fallback de imagem possuem estados próprios. A barra do usuário comum destaca Explorar, foca a busca e acessa o Perfil; Perto de você e Favoritos aguardam histórias próprias. ESLint, TypeScript e diff aprovados. Nenhum arquivo do backend, banco ou PDF foi alterado.
+
+### Detalhes e eventos próximos — 23/11/2026
+
+Tocar em uma programação de `/explorar` abre `/programacao/[programmingId]`, com imagem, data, endereço, descrição, categorias, mapa interativo, eventos próximos, host e ingresso na ordem do scroll mobile. Detalhes usam a rota pública existente; proximidade usa a rota autenticada existente e conserva a ordenação PostGIS por distância, filtrando somente programações no raio de 2 km. O mapa geocodifica o endereço cadastrado com tentativas progressivas por logradouro/número/cidade/CEP e CEP, armazenando o resultado na sessão, pois o DTO atual não publica a coordenada persistida. ESLint e TypeScript aprovados; backend, banco, contratos, protótipo externo e PDFs preservados.
+
+### Perto de você com localização do dispositivo — 23/11/2026
+
+A nova rota `/perto_de_voce` solicita permissão somente quando o usuário toca em “Usar minha localização” e consulta `Nearby/GetNearMe` com JWT, latitude, longitude, faixa e paginação. Exibe programações e estabelecimentos registrados na ordem de distância calculada pelo backend, com quatro faixas de 0 a 20 km e estados para permissão/sessão/serviço/erros. `expo-location` e a mensagem de permissão nativa foram configurados; coordenadas não são persistidas pelo frontend. Backend, banco, contratos e PDFs preservados.
+
+### Cinco eventos mais próximos do evento aberto — 23/11/2026
+
+A seção de detalhes agora apresenta publicamente até cinco outras programações ativas/futuras, ordenadas pela distância PostGIS até o evento aberto e sem raio máximo. Um resultado distante aparece quando for a única alternativa e sai das cinco primeiras posições conforme eventos mais próximos forem cadastrados. A mudança pontual atingiu controller, app service/mapping, service, repository e frontend; não houve alteração de schema, migration ou PDF. Build do backend, ESLint e TypeScript aprovados. Consulta SQL somente leitura no banco real confirmou a ordem por distância (226,3 m antes de 601,8 m) para os dados atuais. O protótipo externo configurado não foi localizado neste computador.
+
+### Dados demonstrativos no Recife Antigo — 23/11/2026
+
+O banco local foi populado por `docker/seed-recife-antigo.sql` com 12 estabelecimentos e 16 programações demonstrativas, cobrindo todas as 12 categorias existentes. Todos os endereços ficam a no máximo 636,5 m do Marco Zero. A carga é transacional e idempotente e usa IDs reservados, CNPJs fictícios válidos e um usuário técnico sem acesso interativo. A API confirmou os 16 eventos na consulta usada por `/explorar`; frontend e API responderam HTTP 200. Nenhum schema, migration ou arquivo do backend foi alterado, e os PDFs foram preservados.
+
+Explorar também ganhou uma faixa horizontal de estabelecimentos, alimentada pelo `HostFilter` público para Gastronomia e Comércio em Recife. A consulta anônima retornou os oito hosts demonstrativos e cinco cadastros anteriores; os 16 eventos continuam na seção de programações. Somente a action de filtro foi aberta; gestão e detalhes protegidos foram preservados. Build isolado, ESLint, TypeScript e HTTP 200 aprovados.
+
+### Favoritos locais em Explorar — 23/11/2026
+
+Eventos e estabelecimentos em `/explorar` agora possuem coração clicável: contornado quando inativo e preenchido em vermelho quando salvo. O recurso funciona sem login e guarda somente os identificadores no armazenamento local do navegador. Havendo ao menos um item válido, “Seus favoritos” aparece como faixa horizontal; a aba Favoritos rola diretamente até ela, e a remoção do último item oculta a seção. ESLint e TypeScript aprovados. A persistência ainda não é sincronizada entre dispositivos/contas; backend, banco, contratos, protótipo externo e PDFs foram preservados nesta mudança.
+### Mapa público em Perto de você — 24/11/2026
+
+`/perto_de_voce` agora funciona com ou sem login: solicita a localização por ação do visitante, envia o JWT somente quando a sessão o possui e consulta o `GetNearMe` público. Os resultados aparecem em mapa OpenStreetMap/Leaflet com imagem sobre cada pino. Tocar no marcador abre um cartão inferior com imagem, descrição, endereço e distância; `×` fecha o cartão e programações podem abrir seus detalhes.
+
+O item de proximidade passou a retornar `description` e `address`; filtros, ordenação PostGIS, faixas e paginação foram preservados. Build do backend, ESLint e TypeScript aprovados. Teste HTTP isolado sem JWT retornou dez itens reais e os novos campos. Sem migration, mudança de banco, CORS, `Program.cs` ou PDF. O protótipo externo configurado não foi localizado nesta máquina.
+#### Pin do mapa com identidade da marca — 24/11/2026
+
+Os marcadores de `/perto_de_voce` foram redesenhados com o formato e os elementos visuais da logo Perambulando: pin laranja, núcleo branco com a imagem do local, base oval e raios laterais. O fallback usa a inicial em azul-marinho. Funcionalidade e backend foram preservados; PDFs não foram regenerados.
+### Distância por régua deslizante — 24/11/2026
+
+`/perto_de_voce` agora inicia em 1 km e permite arrastar uma régua até 20 km, exibindo o raio atual. O frontend aguarda 300 ms após o movimento e envia `MaxDistanceKm`; a API aplica o raio exato em metros e mantém `DistanceRange` compatível quando o novo parâmetro não é informado. ESLint, TypeScript, build e testes HTTP de 1/20 km aprovados; 0,5 km retornou 400. Sem migration, banco ou PDF novo.
+### Mais perto de mim e foco no mapa — 24/11/2026
+
+A tela `/perto_de_voce` ganhou uma lista dos cinco eventos ou estabelecimentos com menor distância abaixo de `Carregar mais`. Selecionar um item retorna ao mapa, centraliza seu pin e abre o card inferior já existente. A carga inicial procura os dois tipos em páginas adicionais quando a primeira contém somente um deles, mantendo ordem, raio e paginação da API. ESLint e TypeScript aprovados; sem mudança de backend, banco ou PDF nesta etapa.
+### Estabelecimentos sem evento sediado no mapa — 24/11/2026
+
+`GetNearMe` agora inclui como estabelecimento somente hosts ativos de Gastronomia/Comércio cujo endereço não sedia programação ativa/futura. Eventos permanecem no mapa, e “Mais perto de mim” continua escolhendo os cinco itens de menor distância entre eventos e estabelecimentos independentes. Em teste real de 1 km: 19 eventos e 5 estabelecimentos; build, ESLint e TypeScript aprovados. Sem schema, migration ou PDF novo.
+#### Mapa mais compacto no celular — 24/11/2026
+
+O mapa de `/perto_de_voce` foi restaurado ao fundo OpenStreetMap anterior e teve sua altura reduzida de 455 para 360 pixels. A mudança libera espaço para paginação e a lista dos cinco mais próximos sem alterar pins, card ou consulta. Backend, banco e PDFs preservados.
+
+A altura mobile foi posteriormente reduzida para 285 pixels, mantendo largura, marcadores, controles e comportamento do card selecionado.
+#### Cabeçalho compacto em Perto de você — 24/11/2026
+
+Título, descrição, espaçamentos e botão de localização foram compactados para ocupar menos altura no celular. O rótulo do botão permanece em uma linha. Sem mudança funcional, backend, banco ou PDF.
+
+O refinamento seguinte condensou também os textos e reduziu o padding vertical para 12 pixels, o título para 20 pixels e o botão para 36 pixels de altura mínima. A caixa azul preserva a mesma ação, mas libera mais espaço para o controle de distância e o mapa.
+
+### Frontend conectado aos contratos existentes — 24/11/2026
+
+Comércio agora lista e filtra hosts reais por `HostFilter` e consulta suas programações por `Programming/Filter`. O Painel usa hosts do usuário, perfil, assinatura, resumo, série diária e ranking reais, preservando demonstração identificada quando o plano retorna `403`. Explorar sincroniza favoritos de programação com a conta autenticada, mantém o modo local para visitantes e hosts, e permite consultar/salvar até três preferências de categoria. Nenhuma rota ou contrato de backend foi criada para esta etapa; ESLint e TypeScript aprovados, PDFs preservados.

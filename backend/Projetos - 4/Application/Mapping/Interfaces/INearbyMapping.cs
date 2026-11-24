@@ -5,5 +5,5 @@ public interface INearbyMapping
 {
     NearbyFilter ToModel(NearbyUserFilterDTO dto);
     NearbyFilter ToModel(NearbyDestinationFilterDTO dto);
-    NearbyResponseDTO ToDTO(List<NearbyItem> items, NearbyFilter filter);
+    NearbyResponseDTO ToDTO(List<NearbyItem> items, NearbyFilter filter, int pageSize = 10);
 }

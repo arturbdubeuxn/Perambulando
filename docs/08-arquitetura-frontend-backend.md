@@ -240,6 +240,14 @@ Validações realizadas: estrutura real dos diretórios conferida; solução e p
 
 Validações adicionais em 26/10/2026: `tsc --noEmit` e `expo lint` aprovados; bundle web do Expo Router compilado; `/` e `/cadastro_host` responderam HTTP 200 no servidor local. Em 27/10/2026, a rota `/cadastro_host` foi conferida integralmente em captura responsiva: cabeçalho, marca em Fredoka, pin, paleta, cartões, campos, seleção, botões e aviso final foram renderizados corretamente.
 
+### Comércio reutiliza a página de perfil — 17/11/2026
+
+Os atalhos “Comércio” das barras inferiores do painel, de “Meus eventos” e da criação de evento abrem `/comercio`. Essa rota reutiliza diretamente o componente de `/perfil`, exibindo os mesmos dados cadastrais da conta, plano, estados de autenticação e identidade visual, sem manter uma cópia divergente da tela. Alteração exclusiva do frontend.
+
+### Valores estimados no formulário de host — 17/11/2026
+
+O cadastro e a edição de host exibem `Valor mínimo` e `Valor máximo` após a seleção de Gastronomia ou Comércio. Os campos aceitam valor decimal com até duas casas, validam preenchimento obrigatório e impedem mínimo maior que máximo; para Produtor de eventos, ficam ocultos e o payload envia ambos como nulos. A edição carrega os valores já registrados. Alteração exclusiva do frontend, reutilizando o contrato atual da API.
+
 Pendências intencionais: implementar uma tela completa de login e armazenamento multiplataforma seguro da sessão, configurar a URL definitiva por ambiente, disponibilizar upload de imagens e implementar rascunhos quando existirem contratos correspondentes no backend. A sessão atual usa `sessionStorage` apenas no Expo Web e termina ao fechar a aba. A criação de evento depende de categorias ativas no banco.
 
 ## Integração da criação de evento — 28/10/2026
@@ -343,6 +351,12 @@ A tela apresenta nome, e-mail, perfil de uso, situação da assinatura, data de 
 ## Ordem dos dados empresariais no cadastro — 16/11/2026
 
 Na seção “Dados empresariais” de `/cadastro_host`, o CNPJ passou a ser o primeiro campo. A razão social e o nome fantasia aparecem depois da validação visual do CNPJ, preservando máscaras, consulta automática, preenchimento sugerido, mensagens e regras dos modos de criação e edição. Alteração exclusiva de apresentação no frontend; backend e contratos não foram modificados.
+
+## Painel demonstrativo do host — 16/11/2026
+
+A implementação visual de `PaginaProHost` foi portada para a rota Expo Router `/painel`. A tela apresenta visão geral, períodos ilustrativos, métricas, gráfico, programações em foco, ideias de divulgação, planos propostos, estados demonstrativos de assinatura e modais de simulação. Os números, estabelecimentos, planos, pagamentos e assinaturas mostrados são explicitamente fictícios; nenhuma ação gera cobrança ou grava dados.
+
+O item “Painel” da navegação inferior em criação/edição de evento e em `/meus_eventos` abre a nova rota e recebe o estado visual ativo dentro dela. A adaptação para esta branch também conectou “Meus eventos” à rota existente e o avatar ao perfil já implementado. TypeScript, ESLint dos quatro arquivos envolvidos e `git diff --check` foram aprovados; `/painel` respondeu HTTP 200 em uma instância Expo temporária, encerrada após a verificação. Esta mudança é exclusiva do frontend e não altera contratos nem arquivos do backend.
 Backend, banco, containers, contratos HTTP e PDFs foram preservados.
 
 
@@ -626,3 +640,124 @@ Exemplo .http atualizado, sem mudar DTO, rota, autorização, respostas, classes
 Validações: build --no-restore com saída isolada aprovado com zero erros e nove avisos anteriores. N8nDiCheck.cs/.csproj executou o bloco efetivo de registros TravelChat extraído do Program.cs (sem iniciar o Program/host) e aprovou 38 verificações com HTTP, usuário, catálogo e filtros simulados: resolução/scopes das dependências, fluxo AppService/mappings/cliente, URL completa, timeout 30s, ausência de JWT, categorias reais, redirecionamento bloqueado, logs HTTP suprimidos, configuração inválida virando 503 sem envio e ambos os perfis locais. Primeira compilação do harness tinha conflito de nome na classe de logger; fixture corrigida, sem alteração de produção por esse erro.
 
 node --check em app.js/server.mjs/catalog.mjs aprovado; 107 testes do protótipo aprovados com API simulada, inclusive timeout sobrescrito nos testes. Sem espera real de 30/40/45 segundos, teste HTTP do middleware JWT, banco, n8n/LLM reais ou PDF. Próximo baby step: reiniciar o ambiente pelo usuário e testar uma única chamada autenticada da API com o Webhook ouvindo, conferindo categoria real e retorno combinado antes de avançar.
+
+## Execução integrada em containers — 17/11/2026
+
+O Compose da raiz agora representa o fluxo completo `frontend -> backend -> database`. O navegador acessa o Expo Web em `localhost:8081`; o frontend usa a URL pública `http://localhost:5014` para a API; dentro da rede do Compose, o backend acessa PostgreSQL pelo nome de serviço `database` e porta 5432. A porta 5434 continua sendo apenas a publicação do banco para o Windows.
+
+Backend e frontend possuem Dockerfiles próprios fora do código funcional da API. O backend é publicado em imagem .NET 10 e o frontend inicia o Metro/Expo Web em CI na porta 8081. O banco, seu volume externo e os dados existentes foram preservados. O ambiente do backend no container é Production para impedir a aplicação automática de migrations enquanto os CNPJs duplicados do banco não forem auditados. Isso também significa que o OpenAPI condicionado a Development não é exposto nessa execução.
+
+Validação em 17/11/2026: os três serviços permaneceram ativos, a rota pública de categorias e a página inicial do frontend responderam HTTP 200. Não houve alteração de rota, DTO, regra de negócio, schema, migration ou arquivo da pasta `backend/`; o protótipo externo e os PDFs não foram alterados.
+
+## Padronização visual e navegação do Painel — 17/11/2026
+
+A rota `/painel` foi alinhada às telas de criação de evento e gestão de programações. O shell mobile passou a compartilhar largura, bordas e contenção visual; cabeçalho, espaçamentos, tipografia, cartões, botões e estados pressionados seguem os mesmos valores usados no restante do frontend.
+
+A barra inferior agora reutiliza o comportamento visual das demais páginas: a aba Painel apresenta fundo laranja claro, ícone e rótulo laranja, além de `accessibilityState.selected=true`; o botão central Criar evento permanece azul enquanto outra página está ativa. Meus eventos, Criar evento, perfil e Comércio mantêm navegação pelo Expo Router. Explorar continua somente visual, pois ainda não há rota implementada.
+
+Validações: ESLint em `src` e TypeScript com `--noEmit` aprovados sem erros; imagem Docker do frontend reconstruída; somente o container frontend foi recriado; `GET http://localhost:8081/painel` respondeu HTTP 200. Backend, banco, contratos HTTP, protótipo externo e PDFs foram preservados.
+
+### Distribuição dos benefícios demonstrativos — 17/11/2026
+
+O benefício “Resumo de visitas e cliques” foi retirado do plano gratuito Essencial e passou a ser exibido explicitamente nos planos pagos Impulso e Destaque. A mudança afeta somente a apresentação demonstrativa do frontend; não cria cobrança, assinatura ou regra de autorização no backend.
+
+## Entrada simplificada de data e horário — 17/11/2026
+
+O cartão “Quando e quanto” do cadastro e da edição de programação passou a aplicar máscaras durante a digitação. Datas aceitam no máximo oito algarismos e inserem automaticamente as barras no formato `dd/mm/aaaa` (2 dígitos para dia, 2 para mês e 4 para ano); horários aceitam no máximo quatro algarismos e inserem `:` no formato `HH:mm`.
+
+Cada campo possui um botão integrado. O botão de data usa um ícone próprio de calendário, com cabeçalho e grade de dias nas cores do aplicativo, em vez do símbolo quadrado genérico. Os campos de data expandem um calendário mensal dentro do mesmo cartão, com navegação entre meses e seleção direta do dia; a seleção preenche o campo e recolhe o calendário. Os campos de horário expandem um painel que separa a escolha das 24 horas e dos minutos `00`, `15`, `30` e `45`, com confirmação explícita. Minutos diferentes continuam disponíveis pela digitação mascarada.
+
+Os seletores mantêm os valores textuais já consumidos por `parseLocalDateTime`; payload, formato ISO enviado à API e validações de início futuro/término posterior não mudaram. Os controles expõem estados expandido/selecionado para acessibilidade. ESLint e TypeScript foram aprovados, a imagem do frontend foi reconstruída e a rota de criação respondeu HTTP 200 no Docker. Nenhum arquivo do backend, contrato, banco, protótipo externo ou PDF foi alterado.
+
+## US16 — Explorar programações — 23/11/2026
+
+A nova rota `/explorar` implementa a experiência inicial do usuário comum com o cabeçalho e a paleta vigentes do Perambulando. `GET /api/Category/GetallCategories` alimenta “Qual é a sua vibe?” com até seis categorias ativas registradas no banco; tocar novamente na categoria selecionada remove o filtro. A busca textual e a categoria escolhida são enviadas a `GET /api/Programming/Filter`, com `take=20` e `skip=0`.
+
+Os cards exibem imagem ou fallback da marca, data, preço/gratuidade, endereço e até duas categorias associadas à programação pelo host. Estados de carregamento, ausência de resultados, erro da API e falha de imagem foram tratados. A barra inferior da página segue o fluxo do usuário comum e destaca Explorar; Buscar foca o campo e Perfil abre a rota existente. Os atalhos Explorar das telas de gestão também passaram a abrir a nova rota.
+
+Validações realizadas: ESLint nos quatro arquivos envolvidos, TypeScript com `--noEmit` e `git diff --check`, todos sem erros. A implementação alterou somente o frontend e a documentação; backend, endpoints, contratos, banco, protótipo externo e PDFs foram preservados. Perto de você e Favoritos permanecem visuais/inativos até suas histórias específicas.
+
+## Detalhes da programação e proximidade — 23/11/2026
+
+Os cards de `/explorar` passaram a abrir `/programacao/[programmingId]`. A tela consulta o endpoint público `GET /api/Programming/Details/{id}` e apresenta, na ordem vertical da experiência mobile: imagem e identificação da programação, data e endereço, descrição/categorias, mapa, eventos próximos, host responsável e ação de ingresso. Compartilhamento, favorito e interações reutilizam os contratos existentes; favorito e consulta de proximidade dependem do JWT da sessão.
+
+Como o `AddressDetailsDTO` atual não expõe as coordenadas persistidas, o mapa do frontend geocodifica os dados registrados pelo host, guarda o resultado na sessão e exibe um mapa interativo do OpenStreetMap com marcador. Para evitar falha por complemento ou bairro divergente, a resolução tenta progressivamente logradouro/número/cidade/CEP, CEP, logradouro/número/cidade e logradouro/cidade, respeitando intervalo entre tentativas e sem recuar para o centro genérico da cidade. Também é disponibilizado um link de pesquisa direta no Google Maps. Falha ou ausência de correspondência possui estado explícito; nenhuma chave de geocodificação do backend é enviada ao navegador.
+
+`GET /api/Nearby/GetNearProgramming/{programmingId}` continua sendo a fonte de verdade para proximidade. A action agora é pública e retorna somente as cinco programações ativas/futuras mais próximas, sem limite máximo de distância, preservando a ordem por `DistanceMeters` calculada pelo PostGIS. O frontend busca os detalhes públicos desses eventos para apresentar categoria. Um evento distante continua visível enquanto não existirem cinco alternativas mais próximas.
+
+Validações: ESLint nos dois arquivos da jornada e TypeScript com `--noEmit` aprovados. Nenhum arquivo de backend, contrato, banco, protótipo externo ou PDF foi alterado. A correspondência visual do mapa depende da qualidade do endereço cadastrado e do serviço cartográfico; expor diretamente a coordenada persistida exigiria futura ampliação do DTO no backend, fora do escopo desta entrega.
+
+## Localização do usuário e Perto de você — 23/11/2026
+
+Criada a rota `/perto_de_voce`, acessível pela aba correspondente de Explorar e dos detalhes da programação. A permissão de localização somente é solicitada após a ação explícita “Usar minha localização”. O módulo `expo-location` atende Web, Android e iOS; o `app.json` declara a explicação exibida pelo sistema para o acesso durante o uso.
+
+Depois da permissão, latitude e longitude atuais são enviadas somente como query string autenticada para `GET /api/Nearby/GetNearMe`. A tela permite as quatro faixas já aceitas pelo backend (até 2 km, 2–5 km, 5–10 km e 10–20 km), conserva a ordenação por `DistanceMeters`, pagina de dez em dez e diferencia programações de estabelecimentos. Programções abrem seus detalhes; o contrato atual não fornece uma rota de detalhe de host ao item de proximidade, portanto o card de estabelecimento permanece informativo.
+
+Foram tratados: sessão ausente, serviço de localização desligado, permissão recusada, consulta em andamento, lista vazia e falha da API. As coordenadas não são gravadas no armazenamento do navegador pelo frontend. A área “Eventos próximos” dentro de uma programação continua usando a coordenada do próprio evento, conforme seu objetivo distinto.
+
+Validações: ESLint e TypeScript aprovados. Nenhum arquivo do backend, banco, endpoint ou PDF foi alterado. Na Web em produção, o navegador exige contexto seguro HTTPS para liberar geolocalização; `localhost` continua apropriado para desenvolvimento.
+
+## Estabelecimentos na página Explorar — 23/11/2026
+
+`/explorar` passou a consultar publicamente `GET /api/Host/HostFilter?Types=1&Types=2&City=Recife&Take=100&Skip=0` e exibir Gastronomia e Comércio em uma lista horizontal com imagem, tipo, nome e endereço. O limite 100 evita ocultar os oito hosts demonstrativos quando coexistirem com cadastros anteriores; a API retornou 13 no ambiente atual. Produtores continuam representados por suas programações, conforme a regra existente do filtro de hosts.
+
+O endpoint `HostFilter` foi tornado anônimo somente para essa leitura de descoberta. Operações de gestão continuam protegidas. ESLint, TypeScript, build isolado e consulta HTTP 200 foram aprovados. PDFs preservados.
+
+## Favoritos anônimos em Explorar — 23/11/2026
+
+Os cards de programação e de estabelecimento em `/explorar` passaram a exibir o mesmo controle de favorito. O coração é apenas contornado quando o item não está salvo e fica preenchido em vermelho após o toque; tocar novamente remove o item. A ação interrompe a propagação do card, portanto favoritar uma programação não abre seus detalhes acidentalmente.
+
+Esta etapa atende também visitantes sem login. As chaves `programming:{id}` e `host:{id}` são preservadas no armazenamento local do navegador em `perambulando.exploreFavorites`, sem enviar dados pessoais ou exigir JWT. Quando ao menos um dos itens salvos ainda existe nas listagens públicas carregadas, a página apresenta a seção horizontal “Seus favoritos”. A aba Favoritos da barra inferior rola a tela até essa seção; ao remover o último item, a seção volta a ficar oculta.
+
+A persistência anônima é local ao navegador/dispositivo e não sincroniza favoritos entre dispositivos ou com a conta autenticada. Essa sincronização poderá reutilizar posteriormente os endpoints autenticados de favoritos, mas não foi presumida nesta entrega. ESLint e TypeScript com `--noEmit` foram aprovados. Nenhum arquivo do backend, endpoint, contrato, banco, protótipo externo ou PDF foi alterado por esta funcionalidade.
+## Mapa de proximidade público — 24/11/2026
+
+A rota `/perto_de_voce` deixou de substituir os resultados por uma lista vertical e agora apresenta um mapa OpenStreetMap/Leaflet com a posição autorizada do dispositivo e os resultados retornados por `Nearby/GetNearMe`. Cada resultado recebe um marcador com sua imagem pública acima do pino; quando não existe imagem, usa a inicial do nome. O enquadramento inclui o usuário e os itens carregados.
+
+Ao selecionar um marcador, o iframe envia somente a chave pública do item ao componente React. Um cartão sobreposto no canto inferior do mapa apresenta imagem, tipo, nome, descrição, endereço e distância. O botão `×` fecha o cartão e devolve a área completa ao mapa; programações oferecem acesso à tela de detalhes. A paginação continua permitindo adicionar resultados ao mapa.
+
+O frontend solicita a localização somente após a ação explícita do visitante. `Authorization` é enviado quando existe JWT na sessão e omitido caso contrário. A API tornou apenas `GetNearMe` anônimo e ampliou seu item de resposta com descrição/endereço; banco, migrations, CORS e `Program.cs` foram preservados. O mapa interativo implementado atende o alvo Expo Web atual; fora da Web, a tela informa a indisponibilidade do mapa até a adoção de um componente cartográfico nativo.
+
+Validações: build isolado do backend aprovado sem erros (23 avisos anteriores), ESLint e TypeScript aprovados. Uma instância isolada em Production, sem migrations, respondeu HTTP 200 sem JWT e retornou dez itens reais com os novos campos. O protótipo externo configurado em `C:/Users/Artur/Documents/ChatGPT/Perambulando/prototipo-api` não existe nesta máquina; PDFs não foram regenerados.
+### Marcador alinhado à marca Perambulando — 24/11/2026
+
+O marcador dos resultados do mapa passou a reproduzir a linguagem visual da marca: corpo de pin em degradê laranja, aro branco, ponta inferior, base oval e três raios laterais. A imagem do evento ou estabelecimento ocupa o núcleo circular do pin; na ausência de imagem, permanece o fallback com a inicial em azul-marinho. Interação, coordenadas, card inferior e contrato da API foram preservados. Mudança somente no frontend; backend, banco e PDFs não foram alterados nesta etapa.
+## Controle deslizante de distância — 24/11/2026
+
+Os quatro botões fixos de distância em `/perto_de_voce` foram substituídos por uma régua deslizante semelhante a um controle de volume. O valor inicial é 1 km, o limite é 20 km e o valor corrente fica visível em uma etiqueta. Na Web, o controle aceita arraste, toque e teclado; no fallback nativo atual, botões de menos/mais percorrem os mesmos valores.
+
+Após 300 ms sem nova movimentação, o frontend consulta `GetNearMe` com `MaxDistanceKm`, reduzindo chamadas enquanto o visitante arrasta. O mapa e os marcadores são substituídos somente pela resposta mais recente do controle. O backend converte o valor para metros e aplica o raio de zero até o limite escolhido; `DistanceRange` foi preservado como fallback compatível. Sem alteração de banco, migration, CORS ou `Program.cs`.
+
+Validações: ESLint e TypeScript aprovados; build isolado do backend aprovado sem erros e com 23 avisos anteriores. Teste HTTP sem JWT aprovou 1 km e 20 km com status 200 e rejeitou 0,5 km com status 400. A instância isolada foi encerrada; PDFs não foram regenerados.
+## Cinco resultados mais perto de mim — 24/11/2026
+
+Abaixo da paginação do mapa, `/perto_de_voce` passou a exibir “Mais perto de mim” com até cinco resultados, independentemente de serem programações ou estabelecimentos. A lista conserva a ordenação crescente por `distanceMeters` e apresenta posição, imagem/fallback, tipo, nome e distância.
+
+Ao tocar em um item, a tela rola de volta para a seção do mapa, o Leaflet centraliza e aproxima o marcador correspondente e o mesmo card inferior de detalhes é aberto. A seleção usa a chave composta por tipo e ID, evitando colisão entre um host e uma programação com o mesmo número.
+
+A primeira carga continua paginada, mas, quando a página inicial possui somente um tipo, o frontend busca páginas adicionais até encontrar programações e estabelecimentos disponíveis no raio, atingir o fim ou acumular cinquenta itens. Os itens permanecem ordenados pela API e `Carregar mais` continua disponível quando ainda houver resultados. Assim o mapa representa ambos os tipos sem alterar o repository, o contrato ou a regra espacial. ESLint e TypeScript aprovados; backend, banco, migrations e PDFs não foram alterados nesta etapa.
+## Correção dos estabelecimentos no mapa — 24/11/2026
+
+O mapa e “Mais perto de mim” continuam consumindo um único resultado misto e ordenado. A origem dos itens de tipo `Host` foi refinada no repository: somente estabelecimentos de Gastronomia/Comércio sem programação ativa/futura sediada no mesmo `AddressId` são unidos às programações. Isso evita duplicar um local como estabelecimento e evento, sem esconder uma sede quando seu responsável promove evento em outro endereço.
+
+Build isolado do backend, ESLint e TypeScript aprovados. Teste HTTP real sem JWT em 1 km retornou 19 programações e 5 estabelecimentos independentes; a instância isolada foi encerrada. Sem migration, mudança de schema ou PDF.
+### Altura compacta do mapa mobile — 24/11/2026
+
+O mapa de `/perto_de_voce` voltou à camada padrão do OpenStreetMap existente antes das tentativas de remoção de símbolos e customização de paleta. Somente a altura do quadro foi reduzida de 455 para 360 pixels, liberando espaço vertical para `Carregar mais` e `Mais perto de mim` em telas de celular. Pins, card inferior, zoom, foco, consulta e backend foram preservados. ESLint e TypeScript aprovados; PDFs não foram regenerados.
+
+No ajuste mobile seguinte, a altura foi reduzida novamente, de 360 para 285 pixels. A alteração afeta somente o quadro visual; controles do Leaflet, marcadores e seleção continuam dentro da mesma área responsiva.
+### Cabeçalho de localização compacto — 24/11/2026
+
+O bloco inicial de `/perto_de_voce` teve padding vertical, tamanho/altura de linha do título, descrição e margem do botão reduzidos para liberar espaço em telas de celular. O botão passou de altura mínima 48 para 42 pixels, e seu rótulo é mantido em uma linha. Texto, ação de permissão e estados foram preservados. Mudança somente visual no frontend; backend, banco e PDFs não foram alterados.
+
+Em um segundo ajuste, o conteúdo foi condensado para evitar que título, explicação e chamada do botão quebrem em muitas linhas. O bloco passou a usar 12 pixels de padding vertical, título de 20 pixels e botão de 36 pixels de altura mínima. A finalidade da mensagem e a solicitação de localização permanecem as mesmas.
+
+## Integração dos fluxos restantes do frontend — 24/11/2026
+
+A aba Comércio deixou de reutilizar a tela de perfil e passou a consultar publicamente `GET /api/Host/HostFilter`, com busca por nome e filtros de Gastronomia/Comércio. Ao expandir um estabelecimento, contatos, endereço e faixa estimada são exibidos a partir do contrato existente; `GET /api/Programming/Filter?HostId=...` carrega suas programações, inclusive o estado válido de estabelecimento sem eventos.
+
+O Painel passou a usar o JWT da sessão para carregar `GetAllHostsbyUserId`, `User/Profile`, `Subscription/MySubscription` e, por host/período, `Statistics/Summary`, `Statistics/Daily` e `Statistics/Ranking`. Respostas reais alimentam cards, gráfico e ranking. Um `403` de estatísticas, esperado quando o plano não concede acesso, apresenta explicação e mantém a demonstração explicitamente identificada; falhas de assinatura não impedem a carga dos estabelecimentos. Ativação e cancelamento somente são enviados após a ação do usuário.
+
+Em Explorar, visitantes continuam usando favoritos locais. Com JWT, programações favoritas são sincronizadas por `Favorite/GetAllByUserId`, `Favorite/{id}/Create` e `Favorite/{id}/Delete`; favoritos de estabelecimentos permanecem locais porque o backend não oferece esse contrato. As categorias completas alimentam a nova edição de até três preferências por `GetUserCategoriesPreferences`, `AddCategoryToUser` e `EditCategoryToUser`, enquanto “Qual é a sua vibe?” continua limitada visualmente a seis categorias.
+
+Nenhum controller, DTO, service, banco, migration, CORS ou `Program.cs` foi alterado nesta integração. ESLint e TypeScript foram aprovados; PDFs não foram regenerados.

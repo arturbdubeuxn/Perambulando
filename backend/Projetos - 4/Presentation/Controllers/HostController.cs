@@ -347,7 +347,7 @@ namespace Projetos___4.Presentation.Controllers
 
             return Ok(hostlist);
         }
-        [Authorize]
+        [AllowAnonymous]
         [HttpGet("HostFilter")]
         public async Task<IActionResult> FilterAsync([FromQuery] HostFilterDTO dto)
         {

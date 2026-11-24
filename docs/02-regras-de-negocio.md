@@ -1563,3 +1563,20 @@ NearbyRepository (perto de mim e de host/programação) e HostRepository.FilterA
 
 ### Correção do escopo de programações nas buscas — 16/11/2026
 Esta orientação substitui a restrição de programações por Productor descrita acima: programações podem pertencer a qualquer tipo de host. Removida essa condição de NearbyRepository e ProgrammingRepository.FilterAsync, preservando atividade do host/programação, datas e demais filtros. Hosts como destinos continuam restritos a Gastronomy e Business, antes da paginação. Painel alinhado. Compilação com zero erros e 23 avisos; sintaxe JS e 110 testes simulados do painel aprovados. Sem teste de banco real, migration ou exportação de PDFs.
+
+### Ranking global dos cinco eventos mais próximos — 23/11/2026
+
+Na consulta por programação de origem, o raio fixo de 2 km e a união com hosts foram removidos. Participam somente outras programações ativas, ainda não encerradas, pertencentes a host ativo e com `Location` válida. A distância geográfica até a programação de origem é calculada no PostgreSQL/PostGIS; a ordenação usa distância crescente e ID como desempate. A API entrega cinco itens por página. Não há corte máximo: se existir somente uma alternativa, ela é retornada independentemente da distância; novos cadastros mais próximos deslocam naturalmente os mais distantes para fora das cinco primeiras posições.
+## Descoberta pública por proximidade — 24/11/2026
+
+A descoberta “Perto de você” pode ser usada sem login depois de o visitante autorizar a localização do dispositivo. As coordenadas são usadas como origem da consulta e não são persistidas pelo frontend. Uma sessão existente conserva o envio do JWT, mas a ausência dele não impede a leitura do catálogo público.
+
+Continuam valendo as quatro faixas de distância, a ordenação crescente pela distância PostGIS, a paginação e os filtros de disponibilidade: somente hosts ativos de Gastronomia/Comércio com coordenadas e programações ativas, futuras e vinculadas a host ativo podem aparecer. A abertura pública não autoriza criação, edição, exclusão ou consulta de dados privados.
+## Raio contínuo de proximidade — 24/11/2026
+
+Na jornada “Perto de você”, o visitante escolhe um raio inteiro de 1 a 20 km. A consulta inclui somente resultados cuja distância PostGIS até a localização autorizada seja menor ou igual ao raio escolhido e preserva a ordenação dos mais próximos primeiro. Valores abaixo de 1, acima de 20 ou não finitos são rejeitados. As quatro faixas anteriores continuam disponíveis apenas para compatibilidade do contrato quando o novo raio não é enviado.
+## Estabelecimento independente no mapa de proximidade — 24/11/2026
+
+Em `GetNearMe`, programações ativas/futuras continuam aparecendo normalmente. Um host ativo de Gastronomia ou Comércio aparece como estabelecimento somente quando seu endereço não está sediando uma programação ativa/futura. A comparação usa `AddressId`, e não apenas o proprietário: criar uma programação em outro endereço não oculta a sede do estabelecimento, enquanto uma programação de outro produtor no mesmo endereço evita o marcador duplicado.
+
+A seção “Mais perto de mim” continua selecionando os cinco menores `DistanceMeters` do resultado misto final. Portanto os cinco podem ser todos eventos, todos estabelecimentos independentes ou qualquer combinação entre os dois, conforme a localização real.

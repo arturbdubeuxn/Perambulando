@@ -1411,8 +1411,18 @@ NearbyMapping e INearbyMapping passam a oferecer ToModel(NearbyDestinationFilter
 ### Correção de validação Nearby — 16/11/2026
 O EnumDataType de NearbyUserFilterDTO.DistanceRange apontava para a classe NearbyFilter e provocava InvalidOperationException na validação MVC. Corrigido para NearbyFilter.NearbyDistanceRange. Verificados os valores 0, 1, 2 e 3 (aceitos), -1 e 4 (rejeitados) usando Validator.TryValidateObject nos arquivos reais de DTO/model; compilação aprovada com zero erros e 23 avisos. Sem mudança no contrato HTTP, formulário, banco ou PDFs. API em execução deve ser recompilada/reiniciada para carregar a correção.
 
+### PageSize da proximidade por programação — 23/11/2026
+
+`NearbyResponseDTO` não ganhou nem perdeu propriedades. `NearbyMapping.ToDTO` passou a receber o tamanho da página, preservando o padrão 10 para `GetNearMe`/`GetNearHost` e usando 5 para `GetNearProgramming`. `Items`, `Skip`, `PageSize` e `HasMore` mantêm tipos e significado; todos os itens desta última action possuem `Type = "Programming"`.
+
 ### Sincronização das paradas no painel — 16/11/2026
 Corrigido fluxo em que selecionar hosts/programações apenas guardava escolhas no compositor e deixava roadmapProgrammingDTO vazio até clicar Preparar cadastro. A seleção agora sincroniza automaticamente o DTO de criação, incluindo IDs, ordem e horários UTC; inclusão, remoção e reordenação atualizam o formulário. Nome preenchido é preservado. Horários ausentes ficam explícitos como null no rascunho e bloqueiam envio pelo formulário guiado, solicitando preenchimento. Editor JSON manual continua disponível para testes. Sem gravação automática, mudança de contrato, banco ou PDFs. Removido também bloco de geolocalização duplicado na inicialização do rascunho, preservando o botão no formulário. Sintaxe JS aprovada e 110 testes com API simulada passaram, incluindo seleção de host/programação, horário, reordenação, remoção, preservação do nome e payload enviado; sem alteração de dados reais.
 
 ### Campos de horários das paradas — 16/11/2026
 O compositor de paradas aparece dentro do formulário de criação do roteiro quando há opções selecionadas. Cada parada exibe Data e horário de início e Data e horário de fim, em datetime-local, com preenchimento obrigatório no fluxo guiado e atualização automática do DTO a cada edição. Estilos de largura fluida para mobile. API e banco sem alterações. Sintaxe JavaScript e 110 testes simulados aprovados; inspeção visual em navegador não executada nesta alteração. PDFs preservados.
+## Complemento do item de proximidade — 24/11/2026
+
+`NearbyItemResponseDTO` acrescentou dois campos textuais de saída: `Description`, com a descrição pública do host ou da programação, e `Address`, montado a partir de logradouro, número, bairro e cidade do endereço vinculado. Os campos anteriores `Id`, `Type`, `Name`, `ImageUrl`, `DistanceMeters`, `Latitude` e `Longitude` foram preservados. DTOs de entrada, validações e schema do banco não mudaram.
+## Distância máxima no filtro do usuário — 24/11/2026
+
+`NearbyUserFilterDTO` acrescentou `MaxDistanceKm` (`double?`) com validação de 1 a 20. O campo é opcional para manter compatibilidade com `DistanceRange`; quando presente, tem precedência sobre a faixa enumerada. Nenhum DTO de destino, entidade persistida ou schema foi alterado.

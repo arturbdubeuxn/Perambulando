@@ -31,6 +31,11 @@ public class NearbyValidations : INearbyValidations
         {
             throw new ArgumentException("Informe uma faixa válida e Skip maior ou igual a zero.");
         }
+        if (filter.MaxDistanceKm.HasValue &&
+            (!double.IsFinite(filter.MaxDistanceKm.Value) || filter.MaxDistanceKm < 1 || filter.MaxDistanceKm > 20))
+        {
+            throw new ArgumentException("Informe uma distância máxima entre 1 e 20 km.");
+        }
     }
     public void ValidateDestination(int id, int skip)
     {

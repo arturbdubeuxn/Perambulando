@@ -19,18 +19,11 @@ public class NearbyController : ControllerBase
         _userManager = userManager;
     }    
     [HttpGet("GetNearMe")]
-    [Authorize]
+    [AllowAnonymous]
     public async Task<IActionResult> GetNearMe([FromQuery] NearbyUserFilterDTO dto)
     {
         try
         {
-            var userId = _userManager.GetUserId(User);
-
-            if (string.IsNullOrWhiteSpace(userId))
-            {
-                return Problem(statusCode: StatusCodes.Status401Unauthorized,
-                    title: "Usuário não autenticado");
-            }
             return Ok(await _nearbyAppService.GetNearMeAsync(dto));
         }
         catch (ArgumentException ex)
@@ -51,18 +44,11 @@ public class NearbyController : ControllerBase
         }
     }   
     [HttpGet("GetNearProgramming/{programmingId:int}")]
-    [Authorize]
+    [AllowAnonymous]
     public async Task<IActionResult> GetNearProgramming([FromRoute] int programmingId, [FromQuery] NearbyDestinationFilterDTO dto)
     {
         try
         {
-            var userId = _userManager.GetUserId(User);
-
-            if (string.IsNullOrWhiteSpace(userId))
-            {
-                return Problem(statusCode: StatusCodes.Status401Unauthorized,
-                    title: "Usuário não autenticado");
-            }
             return Ok(await _nearbyAppService.GetNearProgrammingAsync(programmingId, dto));
         }
         catch (ArgumentException ex)

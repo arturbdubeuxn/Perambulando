@@ -22,7 +22,7 @@ public class NearbyAppService : INearbyAppService
     {
         var filter = _nearbyMapping.ToModel(dto);
         var result = await _nearbyService.GetNearProgrammingAsync(programmingId, filter);
-        return _nearbyMapping.ToDTO(result, filter);
+        return _nearbyMapping.ToDTO(result, filter, 5);
     }
     public async Task<NearbyResponseDTO> GetNearHostAsync(int hostId, NearbyDestinationFilterDTO dto)
     {

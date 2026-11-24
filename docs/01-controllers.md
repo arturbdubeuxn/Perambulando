@@ -1422,8 +1422,28 @@ DTOs/modelos de consulta não persistidos; nenhum filtro anterior alterado, nenh
 ### Localização no painel — 16/11/2026
 Formulário Nearby/GetNearMe pergunta se o usuário deseja compartilhar a localização. O botão solicita permissão ao navegador e preenche latitude/longitude, reiniciando skip em zero. Não envia a busca automaticamente. Negação, indisponibilidade e timeout mantêm preenchimento manual. Labels adaptados aos nomes GetNearMe/GetNearHost/GetNearProgramming. Contratos e banco sem alterações. Verificação de sintaxe JS e 109 testes com API/geolocalização simuladas aprovados; sem coleta de localização real. PDFs preservados.
 
+### Cinco programações mais próximas de uma programação — 23/11/2026
+
+`GET /api/Nearby/GetNearProgramming/{programmingId}?skip=0` passou a ser público (`AllowAnonymous`) e retorna somente programações, excluindo a programação de origem. A resposta mantém `NearbyResponseDTO`, agora com `pageSize=5` nessa action. Não existe limite máximo de distância: todas as programações ativas, futuras, com host ativo e coordenada válida podem concorrer, ordenadas por `DistanceMeters` e ID. Assim, um único resultado distante continua sendo retornado; ele deixa o primeiro conjunto somente quando cinco resultados mais próximos o antecederem. `GetNearMe` e `GetNearHost` continuam autenticados e com suas regras anteriores.
+
+Compilação aprovada com zero erros e 23 avisos preexistentes. Consulta SQL somente leitura equivalente, executada no PostgreSQL real para a programação 1, retornou as programações 4 e 3 em ordem crescente, a 226,3 m e 601,8 m. A consulta não contém `ST_DWithin` ou outro corte máximo. O teste HTTP temporário foi impedido por chaves locais de Data Protection incompatíveis com o processo isolado; nenhuma gravação de negócio foi executada e nenhuma migration foi aplicada. O caminho configurado para o protótipo externo não existe neste ambiente, portanto sua sincronização permanece pendente. PDFs preservados.
+
+### Listagem pública de estabelecimentos em Explorar — 23/11/2026
+
+`GET /api/Host/HostFilter` passou de autenticado para `AllowAnonymous`, permitindo que a experiência pública de Explorar liste estabelecimentos. Somente a leitura filtrada foi aberta; detalhes, criação, edição, fotos, gestão e listagem por proprietário mantêm suas autorizações anteriores. A rota, o DTO e as regras do filtro não mudaram.
+
+Validação HTTP anônima retornou 200 e 13 hosts ativos de Gastronomia/Comércio em Recife com `Take=100`, incluindo os oito estabelecimentos demonstrativos. Build isolado aprovado sem erros; o build convencional não pôde sobrescrever o executável porque `dotnet watch` estava ativo, não por erro de compilação.
+
 ### Tipos de destinos nas buscas — 16/11/2026
 NearbyRepository (perto de mim e de host/programação) e HostRepository.FilterAsync retornam hosts somente Gastronomy ou Business. ProgrammingRepository.FilterAsync e resultados de programações do Nearby retornam somente programações de hosts Productor (eventos). Restrições aplicadas na query antes de ordenar/paginar; selecionar exclusivamente Productor no filtro de hosts retorna vazio. TravelChat reutiliza FilterAsync e recebe a mesma regra. Cadastros, detalhes e consultas de gestão não foram alterados. Service mantém validações e orquestração; repository aplica visibilidade dos resultados. Compilação aprovada com zero erros e 23 avisos; teste integrado com banco não executado. Sem migration ou atualização de PDFs.
 
 ### Correção do escopo de programações nas buscas — 16/11/2026
 Esta orientação substitui a restrição de programações por Productor descrita acima: programações podem pertencer a qualquer tipo de host. Removida essa condição de NearbyRepository e ProgrammingRepository.FilterAsync, preservando atividade do host/programação, datas e demais filtros. Hosts como destinos continuam restritos a Gastronomy e Business, antes da paginação. Painel alinhado. Compilação com zero erros e 23 avisos; sintaxe JS e 110 testes simulados do painel aprovados. Sem teste de banco real, migration ou exportação de PDFs.
+## Perto de você público e mapa interativo — 24/11/2026
+
+`GET /api/Nearby/GetNearMe` passou a usar `[AllowAnonymous]`. Latitude, longitude, faixa e paginação continuam obrigatoriamente validadas pelo fluxo existente; a action somente deixou de exigir identidade porque a consulta não lê nem altera dados do usuário. Quando o navegador possui uma sessão, o frontend continua enviando o JWT; sem sessão, omite o cabeçalho e recebe o mesmo catálogo público. `GetNearHost` e as operações de gestão permanecem autenticadas.
+
+O retorno de cada item próximo agora inclui também `description` e `address`, além dos campos anteriores de identidade, tipo, imagem, distância e coordenadas. Isso permite montar o cartão do marcador sem abrir endpoints protegidos ou realizar uma consulta adicional por item. Não houve mudança de verbo, rota, filtros, ordenação ou paginação.
+## Raio deslizante em GetNearMe — 24/11/2026
+
+`GET /api/Nearby/GetNearMe` passou a aceitar opcionalmente `MaxDistanceKm`, entre 1 e 20. Quando informado, o servidor pesquisa do ponto de origem até o raio exato solicitado, sempre com limite inferior zero. Quando ausente, `DistanceRange` continua funcionando como antes, preservando consumidores existentes. Latitude, longitude, `Skip`, ordenação e paginação foram mantidos.

@@ -28,6 +28,11 @@ public class NearbyService : INearbyService
             NearbyFilter.NearbyDistanceRange.From10To20Km => (10000, 20000),
             _ => (0, 2000)
         };
+        if (filter.MaxDistanceKm.HasValue)
+        {
+            min = 0;
+            max = (int)Math.Round(filter.MaxDistanceKm.Value * 1000, MidpointRounding.AwayFromZero);
+        }
         return await _nearbyRepository.GetNearbyAsync(origin, min, max, filter);
     }
     public async Task<List<NearbyItem>> GetNearHostAsync(int hostId, NearbyFilter filter)
@@ -50,7 +55,8 @@ public class NearbyService : INearbyService
             throw new KeyNotFoundException("Programação indisponível.");
         }
         var origin = GetOrigin(programming.Address?.Location);
-        return await _nearbyRepository.GetNearbyAsync(origin, 0, 2000, filter, excludedProgrammingId: programmingId);
+        const int pageSize = 5;
+        return await _nearbyRepository.GetNearestProgrammingsAsync(origin, programmingId, filter.Skip, pageSize + 1);
     }
     private Point GetOrigin(Point? location)
     {

@@ -1,0 +1,16 @@
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+WORKDIR /src
+
+COPY ["backend/Projetos - 4/Projetos - 4.csproj", "backend/Projetos - 4/"]
+RUN dotnet restore "backend/Projetos - 4/Projetos - 4.csproj"
+
+COPY . .
+WORKDIR "/src/backend/Projetos - 4"
+RUN dotnet publish "Projetos - 4.csproj" -c Release -o /app/publish --no-restore /p:UseAppHost=false
+
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
+WORKDIR /app
+EXPOSE 5014
+COPY --from=build /app/publish .
+ENTRYPOINT ["dotnet", "Projetos - 4.dll"]
+
