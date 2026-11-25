@@ -1460,7 +1460,7 @@ export default function CreateEventScreen() {
             <Text style={[styles.activeNavLabel, isEditing && styles.activeNavLabelInactive]}>Criar evento</Text>
           </Pressable>
           <NavItem icon="⊙" label="Explorar" onPress={() => router.push('/explorar' as Href)} />
-          <NavItem icon="▥" label="Comércio" onPress={() => router.push('/comercio' as Href)} />
+          <NavItem icon="▥" label="Comércio" onPress={() => router.push({ pathname: '/comercio', params: { gestao: '1' } } as Href)} />
         </View>
       </View>
     </View>

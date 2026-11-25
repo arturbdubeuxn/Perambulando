@@ -739,3 +739,19 @@ Validação somente leitura em uma instância isolada, usando raio de 1 km a par
 ## Filtro espacial por categorias existentes — 24/11/2026
 
 O filtro opcional de `GetNearMe` reutiliza `ProgrammingXCategories` e `Categories` por `EXISTS`, exigindo categoria ativa e vínculo com qualquer ID selecionado. Nenhuma tabela, coluna, índice, migration ou registro foi criado/alterado. Em teste somente leitura no banco local, a consulta sem categoria retornou dez itens mistos; categoria 1 retornou duas programações; categorias 1 ou 2 retornaram cinco programações; ID -1 foi rejeitado com HTTP 400.
+
+## Carga fictícia Rosarinho — 25/11/2026
+
+Adicionados 75 estabelecimentos e 50 eventos fictícios no banco existente, preservando os dois hosts anteriores (total 77 hosts/50 eventos). Endereços e coordenadas aproximados para testes, com identificação explícita de demonstração. Sem migrations ou alteração de código da API. Contagens, vínculos, datas e reexecução sem duplicatas validados; frontend/API pendentes. Detalhes e script em [relatório da carga](validacoes/seed-rosarinho-2026-11-25.md). PDFs preservados.
+### Imagens da carga fictícia — 25/11/2026
+
+Adicionadas fotos ilustrativas externas aos 75 estabelecimentos e 50 eventos do lote Rosarinho, preservando os registros anteriores. URLs públicas verificadas e contagens 75/50 confirmadas em transação. Sem alteração de API, frontend, schema ou PDFs. Detalhes no [relatório da carga](validacoes/seed-rosarinho-2026-11-25.md); revisão visual pendente.
+## Auditoria de migrations pendentes — 25/11/2026
+
+Branch PaginaGestaoHost comparada ao schema real: 21 migrations aplicadas, oito pendentes. Hosts.MinPrice/MaxPrice ausentes causam HTTP 500 nos detalhes. Atualização também cria assinaturas, interações, horários, roteiros e galerias. Auditoria READ ONLY encontrou 75 CNPJs fictícios incompatíveis com a restrição nova e nenhum CNPJ duplicado normalizado; não apagar registros. Users.isPro será removido pela migration; nenhum valor true encontrado. Nenhuma atualização aplicada. Relatório, efeitos e sequência recomendada: [auditoria do schema](validacoes/auditoria-schema-2026-11-25.md). Backup, revisão SQL e aplicação autorizada pendentes; PDFs preservados.
+## Modelo atual aplicado — 25/11/2026
+
+Após autorização, banco atualizado de 21 para 29 migrations em transação, com backup prévio. Corrigidos somente os 75 CNPJs fictícios para formato normalizado com verificadores; CNPJs dos hosts anteriores preservados. Mantidos 77 hosts/50 eventos, usuários, fotos e vínculos. Criadas as sete tabelas pendentes, preços anuláveis dos hosts e restrições previstas nas migrations; removido Users.isPro conforme a migration (nenhum true existente). Nenhum código ou migration alterado. API reiniciada e detalhes dos 50 eventos validados com HTTP 200/CORS; snapshot EF sem diferenças pendentes. SQL, backup, testes e limites em [atualização executada](validacoes/atualizacao-modelo-2026-11-25.md). Revisão visual e fluxos autenticados pendentes; PDFs preservados.
+## Funcionamento dos estabelecimentos fictícios — 25/11/2026
+
+Preenchidos dias e horários nas tabelas existentes para 50 hosts elegíveis (25 gastronomia/25 comércio), seguindo OpeningHoursService e OpeningHoursValidations. Os 25 produtores e dois hosts anteriores foram preservados. Gravados 350 dias/490 períodos, com intervalos, folgas e fechamento no dia seguinte. Validador real aprovou as 50 semanas; filtros HTTP e reexecução sem duplicatas conferidos. Sem alteração da pasta backend, schema, contratos ou PDFs. Detalhes, perfis e backup em [horários do lote](validacoes/horarios-rosarinho-2026-11-25.md). Revisão visual pendente.

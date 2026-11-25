@@ -79,6 +79,8 @@ type UserProfile = {
   name: string;
 };
 
+type FavoritePreview = { key: string; name: string; imageUrl: string; type: string; address: string } & ({ programmingId: number } | { hostId: number });
+
 type FavoriteResponse = {
   programmingId: number;
 };
@@ -349,21 +351,24 @@ function EventCard({ programming, favorite, onToggleFavorite }: { programming: P
 function HostCard({ host, favorite, onToggleFavorite }: { host: Host; favorite: boolean; onToggleFavorite: () => void }) {
   const [imageFailed, setImageFailed] = useState(false);
   const typeLabel = host.typeofhost === 1 ? 'Gastronomia' : 'Comércio';
+  const openHost = () => router.push({ pathname: '/estabelecimento', params: { hostId: String(host.id), origin: 'explorar' } } as Href);
   return (
     <View style={styles.hostCard}>
       <View style={styles.hostImageFrame}>
+        <Pressable accessibilityRole="button" accessibilityLabel={`Ver estabelecimento ${host.name}`} onPress={openHost}>
         {host.logoUrl && !imageFailed ? (
           <Image onError={() => setImageFailed(true)} resizeMode="cover" source={{ uri: host.logoUrl }} style={styles.hostImage} />
         ) : (
           <View style={styles.hostImageFallback}><Text style={styles.hostImageText}>{host.name.charAt(0).toUpperCase()}</Text></View>
         )}
+        </Pressable>
         <FavoriteButton active={favorite} label={host.name} onPress={onToggleFavorite} />
       </View>
-      <View style={styles.hostCardCopy}>
+      <Pressable accessibilityRole="button" accessibilityLabel={`Detalhes de ${host.name}`} onPress={openHost} style={styles.hostCardCopy}>
         <Text style={styles.hostType}>{typeLabel}</Text>
         <Text numberOfLines={2} style={styles.hostName}>{host.name}</Text>
         <Text numberOfLines={2} style={styles.hostAddress}>⌖ {addressLabel(host.address)}</Text>
-      </View>
+      </Pressable>
     </View>
   );
 }
@@ -391,7 +396,7 @@ function NearbyCard({ item }: { item: NearbyItem }) {
     if (item.type === 'Programming') {
       router.push({ pathname: '/programacao/[programmingId]', params: { programmingId: String(item.id) } } as Href);
     } else {
-      router.push('/comercio' as Href);
+      router.push({ pathname: '/estabelecimento', params: { hostId: String(item.id), origin: 'explorar' } } as Href);
     }
   };
   return (
@@ -686,7 +691,7 @@ export default function ExploreScreen() {
       setPreferenceSaving(false);
     }
   };
-  const favoriteItems = favoriteKeys.flatMap((key) => {
+  const favoriteItems = favoriteKeys.flatMap<FavoritePreview>((key) => {
     const [kind, rawId] = key.split(':');
     const id = Number(rawId);
     if (kind === 'programming') {
@@ -694,7 +699,7 @@ export default function ExploreScreen() {
       return programming ? [{ key, name: programming.name, imageUrl: programming.imageUrl, type: programming.categories[0]?.name ?? 'Programação', address: addressLabel(programming.address), programmingId: programming.id }] : [];
     }
     const host = hosts.find((item) => item.id === id);
-    return host ? [{ key, name: host.name, imageUrl: host.logoUrl, type: host.typeofhost === 1 ? 'Gastronomia' : 'Comércio', address: addressLabel(host.address) }] : [];
+    return host ? [{ key, name: host.name, imageUrl: host.logoUrl, type: host.typeofhost === 1 ? 'Gastronomia' : 'Comércio', address: addressLabel(host.address), hostId: host.id }] : [];
   });
 
   return (
@@ -759,7 +764,7 @@ export default function ExploreScreen() {
                   <FavoriteCard
                     item={item}
                     key={item.key}
-                    onOpen={'programmingId' in item ? () => router.push({ pathname: '/programacao/[programmingId]', params: { programmingId: String(item.programmingId) } } as Href) : undefined}
+                    onOpen={'programmingId' in item ? () => router.push({ pathname: '/programacao/[programmingId]', params: { programmingId: String(item.programmingId) } } as Href) : () => router.push({ pathname: '/estabelecimento', params: { hostId: String(item.hostId), origin: 'favoritos' } } as Href)}
                     onRemove={() => void toggleFavorite(item.key)}
                   />
                 ))}

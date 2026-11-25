@@ -1,9 +1,11 @@
-import { Fredoka_700Bold } from '@expo-google-fonts/fredoka/700Bold';
+﻿import { Fredoka_700Bold } from '@expo-google-fonts/fredoka/700Bold';
 import { useFonts } from 'expo-font';
 import * as Location from 'expo-location';
 import { router, type Href } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { createElement, type ComponentRef, type FormEvent, useCallback, useEffect, useId, useRef, useState } from 'react';
+import { createElement, type ComponentRef, type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import NearbyMap from '../NearbyMap';
+import { loadNearbyPinDetails, resolveNearbyPins, type EnrichedPin, type NearbyPin } from '../nearbyPins';
 import {
   ActivityIndicator,
   Image,
@@ -33,17 +35,7 @@ const accessTokenStorageKey = 'perambulando.accessToken';
 
 type StorageLike = { getItem: (key: string) => string | null };
 type Coordinates = { latitude: number; longitude: number };
-type NearbyItem = {
-  id: number;
-  type: 'Host' | 'Programming';
-  name: string;
-  description: string;
-  address: string;
-  imageUrl?: string;
-  distanceMeters: number;
-  latitude: number;
-  longitude: number;
-};
+type NearbyItem = NearbyPin;
 type NearbyResponse = { items: NearbyItem[]; skip: number; pageSize: number; hasMore: boolean };
 type UserProfile = { name: string };
 type Category = { id: number; name: string; isActive: boolean };
@@ -100,81 +92,6 @@ function NavItem({ active = false, icon, label, onPress }: { active?: boolean; i
   );
 }
 
-function NearbyMap({ focusKey, origin, items, onSelect }: { focusKey?: string; origin: Coordinates; items: NearbyItem[]; onSelect: (item: NearbyItem) => void }) {
-  const mapId = `nearby-map-${useId()}`;
-
-  useEffect(() => {
-    if (Platform.OS !== 'web') return;
-    const receiveSelection = (event: MessageEvent) => {
-      const data = event.data as { source?: string; mapId?: string; key?: string } | null;
-      if (data?.source !== 'perambulando-nearby-map' || data.mapId !== mapId || !data.key) return;
-      const selected = items.find((item) => `${item.type}-${item.id}` === data.key);
-      if (selected) onSelect(selected);
-    };
-    globalThis.addEventListener('message', receiveSelection);
-    return () => globalThis.removeEventListener('message', receiveSelection);
-  }, [items, mapId, onSelect]);
-
-  if (Platform.OS !== 'web') {
-    return (
-      <View style={styles.nativeMapFallback}>
-        <Text style={styles.nativeMapIcon}>⌖</Text>
-        <Text style={styles.nativeMapText}>O mapa interativo está disponível na versão Web.</Text>
-      </View>
-    );
-  }
-
-  const markerData = JSON.stringify(items.map((item) => ({
-    key: `${item.type}-${item.id}`,
-    name: item.name,
-    imageUrl: item.imageUrl ?? '',
-    latitude: item.latitude,
-    longitude: item.longitude,
-  }))).replace(/</g, '\\u003c');
-  const mapDocument = `<!doctype html>
-<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<style>
-html,body,#map{height:100%;margin:0;background:#e8eee9} .leaflet-control-attribution{font:9px/1.2 Arial,sans-serif}
-.place-marker{position:relative;width:70px;height:88px;filter:drop-shadow(0 6px 5px rgba(0,43,92,.3))}
-.pin-body{position:absolute;top:10px;left:10px;width:50px;height:50px;border:3px solid #ff7a1a;border-radius:50% 50% 50% 0;box-sizing:border-box;background:linear-gradient(145deg,#ff7a1a,#ff4f00);transform:rotate(-45deg)}
-.pin-photo{position:absolute;top:5px;left:5px;width:34px;height:34px;overflow:hidden;border:3px solid #fff;border-radius:50%;box-sizing:border-box;background:#fff;transform:rotate(45deg)}
-.pin-photo img,.pin-photo span{width:100%;height:100%;object-fit:cover}
-.pin-photo span{display:flex;align-items:center;justify-content:center;color:#002b5c;font:800 14px Arial,sans-serif;background:#fff}
-.pin-shadow{position:absolute;left:17px;bottom:5px;width:36px;height:10px;border:4px solid #ff5a0a;border-radius:50%;box-sizing:border-box;opacity:.82}
-.pin-rays{position:absolute;top:0;right:0;width:24px;height:27px}
-.pin-rays i{position:absolute;display:block;width:13px;height:4px;border-radius:4px;background:#ff5a0a;transform-origin:left center}
-.pin-rays i:nth-child(1){left:2px;top:4px;transform:rotate(-66deg)} .pin-rays i:nth-child(2){left:8px;top:10px;transform:rotate(-28deg)} .pin-rays i:nth-child(3){left:10px;top:18px;transform:rotate(6deg)}
-.user-pin{width:18px;height:18px;border:4px solid #fff;border-radius:50%;background:#1976d2;box-shadow:0 2px 8px rgba(0,43,92,.38)}
-</style></head><body><div id="map"></div><script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script><script>
-(function(){
-var items=${markerData}; var mapId=${JSON.stringify(mapId)}; var focusKey=${JSON.stringify(focusKey ?? '')}; var markers={};
-var map=L.map('map',{zoomControl:true}).setView([${origin.latitude},${origin.longitude}],14);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap'}).addTo(map);
-var bounds=L.latLngBounds([[${origin.latitude},${origin.longitude}]]);
-L.marker([${origin.latitude},${origin.longitude}],{icon:L.divIcon({html:'<div class="user-pin"></div>',className:'',iconSize:[26,26],iconAnchor:[13,13]})}).addTo(map).bindTooltip('Sua localização');
-function safe(value){return String(value||'').replace(/[&<>"']/g,function(char){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]})}
-items.forEach(function(item){
-  var visual=item.imageUrl?'<img src="'+safe(item.imageUrl)+'" alt="">':'<span>'+safe(item.name.charAt(0).toUpperCase())+'</span>';
-  var marker='<div class="place-marker"><div class="pin-rays"><i></i><i></i><i></i></div><div class="pin-body"><div class="pin-photo">'+visual+'</div></div><div class="pin-shadow"></div></div>';
-  var icon=L.divIcon({html:marker,className:'',iconSize:[70,88],iconAnchor:[35,82]});
-  var placeMarker=L.marker([item.latitude,item.longitude],{icon:icon,title:item.name}).addTo(map).on('click',function(){parent.postMessage({source:'perambulando-nearby-map',mapId:mapId,key:item.key},'*')});
-  markers[item.key]=placeMarker;
-  bounds.extend([item.latitude,item.longitude]);
-});
-if(items.length){map.fitBounds(bounds,{padding:[45,45],maxZoom:16})}
-if(focusKey&&markers[focusKey]){var focusedMarker=markers[focusKey];setTimeout(function(){map.flyTo(focusedMarker.getLatLng(),17,{duration:.65});focusedMarker.setZIndexOffset(1000)},180)}
-})();
-</script></body></html>`;
-
-  return createElement('iframe', {
-    srcDoc: mapDocument,
-    title: 'Mapa dos locais mais próximos',
-    sandbox: 'allow-scripts',
-    style: { width: '100%', height: '100%', border: 0 },
-  });
-}
-
 export default function NearMeScreen() {
   const { width: viewportWidth } = useWindowDimensions();
   const [fontsLoaded] = useFonts({ Fredoka_700Bold });
@@ -186,7 +103,8 @@ export default function NearMeScreen() {
   const [distanceKm, setDistanceKm] = useState(1);
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<number[]>([]);
-  const [items, setItems] = useState<NearbyItem[]>([]);
+  const [items, setItems] = useState<EnrichedPin[]>([]);
+  const [now, setNow] = useState(Date.now);
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [selectedItem, setSelectedItem] = useState<NearbyItem | null>(null);
@@ -217,8 +135,9 @@ export default function NearMeScreen() {
       combined.push(...response.items);
       availableTypes = new Set(combined.map((item) => item.type));
     }
-    return { ...response, items: combined };
-  }, [loadNearby, selectedCategoryIds.length]);
+    const enriched = await loadNearbyPinDetails(combined, <T,>(path: string) => requestJson<T>(path, token));
+    return { ...response, items: enriched };
+  }, [loadNearby, selectedCategoryIds.length, token]);
 
   const requestLocation = useCallback(async () => {
     setState('locating');
@@ -317,7 +236,8 @@ export default function NearMeScreen() {
     setLoadingMore(true);
     try {
       const response = await loadNearby(coordinates, distanceKm, items.length);
-      setItems((current) => [...current, ...response.items]);
+      const enriched = await loadNearbyPinDetails(response.items, <T,>(path: string) => requestJson<T>(path, token));
+      setItems((current) => [...current, ...enriched]);
       setHasMore(response.hasMore);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Não foi possível carregar mais resultados.');
@@ -329,6 +249,8 @@ export default function NearMeScreen() {
   const openItem = (item: NearbyItem) => {
     if (item.type === 'Programming') {
       router.push({ pathname: '/programacao/[programmingId]', params: { programmingId: String(item.id), origin: 'nearby-map' } } as Href);
+    } else {
+      router.push({ pathname: '/estabelecimento', params: { hostId: String(item.id), origin: 'nearby-map' } } as Href);
     }
   };
 
@@ -338,7 +260,22 @@ export default function NearMeScreen() {
     pageScroll.current?.scrollTo({ animated: true, y: Math.max(0, mapSectionY - 12) });
   };
 
-  const nearestItems = [...items].sort((left, right) => left.distanceMeters - right.distanceMeters).slice(0, 5);
+  const mapItems = useMemo(() => resolveNearbyPins(items, now, selectedCategoryIds.length > 0), [items, now, selectedCategoryIds.length]);
+  const nearestItems = mapItems.slice(0, 5);
+
+  useEffect(() => {
+    const boundaries = items.flatMap((item) => item.host?.programmings.flatMap((event) => [Date.parse(event.startDate), Date.parse(event.endDate)]) ?? [])
+      .filter((time) => Number.isFinite(time) && time > now);
+    if (!boundaries.length) {
+      return;
+    }
+    const timer = setTimeout(() => setNow(Date.now()), Math.min(2147483647, Math.max(1, Math.min(...boundaries) - Date.now() + 25)));
+    return () => clearTimeout(timer);
+  }, [items, now]);
+
+  useEffect(() => {
+    setSelectedItem((current) => current ? mapItems.find((item) => item.id === current.id && item.type === current.type) ?? null : null);
+  }, [mapItems]);
 
   const showStateCard = state !== 'ready';
 
@@ -412,21 +349,23 @@ export default function NearMeScreen() {
             {state === 'ready' && coordinates ? (
               <View style={styles.mapArea}>
                 <View style={styles.mapFrame}>
-                  <NearbyMap focusKey={mapFocusKey} items={items} onSelect={setSelectedItem} origin={coordinates} />
+                  <NearbyMap focusKey={mapFocusKey} items={mapItems} onSelect={setSelectedItem} origin={coordinates} />
                   {selectedItem ? (
-                    <Pressable accessibilityHint={selectedItem.type === 'Programming' ? 'Abre os detalhes desta programação' : undefined} accessibilityRole={selectedItem.type === 'Programming' ? 'button' : undefined} onPress={selectedItem.type === 'Programming' ? () => openItem(selectedItem) : undefined} style={styles.selectedCard}>
+                    <View style={styles.selectedCard}>
                       <Pressable accessibilityLabel="Fechar detalhes do local" accessibilityRole="button" onPress={(event) => { event.stopPropagation(); setSelectedItem(null); }} style={styles.closeCardButton}>
                         <Text style={styles.closeCardText}>×</Text>
                       </Pressable>
+                      <Pressable accessibilityRole="button" accessibilityLabel={`Ver ${selectedItem.type === 'Host' ? 'estabelecimento' : 'programação'} ${selectedItem.name}`} onPress={() => openItem(selectedItem)} style={styles.selectedOpen}>
                       {selectedItem.imageUrl ? <Image resizeMode="cover" source={{ uri: selectedItem.imageUrl }} style={styles.selectedImage} /> : <View style={styles.selectedFallback}><Text style={styles.selectedFallbackText}>{selectedItem.name.charAt(0).toUpperCase()}</Text></View>}
                       <View style={styles.selectedCopy}>
                         <Text style={styles.selectedType}>{selectedItem.type === 'Programming' ? 'PROGRAMAÇÃO' : 'ESTABELECIMENTO'} · {formatDistance(selectedItem.distanceMeters)}</Text>
                         <Text numberOfLines={1} style={styles.selectedName}>{selectedItem.name}</Text>
                         <Text numberOfLines={2} style={styles.selectedDescription}>{selectedItem.description || selectedItem.address}</Text>
                         <Text numberOfLines={1} style={styles.selectedAddress}>⌖ {selectedItem.address}</Text>
-                        {selectedItem.type === 'Programming' ? <Pressable accessibilityRole="button" onPress={(event) => { event.stopPropagation(); openItem(selectedItem); }} style={styles.detailsButton}><Text style={styles.detailsButtonText}>Ver programação</Text></Pressable> : null}
+                        <View style={styles.detailsButton}><Text style={styles.detailsButtonText}>{selectedItem.type === 'Programming' ? 'Ver programação' : 'Ver estabelecimento'} ›</Text></View>
                       </View>
-                    </Pressable>
+                      </Pressable>
+                    </View>
                   ) : null}
                 </View>
                 {hasMore ? <Pressable disabled={loadingMore} onPress={loadMore} style={styles.moreButton}>{loadingMore ? <ActivityIndicator color={colors.ink} /> : <Text style={styles.moreButtonText}>Carregar mais</Text>}</Pressable> : null}
@@ -435,7 +374,7 @@ export default function NearMeScreen() {
                   <Text style={styles.nearestSubtitle}>Os cinco eventos ou estabelecimentos com menor distância.</Text>
                   <View style={styles.nearestList}>
                     {nearestItems.map((item, index) => (
-                      <Pressable accessibilityHint="Centraliza o mapa e abre o card deste local" accessibilityRole="button" key={`${item.type}-${item.id}`} onPress={() => focusItemOnMap(item)} style={({ pressed }) => [styles.nearestCard, selectedItem?.id === item.id && selectedItem.type === item.type && styles.nearestCardSelected, pressed && styles.pressed]}>
+                      <Pressable accessibilityHint={item.type === 'Host' ? 'Abre descrição, horários e eventos do estabelecimento' : 'Centraliza o mapa e abre o card deste local'} accessibilityRole="button" key={`${item.type}-${item.id}`} onPress={() => item.type === 'Host' ? openItem(item) : focusItemOnMap(item)} style={({ pressed }) => [styles.nearestCard, selectedItem?.id === item.id && selectedItem.type === item.type && styles.nearestCardSelected, pressed && styles.pressed]}>
                         <View style={styles.nearestPosition}><Text style={styles.nearestPositionText}>{index + 1}</Text></View>
                         {item.imageUrl ? <Image resizeMode="cover" source={{ uri: item.imageUrl }} style={styles.nearestImage} /> : <View style={styles.nearestFallback}><Text style={styles.nearestFallbackText}>{item.name.charAt(0).toUpperCase()}</Text></View>}
                         <View style={styles.nearestCopy}>
@@ -467,6 +406,7 @@ export default function NearMeScreen() {
 }
 
 const styles = StyleSheet.create({
+  selectedOpen: { flex: 1, minWidth: 0, flexDirection: 'row', gap: 11 },
   viewport: { flex: 1, alignItems: 'center', backgroundColor: '#E6DED2' },
   appShell: { flex: 1, maxWidth: 430, minWidth: 0, overflow: 'hidden', backgroundColor: colors.background, borderLeftWidth: 1, borderRightWidth: 1, borderColor: '#DDD8D2' },
   header: { minHeight: 70, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: colors.card, borderBottomWidth: 1, borderBottomColor: colors.line },
@@ -557,3 +497,4 @@ const styles = StyleSheet.create({
   navTextActive: { color: colors.orange, fontWeight: '800' },
   pressed: { opacity: 0.7 },
 });
+

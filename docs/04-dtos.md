@@ -97,7 +97,7 @@ Retornado dentro de `result` após cadastro, com id, addressId e name. O envelop
 
 ## 9. HostDetailsDTO
 
-Saída de GET /api/Host/Details/{hostId}, que exige login.
+Saída de GET /api/Host/Details/{hostId}, público desde 25/11/2026, com JWT opcional. A liberação não modifica o formato do DTO nem permite editar o estabelecimento.
 
 | Campo | Tipo C# |
 |---|---|
@@ -111,7 +111,7 @@ Saída de GET /api/Host/Details/{hostId}, que exige login.
 
 Programmings inicia como lista vazia. O app service preenche programações ativas do host, incluindo número/complemento de cada evento, mas não carrega Categories nesse mapeamento. O DTO interno possui Id como campo público, não como propriedade; ele não é serializado pela configuração JSON padrão atual, portanto a lista continua sem identificador JSON utilizável diretamente.
 
-O DTO não contém UserId, canEdit ou canDelete. Autenticação para consulta não significa propriedade para mutação.
+O DTO não contém UserId, canEdit ou canDelete. A consulta pública não significa propriedade para mutação; as ações de gestão continuam protegidas.
 
 ## 10. ProgrammingDTO — criação e edição (26/10/2026)
 

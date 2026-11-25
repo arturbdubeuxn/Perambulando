@@ -177,7 +177,7 @@ namespace Projetos___4.Presentation.Controllers
             }
         }
 
-        [Authorize]
+        [AllowAnonymous]
         [HttpGet("Details/{hostId:int}")]
         public async Task<IActionResult> Details([FromRoute, Range(1, int.MaxValue)] int hostId)
         {

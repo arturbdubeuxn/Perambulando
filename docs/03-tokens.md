@@ -21,6 +21,8 @@ Login com e-mail/senha
 
 O endpoint de login retorna `accessToken`, `tokenType` (Bearer) e `expiresAt`. O cadastro de host e a edição de usuário também emitem tokens, dentro de `auth` na resposta.
 
+Atualização de 25/11/2026: `GET /api/Host/Details/{hostId}` é público (`AllowAnonymous`). O frontend consulta sem token para visitantes e envia o JWT existente quando há sessão; a consulta não cria uma conta, não emite JWT de visitante nem registra interações por si só. Cadastro, edição, horários de gestão e listagem privada dos próprios hosts mantêm suas autorizações. Validação HTTP em servidor temporário com controller real e serviços/autenticação simulados confirmou detalhes 200/400/404 sem sessão e 401 nas ações protegidas. Banco real não acessado; protótipo externo não localizado nesta máquina.
+
 ## 2. O que existe no JWT
 
 | Claim | Significado |

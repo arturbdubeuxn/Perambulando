@@ -409,7 +409,7 @@ export default function ProgrammingDetailsScreen() {
 
   const openNearby = (item: NearbyItem) => {
     if (item.type === 'Host') {
-      router.push('/comercio' as Href);
+      router.push({ pathname: '/estabelecimento', params: { hostId: String(item.id), origin: 'programacao' } } as Href);
       return;
     }
     void requestJson(`/api/Programming/${programmingId}/Interactions`, {
@@ -460,7 +460,7 @@ export default function ProgrammingDetailsScreen() {
                 )}
                 <View style={styles.heroShade} />
                 <View style={styles.heroActions}>
-                  <Pressable accessibilityLabel={cameFromNearbyMap ? 'Voltar ao ponto selecionado no mapa' : 'Voltar'} onPress={goBack} style={styles.roundAction}><Text style={styles.roundActionText}>‹</Text></Pressable>
+                  <Pressable accessibilityRole="button" accessibilityLabel={cameFromNearbyMap ? 'Voltar ao ponto selecionado no mapa' : 'Voltar'} onPress={goBack} style={styles.roundAction}><Text style={styles.roundActionText}>‹</Text></Pressable>
                   <View style={styles.heroActionsRight}>
                     <Pressable accessibilityLabel="Favoritar" disabled={favoriteBusy} onPress={toggleFavorite} style={styles.roundAction}><Text style={[styles.roundIcon, favorite && styles.favoriteActive]}>{favorite ? '♥' : '♡'}</Text></Pressable>
                     <Pressable accessibilityLabel="Compartilhar" onPress={shareProgramming} style={styles.roundAction}><Text style={styles.roundIcon}>↗</Text></Pressable>
@@ -521,10 +521,10 @@ export default function ProgrammingDetailsScreen() {
 
               <View style={[styles.section, styles.hostSection]}>
                 <Text style={styles.hostEyebrow}>HOST DO EVENTO</Text>
-                <View style={styles.hostCard}>
+                <Pressable accessibilityRole="button" accessibilityLabel={`Ver estabelecimento ${programming.hostName}`} onPress={() => router.push({ pathname: '/estabelecimento', params: { hostId: String(programming.hostId), origin: 'programacao' } } as Href)} style={styles.hostCard}>
                   {programming.hostLogoUrl ? <Image resizeMode="cover" source={{ uri: programming.hostLogoUrl }} style={styles.hostLogo} /> : <View style={styles.hostLogoFallback}><Text style={styles.hostLogoText}>{programming.hostName.charAt(0).toUpperCase()}</Text></View>}
                   <View style={styles.hostCopy}><Text style={styles.hostName}>{programming.hostName}</Text><Text style={styles.hostDescription}>Responsável por esta programação</Text></View>
-                </View>
+                </Pressable>
               </View>
             </ScrollView>
 

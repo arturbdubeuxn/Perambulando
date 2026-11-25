@@ -793,3 +793,27 @@ Correção na mesma data: os detalhes públicos de programação não incluem `i
 Em `/perto_de_voce`, o card flutuante de uma programação passou a abrir seus detalhes tanto pelo card inteiro quanto pelo botão “Ver programação”. A navegação envia `origin=nearby-map` com `router.push`, mantendo a instância do mapa na pilha; assim, o botão voltar dos detalhes recupera o mesmo marcador e card selecionados, raio, categorias e posição de rolagem. Se a página de detalhes for aberta sem histórico de navegação, o fallback usa `/perto_de_voce` quando a origem informada for o mapa e `/explorar` nos demais casos.
 
 Mudança exclusiva do frontend, sem novo endpoint ou alteração de contrato. ESLint e TypeScript foram aprovados; backend, banco, protótipo externo e PDFs foram preservados.
+
+## Execução local — 25/11/2026
+
+Por solicitação do usuário, comandos para somente banco no Docker e API/frontend em dois terminais foram salvos em [rodar-local.md](rodar-local.md). Guia usa o banco existente na porta 5434 e mantém a precaução do Compose atual contra migrations automáticas. Conferência estática e inspeção dos containers realizadas; execução integrada pendente. Nenhum serviço iniciado, configuração do backend ou dado do banco alterado. PDFs preservados.
+## Marcadores de estabelecimentos em azul — 25/11/2026
+
+Implementação: mapa Web em `frontend/src/app/perto_de_voce.tsx` mantém o tipo Host/Programming no payload dos marcadores. Hosts recebem classe host-marker e pin azul (corpo, contorno, raios e base); programações mantêm o pin laranja. Foto e comportamento de seleção/centralização preservados. A localização do usuário continua como círculo azul, distinto do pin de estabelecimento.
+
+Validação: revisão do seletor condicionado a Host realizada; lint e TypeScript aprovados nesta entrega. Conferência visual no navegador pendente. Sem alteração de backend, banco, contratos ou PDFs. O bloqueio de tiles OpenStreetMap mostrado na captura é independente da cor dos marcadores e não foi alterado neste pedido.
+## Formulário de funcionamento do host — 25/11/2026
+
+A tela de cadastro/edição agora inclui semana de funcionamento para gastronomia/comércio, com dias abertos/fechados, intervalos, repetição de segunda para terça–sexta e fechamento no dia seguinte. Criação envia OpeningWeek no HostDTO existente; edição usa GET/PUT OpeningHours com JWT. Oferece salvar somente horários e recuperação de falha parcial sem reenviar dados empresariais. Validação de sete dias e sobreposição semanal, lint, TypeScript, sete testes, build web e cenários no Edge com API simulada aprovados. Nenhum arquivo do backend, banco ou pacote do projeto alterado. Detalhes em [formulário de funcionamento](validacoes/formulario-funcionamento-2026-11-25.md). Teste com conta real pendente; PDFs preservados.
+## Comércio no fluxo de gestão — 25/11/2026
+
+Corrigidas entradas de Comércio em Criar evento, Painel e Meus eventos para `/comercio?gestao=1`, com navbar do host, listagem autorizada dos próprios estabelecimentos e ações de edição/horários e gestão de eventos. Cadastro/edição iniciados ali retornam à mesma gestão. O catálogo público `/comercio` mantém o fluxo de descoberta. Sem fallback público em erros de sessão. Lint, TypeScript, exportação Web e navegação no Edge com API simulada validados; teste real pendente. Detalhes em [fluxo de Comércio do host](validacoes/fluxo-comercio-host-2026-11-25.md). Backend, banco e PDFs preservados.
+## Fundo do mapa sem bloqueio OSM — 25/11/2026
+
+Corrigido o fundo Access blocked/403 do mapa Perto de você: a camada raster foi substituída por OpenFreeMap vetorial com MapLibre integrado ao Leaflet. Preservados isolamento do iframe, pins, cores, fotos e seleção; créditos visíveis e mensagem de falha com nova tentativa. Nenhuma chave de backend exposta. Lint, TypeScript, build web e renderização/recuperação no Edge verificados com API/localização simuladas e mapa real da área visível. Backend e banco preservados. Detalhes e limites em [correção do mapa](validacoes/mapa-403-2026-11-25.md). PDFs preservados.
+
+## Detalhes clicáveis dos estabelecimentos — 25/11/2026
+
+Nova rota `/estabelecimento?hostId={id}` conectada aos cards do mapa, Explorar, Favoritos, Comércio e organizador de programação. Exibe descrição integral, endereço/contato, dias e intervalos de funcionamento e duas faixas horizontais independentes com descrições dos eventos próximos e anteriores. Reutiliza `GET /api/Host/Details/{id}` e o retorno de programações ativas. Preserva retorno ao pin selecionado e contexto de gestão do host. Na revisão autorizada de 25/11/2026, a consulta passou a ser pública: visitante acessa sem token e sessão existente envia JWT opcional. Banco e contratos de dados preservados; gestão continua protegida.
+
+ESLint, TypeScript, dez testes Node, exportação Web e fluxos no Edge com API simulada aprovados, incluindo horários, faixas, abertura/retorno de evento e mapa. Após a liberação pública, lint/TypeScript e fluxos no Edge foram repetidos, incluindo visitante em 320 px. Build backend e sete verificações HTTP isoladas confirmaram acesso público e manutenção das proteções de gestão. Teste integrado com banco real e atualização do protótipo externo (não localizado) pendentes; reinicie a API para carregar a mudança. PDFs preservados. Contratos, implementação e limites em [detalhes dos estabelecimentos](validacoes/estabelecimento-detalhes-2026-11-25.md).

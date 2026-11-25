@@ -173,3 +173,10 @@ O backend usa `ASPNETCORE_ENVIRONMENT=Production` no container para não executa
 As variáveis opcionais `Geoapify__ApiKey`, `N8n__TravelChatWebhookUrl` e `N8n__TravelChatWebhookKey` podem ser fornecidas pelo ambiente do terminal antes do `compose up`. O frontend recebe `EXPO_PUBLIC_API_URL=http://localhost:5014`.
 
 Validações realizadas: configuração do Compose aprovada; imagens de backend e frontend construídas; banco saudável; três serviços ativos; `GET /api/Category/GetallCategories` respondeu HTTP 200 e o frontend respondeu HTTP 200 na porta 8081. Dois containers antigos apareceram como órfãos e um volume legado foi detectado; todos foram mantidos intactos. PDFs não foram regenerados.
+
+## Execução local — 25/11/2026
+
+Por solicitação do usuário, comandos para somente banco no Docker e API/frontend em dois terminais foram salvos em [rodar-local.md](rodar-local.md). Guia usa o banco existente na porta 5434 e mantém a precaução do Compose atual contra migrations automáticas. Conferência estática e inspeção dos containers realizadas; execução integrada pendente. Nenhum serviço iniciado, configuração do backend ou dado do banco alterado. PDFs preservados.
+## Modelo atual aplicado — 25/11/2026
+
+Após autorização, banco atualizado de 21 para 29 migrations em transação, com backup prévio. Corrigidos somente os 75 CNPJs fictícios para formato normalizado com verificadores; CNPJs dos hosts anteriores preservados. Mantidos 77 hosts/50 eventos, usuários, fotos e vínculos. Criadas as sete tabelas pendentes, preços anuláveis dos hosts e restrições previstas nas migrations; removido Users.isPro conforme a migration (nenhum true existente). Nenhum código ou migration alterado. API reiniciada e detalhes dos 50 eventos validados com HTTP 200/CORS; snapshot EF sem diferenças pendentes. SQL, backup, testes e limites em [atualização executada](validacoes/atualizacao-modelo-2026-11-25.md). Revisão visual e fluxos autenticados pendentes; PDFs preservados.

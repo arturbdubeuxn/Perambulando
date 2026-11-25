@@ -30,7 +30,7 @@ Conferido em 19/10/2026 a partir dos controllers, DTOs e serviços salvos do pro
 | User | DELETE | `/api/User` | Autenticado |
 | Host | POST | `/api/Host/Create` | Autenticado |
 | Host | GET | `/api/Host/GetAllHostsbyUserId` | ADMIN ou HOST |
-| Host | GET | `/api/Host/Details/{hostId}` | Autenticado |
+| Host | GET | `/api/Host/Details/{hostId}` | Público; JWT opcional |
 | Host | PUT | `/api/Host/{hostId}/Edit` | ADMIN ou HOST e dono |
 | Host | PATCH | `/api/Host/{hostId}/Delete` | ADMIN ou HOST e dono |
 | Programming | POST | `/api/Programming/{HostId}/Create` | ADMIN ou HOST e dono do host |
@@ -179,7 +179,7 @@ Retorno: `200` com lista de HostResponseDTO, inclusive `[]`. Contém os campos p
 
 ### GET /api/Host/Details/{hostId} — Consultar perfil da empresa
 
-Exige JWT e `hostId` positivo. Sem corpo. Qualquer usuário autenticado pode consultar um host ativo; esta consulta não exige ser o dono.
+Público desde 25/11/2026; exige apenas `hostId` positivo. Sem corpo. Visitantes e usuários autenticados podem consultar um host ativo; JWT é opcional e esta consulta não concede propriedade ou permissão de edição.
 
 Retornos: `200` com `HostDetailsDTO`; `400` para ID não positivo; `404` para host inexistente/inativo.
 
@@ -1217,7 +1217,7 @@ Verificação desta etapa: build sem erros (dez avisos anteriores); 33 verifica�
 
 POST /api/Host/Create e PUT /api/Host/{hostId}/Edit recebem minPrice/maxPrice no HostDTO. Representam gasto estimado por pessoa no estabelecimento, não preço de ingresso da programação. Gastronomy (1) e Business (2) exigem ambos; Productor (0) deve omitir/enviar null. Valores não negativos, até 9999999999,99, com no máximo duas casas decimais e mínimo <= máximo; zero e limites iguais são aceitos. Erros retornam 400 pelos tratamentos de ArgumentException/DataAnnotations existentes. Rotas e autenticação preservadas.
 
-GET /api/Host/Details/{hostId} agora devolve minPrice, maxPrice e openingWeek (hostId e days) junto com as informações/programações do perfil. Days é ordenado e inclui períodos; lista vazia significa agenda não configurada. A autorização do perfil permanece a já existente: exige autenticação. A consulta não passa pela verificação de dono da edição de horários. Não foram criadas novas actions.
+GET /api/Host/Details/{hostId} agora devolve minPrice, maxPrice e openingWeek (hostId e days) junto com as informações/programações do perfil. Days é ordenado e inclui períodos; lista vazia significa agenda não configurada. Atualização em 25/11/2026: consulta pública com JWT opcional. A consulta não passa pela verificação de dono da edição de horários. Não foram criadas novas actions.
 
 HostResponseDTO também devolve os preços (listagem, filtro e edição). Resposta de criação continua 201 com result/auth, sem expansão de HostCreatedDTO; valores/grade podem ser consultados no perfil. Hosts legados sem valores retornam null, não zero. Exemplos .http e protótipo atualizados: campos monetários para comércio/gastronomia, grade e gasto por pessoa no perfil, limpeza de valores nulos ao trocar de host.
 

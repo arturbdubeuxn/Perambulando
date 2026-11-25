@@ -3,6 +3,8 @@ import { useFonts } from 'expo-font';
 import { router, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import HostOpeningHours from '../HostOpeningHours';
+import { emptyOpeningWeek, loadedOpeningDays, openingWeekError, openingWeekPayload, type OpeningDay, type OpeningWeek } from '../openingHours';
 import {
   Image,
   KeyboardAvoidingView,
@@ -170,6 +172,7 @@ type PreparedRegistration = {
     typeofhost: HostType;
     minPrice: number | null;
     maxPrice: number | null;
+    openingWeek?: OpeningWeek;
     address: Omit<AddressDraft, 'state'>;
   };
 };
@@ -382,6 +385,7 @@ export default function HostRegistrationScreen() {
     sourceHostId?: string;
     editarHost?: string;
     hostId?: string;
+    origem?: string;
   }>();
   const { width: viewportWidth } = useWindowDimensions();
   const [fontsLoaded] = useFonts({ Fredoka_700Bold });
@@ -400,6 +404,12 @@ export default function HostRegistrationScreen() {
   const [sourceHostName, setSourceHostName] = useState('');
   const [sourceCnpjInitialized, setSourceCnpjInitialized] = useState(false);
   const [editingHostInitialized, setEditingHostInitialized] = useState(false);
+  const [openingDays, setOpeningDays] = useState<OpeningDay[]>(emptyOpeningWeek);
+  const [openingError, setOpeningError] = useState('');
+  const [openingLoad, setOpeningLoad] = useState<LookupState>({ status: 'idle', message: '' });
+  const [hoursLoadedFor, setHoursLoadedFor] = useState<number | null>(null);
+  const [pendingHoursHost, setPendingHoursHost] = useState<{ id: number; name: string; addressId: number } | null>(null);
+  const submitting = useRef(false);
   const [submission, setSubmission] = useState<SubmissionState>({
     status: 'idle',
     message: '',
@@ -437,6 +447,37 @@ export default function HostRegistrationScreen() {
   const isEditingHost =
     Boolean(existingSessionToken) && params.editarHost === '1' && editingHostId > 0;
   const isAuthenticatedHostFlow = isAddingHostToExistingAccount || isEditingHost;
+  const supportsOpeningHours = hostDraft.typeofhost === 1 || hostDraft.typeofhost === 2;
+  const originalHostType = existingHosts.find((host) => host.id === editingHostId)?.typeofhost;
+  const needsExistingHours = isEditingHost && originalHostType !== 0;
+  const openingUnavailable = supportsOpeningHours && needsExistingHours && hoursLoadedFor !== editingHostId;
+
+  const loadOpeningHours = useCallback((signal?: AbortSignal) => {
+    return apiRequest<OpeningWeek>(`/api/Host/${editingHostId}/OpeningHours`, {
+      signal,
+      headers: { Authorization: `Bearer ${existingSessionToken}` },
+    }).then((week) => {
+      if (signal?.aborted) {
+        return;
+      }
+      setOpeningDays(loadedOpeningDays(week));
+      setHoursLoadedFor(editingHostId);
+      setOpeningLoad({ status: 'success', message: '' });
+    }).catch((error) => {
+      if (signal?.aborted) {
+        return;
+      }
+      setOpeningLoad({ status: 'error', message: error instanceof Error ? error.message : 'Não foi possível carregar o funcionamento.' });
+    });
+  }, [editingHostId, existingSessionToken]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    if (isEditingHost && editingHostInitialized && originalHostType !== 0) {
+      void loadOpeningHours(controller.signal);
+    }
+    return () => controller.abort();
+  }, [isEditingHost, editingHostInitialized, originalHostType, loadOpeningHours]);
 
   useEffect(() => {
     if (!isAuthenticatedHostFlow) {
@@ -855,7 +896,50 @@ export default function HostRegistrationScreen() {
     return prepared;
   };
 
+  const saveOnlyOpeningHours = async () => {
+    const host = pendingHoursHost ?? existingHosts.find((item) => item.id === editingHostId);
+    if (!host || openingUnavailable || submitting.current) {
+      return;
+    }
+    const error = openingWeekError(openingDays);
+    setOpeningError(error);
+    if (error) {
+      return;
+    }
+    submitting.current = true;
+    setSubmission({ status: 'submitting', message: 'Salvando somente o funcionamento...' });
+    try {
+      await apiRequest(`/api/Host/${host.id}/OpeningHours`, {
+        method: 'PUT', headers: { Authorization: `Bearer ${existingSessionToken}` },
+        body: JSON.stringify(openingWeekPayload(openingDays)),
+      });
+      setSubmission({ status: 'success', message: `Funcionamento de ${host.name} salvo.${pendingHoursHost ? ' Os dados do estabelecimento também já foram salvos.' : ' Os demais dados do estabelecimento não foram alterados.'}`, hostId: host.id, addressId: host.addressId });
+      setPendingHoursHost(null);
+    } catch (error) {
+      setSubmission({ status: 'error', message: `${pendingHoursHost ? 'Os dados do estabelecimento já foram salvos. ' : ''}O funcionamento ainda não foi confirmado. ${error instanceof Error ? error.message : 'Tente novamente.'}` });
+    } finally {
+      submitting.current = false;
+    }
+  };
+
   const submitRegistration = async () => {
+    if (submitting.current) {
+      return;
+    }
+    if (openingUnavailable) {
+      setSubmission({ status: 'error', message: 'Carregue o funcionamento atual antes de salvar, para preservar os horários existentes.' });
+      return;
+    }
+    const hoursError = supportsOpeningHours ? openingWeekError(openingDays) : '';
+    setOpeningError(hoursError);
+    if (hoursError) {
+      setSubmission({ status: 'error', message: 'Revise a seção de funcionamento antes de continuar.' });
+      return;
+    }
+    if (pendingHoursHost) {
+      await saveOnlyOpeningHours();
+      return;
+    }
     if (isAuthenticatedHostFlow && !existingHostsLoaded) {
       setSubmission({ status: 'error', message: 'Não foi possível validar os perfis da conta atual.' });
       return;
@@ -867,8 +951,14 @@ export default function HostRegistrationScreen() {
       return;
     }
 
+    if (supportsOpeningHours && !isEditingHost) {
+      prepared.host.openingWeek = openingWeekPayload(openingDays);
+    }
+
+    submitting.current = true;
     setSubmission({ status: 'submitting', message: 'Enviando cadastro...' });
     let accountCreatedDuringAttempt = false;
+    let hostSavedBeforeHours = false;
 
     try {
       let accessToken = existingSessionToken;
@@ -912,9 +1002,18 @@ export default function HostRegistrationScreen() {
           body: JSON.stringify(prepared.host),
         });
         storeWebSession(accessToken, updated.id);
+        if (supportsOpeningHours) {
+          hostSavedBeforeHours = true;
+          setPendingHoursHost({ id: updated.id, name: updated.name, addressId: updated.addressId });
+          await apiRequest(`/api/Host/${updated.id}/OpeningHours`, {
+            method: 'PUT', headers: authorization,
+            body: JSON.stringify(openingWeekPayload(openingDays)),
+          });
+          setPendingHoursHost(null);
+        }
         setSubmission({
           status: 'success',
-          message: `${updated.name} foi atualizado com sucesso.`,
+          message: `${updated.name} foi atualizado com sucesso.${supportsOpeningHours ? ' Funcionamento salvo.' : ''}`,
           hostId: updated.id,
           addressId: updated.addressId,
         });
@@ -936,7 +1035,7 @@ export default function HostRegistrationScreen() {
 
       setSubmission({
         status: 'success',
-        message: `${created.result.name} foi cadastrado com sucesso.`,
+        message: `${created.result.name} foi cadastrado com sucesso.${supportsOpeningHours ? ' Funcionamento salvo.' : ''}`,
         hostId: created.result.id,
         addressId: created.result.addressId,
       });
@@ -947,10 +1046,14 @@ export default function HostRegistrationScreen() {
           : error instanceof Error
             ? error.message
             : 'Não foi possível concluir o cadastro.';
-      const partialMessage = accountCreatedDuringAttempt
+      const partialMessage = hostSavedBeforeHours
+        ? `Os dados do estabelecimento foram salvos, mas o funcionamento ainda não foi confirmado. ${baseMessage}`
+        : accountCreatedDuringAttempt
         ? `A conta foi criada, mas o host não foi gravado. ${baseMessage}`
         : baseMessage;
       setSubmission({ status: 'error', message: partialMessage });
+    } finally {
+      submitting.current = false;
     }
   };
 
@@ -963,7 +1066,7 @@ export default function HostRegistrationScreen() {
           <Pressable
             accessibilityLabel="Voltar"
             accessibilityRole="button"
-            onPress={() => router.replace(isAuthenticatedHostFlow ? '/meus_eventos' : '/')}
+            onPress={() => params.origem === 'comercio' ? router.replace({ pathname: '/comercio', params: { gestao: '1' } }) : router.replace(isAuthenticatedHostFlow ? '/meus_eventos' : '/')}
             style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}
           >
             <Text style={styles.backIcon}>‹</Text>
@@ -1013,6 +1116,7 @@ export default function HostRegistrationScreen() {
               </Text>
             </View>
 
+            <View pointerEvents={pendingHoursHost || submission.status === 'submitting' ? 'none' : 'auto'} style={{ gap: 14, opacity: pendingHoursHost ? 0.55 : 1 }}>
             {isAuthenticatedHostFlow ? (
               <View style={styles.existingAccountNotice}>
                 <Text style={styles.existingAccountNoticeTitle}>
@@ -1321,19 +1425,33 @@ export default function HostRegistrationScreen() {
 
             </View>
 
+            </View>
+
+            {supportsOpeningHours ? <View style={styles.card}>
+              <SectionTitle number={isAuthenticatedHostFlow ? '03' : '04'} title="Funcionamento" description="Quando seu estabelecimento recebe o público" />
+              {pendingHoursHost ? <Text accessibilityRole="alert" style={styles.pendingNoticeText}>Os dados do estabelecimento já foram salvos. Ajuste os horários abaixo e tente salvar somente o funcionamento.</Text> : null}
+              {openingUnavailable ? <View style={{ gap: 10 }}>
+                <Text accessibilityRole={openingLoad.status === 'error' ? 'alert' : undefined} style={styles.pendingNoticeText}>{openingLoad.message || 'Aguardando os horários atuais...'}</Text>
+                {openingLoad.status === 'error' ? <Pressable accessibilityRole="button" onPress={() => { setOpeningLoad({ status: 'loading', message: 'Carregando funcionamento...' }); void loadOpeningHours(); }} style={styles.returnToHostsButton}><Text style={styles.returnToHostsButtonText}>Tentar carregar novamente</Text></Pressable> : null}
+              </View> : <HostOpeningHours days={openingDays} disabled={submission.status === 'submitting'} error={openingError} onChange={(days) => { setOpeningDays(days); setOpeningError(''); if (!pendingHoursHost) { resetValidation(); } }} />}
+              {isEditingHost && originalHostType !== 0 && !pendingHoursHost && !openingUnavailable ? <Pressable accessibilityRole="button" disabled={submission.status === 'submitting'} onPress={() => void saveOnlyOpeningHours()} style={[styles.returnToHostsButton, submission.status === 'submitting' && styles.buttonDisabled]}><Text style={styles.returnToHostsButtonText}>Salvar apenas funcionamento</Text></Pressable> : null}
+            </View> : null}
+
             <Pressable
               accessibilityRole="button"
-              disabled={submission.status === 'submitting'}
+              disabled={submission.status === 'submitting' || openingUnavailable}
               onPress={submitRegistration}
               style={({ pressed }) => [
                 styles.primaryButton,
                 pressed && styles.pressed,
-                submission.status === 'submitting' && styles.buttonDisabled,
+                (submission.status === 'submitting' || openingUnavailable) && styles.buttonDisabled,
               ]}
             >
               <Text style={styles.primaryButtonText}>
                 {submission.status === 'submitting'
                   ? 'Enviando...'
+                  : pendingHoursHost
+                    ? 'Tentar salvar funcionamento'
                   : isEditingHost
                     ? 'Salvar alterações'
                     : 'Cadastrar host'}
@@ -1351,20 +1469,20 @@ export default function HostRegistrationScreen() {
                     {submission.message} ID do host: {submission.hostId}. ID do endereço:{' '}
                     {submission.addressId}.
                   </Text>
-                  {isAuthenticatedHostFlow ? (
+                  {isAuthenticatedHostFlow || params.origem === 'comercio' ? (
                     <Pressable
                       accessibilityRole="button"
-                      onPress={() => router.replace('/meus_eventos')}
+                      onPress={() => params.origem === 'comercio' ? router.replace({ pathname: '/comercio', params: { gestao: '1' } }) : router.replace('/meus_eventos')}
                       style={styles.returnToHostsButton}
                     >
-                      <Text style={styles.returnToHostsButtonText}>Voltar para meus eventos</Text>
+                      <Text style={styles.returnToHostsButtonText}>{params.origem === 'comercio' ? 'Voltar para meus estabelecimentos' : 'Voltar para meus eventos'}</Text>
                     </Pressable>
                   ) : null}
                 </View>
               </View>
             ) : submission.status === 'error' ? (
               <View accessibilityRole="alert" style={styles.errorNotice}>
-                <Text style={styles.errorNoticeTitle}>Cadastro não concluído</Text>
+                <Text style={styles.errorNoticeTitle}>{pendingHoursHost ? 'Funcionamento não confirmado' : isEditingHost ? 'Alterações não concluídas' : 'Cadastro não concluído'}</Text>
                 <Text style={styles.errorNoticeText}>{submission.message}</Text>
               </View>
             ) : (

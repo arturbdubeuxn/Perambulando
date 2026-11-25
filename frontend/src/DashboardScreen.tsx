@@ -177,7 +177,7 @@ export default function DashboardScreen() {
         <View style={styles.card}><Text style={styles.cardTitle}>Benefícios do acesso PRO</Text><Text style={styles.body}>Resumo de visitas e cliques, ranking das programações e evolução diária. A ativação depende da configuração disponibilizada pelo backend.</Text></View>
       </>}
     </ScrollView>
-    <View style={styles.bottomNav}><NavItem active icon="▦" label="Painel" /><NavItem icon="▣" label="Meus eventos" onPress={() => router.push('/meus_eventos')} /><Pressable onPress={() => router.push('/')} style={styles.createNav}><View style={styles.createButton}><Text style={styles.createPlus}>+</Text></View><Text style={styles.createLabel}>Criar evento</Text></Pressable><NavItem icon="⊙" label="Explorar" onPress={() => router.push('/explorar' as Href)} /><NavItem icon="▥" label="Comércio" onPress={() => router.push('/comercio' as Href)} /></View>
+    <View style={styles.bottomNav}><NavItem active icon="▦" label="Painel" /><NavItem icon="▣" label="Meus eventos" onPress={() => router.push('/meus_eventos')} /><Pressable onPress={() => router.push('/')} style={styles.createNav}><View style={styles.createButton}><Text style={styles.createPlus}>+</Text></View><Text style={styles.createLabel}>Criar evento</Text></Pressable><NavItem icon="⊙" label="Explorar" onPress={() => router.push('/explorar' as Href)} /><NavItem icon="▥" label="Comércio" onPress={() => router.push({ pathname: '/comercio', params: { gestao: '1' } } as Href)} /></View>
   </View></View>;
 }
 

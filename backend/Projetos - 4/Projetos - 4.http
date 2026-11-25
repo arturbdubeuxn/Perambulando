@@ -206,12 +206,11 @@ Accept: application/json
 Authorization: Bearer {{createHost.response.body.$.auth.accessToken}}
 
 ### HOST - Consultar o perfil e as programações ativas (200)
-# O controller atual exige autenticação nesta action.
+# Consulta pública; JWT opcional quando houver uma sessão.
 # Execute createHost antes. Antes de criar programações, programmings deve ser [].
 # @name hostDetails
 GET {{Projetos___4_HostAddress}}/api/Host/Details/{{createHost.response.body.$.result.id}}
 Accept: application/json
-Authorization: Bearer {{createHost.response.body.$.auth.accessToken}}
 
 ### HOST - Consultar funcionamento semanal (200; days vazio = ainda não configurado)
 # Exige dono ou ADMIN confirmado pelo servidor; somente gastronomia e comércio.
@@ -401,10 +400,10 @@ Authorization: Bearer {{createHost.response.body.$.auth.accessToken}}
 ### HOST - Conferir programações pelo perfil do host (200)
 # A antiga action /api/Programming/{hostId}/GetAllProgrammingsbyHostId não existe.
 # O perfil do host retorna suas programações no campo programmings.
+# Consulta pública, sem necessidade de JWT.
 # @name hostDetailsAfterProgramming
 GET {{Projetos___4_HostAddress}}/api/Host/Details/{{createHost.response.body.$.result.id}}
 Accept: application/json
-Authorization: Bearer {{createHost.response.body.$.auth.accessToken}}
 
 ### PROGRAMMING - Consultar detalhes públicos (200, sem login)
 # Execute createProgrammingAfterHost antes. Usa o ID da programação criada.

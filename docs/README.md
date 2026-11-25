@@ -1492,3 +1492,38 @@ Correção: programações deixaram de ser descartadas por uma verificação de 
 #### Detalhes com retorno ao ponto do mapa — 24/11/2026
 
 O card de programação selecionado em `/perto_de_voce` agora abre os detalhes pelo card inteiro ou pelo botão. A tela é empilhada sobre o mapa, e voltar recupera marcador, card, filtros, raio e rolagem anteriores; acessos sem histórico possuem fallback coerente com a origem. ESLint e TypeScript aprovados, sem alteração de backend, banco, contrato ou PDF.
+
+## Execução local — 25/11/2026
+
+Por solicitação do usuário, comandos para somente banco no Docker e API/frontend em dois terminais foram salvos em [rodar-local.md](rodar-local.md). Guia usa o banco existente na porta 5434 e mantém a precaução do Compose atual contra migrations automáticas. Conferência estática e inspeção dos containers realizadas; execução integrada pendente. Nenhum serviço iniciado, configuração do backend ou dado do banco alterado. PDFs preservados.
+## Carga fictícia Rosarinho — 25/11/2026
+
+Adicionados 75 estabelecimentos e 50 eventos fictícios no banco existente, preservando os dois hosts anteriores (total 77 hosts/50 eventos). Endereços e coordenadas aproximados para testes, com identificação explícita de demonstração. Sem migrations ou alteração de código da API. Contagens, vínculos, datas e reexecução sem duplicatas validados; frontend/API pendentes. Detalhes e script em [relatório da carga](validacoes/seed-rosarinho-2026-11-25.md). PDFs preservados.
+### Imagens da carga fictícia — 25/11/2026
+
+Adicionadas fotos ilustrativas externas aos 75 estabelecimentos e 50 eventos do lote Rosarinho, preservando os registros anteriores. URLs públicas verificadas e contagens 75/50 confirmadas em transação. Sem alteração de API, frontend, schema ou PDFs. Detalhes no [relatório da carga](validacoes/seed-rosarinho-2026-11-25.md); revisão visual pendente.
+### Pins de estabelecimentos — 25/11/2026
+
+Mapa Perto de você diferencia hosts com pins azuis e eventos com pins laranja, preservando fotos e seleção. Implementação somente no frontend. Registro e limites em [Arquitetura](08-arquitetura-frontend-backend.md). Revisão visual pendente; PDFs preservados.
+## Auditoria de migrations pendentes — 25/11/2026
+
+Branch PaginaGestaoHost comparada ao schema real: 21 migrations aplicadas, oito pendentes. Hosts.MinPrice/MaxPrice ausentes causam HTTP 500 nos detalhes. Atualização também cria assinaturas, interações, horários, roteiros e galerias. Auditoria READ ONLY encontrou 75 CNPJs fictícios incompatíveis com a restrição nova e nenhum CNPJ duplicado normalizado; não apagar registros. Users.isPro será removido pela migration; nenhum valor true encontrado. Nenhuma atualização aplicada. Relatório, efeitos e sequência recomendada: [auditoria do schema](validacoes/auditoria-schema-2026-11-25.md). Backup, revisão SQL e aplicação autorizada pendentes; PDFs preservados.
+## Modelo atual aplicado — 25/11/2026
+
+Após autorização, banco atualizado de 21 para 29 migrations em transação, com backup prévio. Corrigidos somente os 75 CNPJs fictícios para formato normalizado com verificadores; CNPJs dos hosts anteriores preservados. Mantidos 77 hosts/50 eventos, usuários, fotos e vínculos. Criadas as sete tabelas pendentes, preços anuláveis dos hosts e restrições previstas nas migrations; removido Users.isPro conforme a migration (nenhum true existente). Nenhum código ou migration alterado. API reiniciada e detalhes dos 50 eventos validados com HTTP 200/CORS; snapshot EF sem diferenças pendentes. SQL, backup, testes e limites em [atualização executada](validacoes/atualizacao-modelo-2026-11-25.md). Revisão visual e fluxos autenticados pendentes; PDFs preservados.
+## Funcionamento dos estabelecimentos fictícios — 25/11/2026
+
+Preenchidos dias e horários nas tabelas existentes para 50 hosts elegíveis (25 gastronomia/25 comércio), seguindo OpeningHoursService e OpeningHoursValidations. Os 25 produtores e dois hosts anteriores foram preservados. Gravados 350 dias/490 períodos, com intervalos, folgas e fechamento no dia seguinte. Validador real aprovou as 50 semanas; filtros HTTP e reexecução sem duplicatas conferidos. Sem alteração da pasta backend, schema, contratos ou PDFs. Detalhes, perfis e backup em [horários do lote](validacoes/horarios-rosarinho-2026-11-25.md). Revisão visual pendente.
+## Formulário de funcionamento do host — 25/11/2026
+
+A tela de cadastro/edição agora inclui semana de funcionamento para gastronomia/comércio, com dias abertos/fechados, intervalos, repetição de segunda para terça–sexta e fechamento no dia seguinte. Criação envia OpeningWeek no HostDTO existente; edição usa GET/PUT OpeningHours com JWT. Oferece salvar somente horários e recuperação de falha parcial sem reenviar dados empresariais. Validação de sete dias e sobreposição semanal, lint, TypeScript, sete testes, build web e cenários no Edge com API simulada aprovados. Nenhum arquivo do backend, banco ou pacote do projeto alterado. Detalhes em [formulário de funcionamento](validacoes/formulario-funcionamento-2026-11-25.md). Teste com conta real pendente; PDFs preservados.
+## Comércio no fluxo de gestão — 25/11/2026
+
+Corrigidas entradas de Comércio em Criar evento, Painel e Meus eventos para `/comercio?gestao=1`, com navbar do host, listagem autorizada dos próprios estabelecimentos e ações de edição/horários e gestão de eventos. Cadastro/edição iniciados ali retornam à mesma gestão. O catálogo público `/comercio` mantém o fluxo de descoberta. Sem fallback público em erros de sessão. Lint, TypeScript, exportação Web e navegação no Edge com API simulada validados; teste real pendente. Detalhes em [fluxo de Comércio do host](validacoes/fluxo-comercio-host-2026-11-25.md). Backend, banco e PDFs preservados.
+## Fundo do mapa sem bloqueio OSM — 25/11/2026
+
+Corrigido o fundo Access blocked/403 do mapa Perto de você: a camada raster foi substituída por OpenFreeMap vetorial com MapLibre integrado ao Leaflet. Preservados isolamento do iframe, pins, cores, fotos e seleção; créditos visíveis e mensagem de falha com nova tentativa. Nenhuma chave de backend exposta. Lint, TypeScript, build web e renderização/recuperação no Edge verificados com API/localização simuladas e mapa real da área visível. Backend e banco preservados. Detalhes e limites em [correção do mapa](validacoes/mapa-403-2026-11-25.md). PDFs preservados.
+
+## Detalhes clicáveis dos estabelecimentos — 25/11/2026
+
+Cards de estabelecimento agora abrem perfil com descrição, contato, funcionamento semanal e duas faixas horizontais de eventos próximos/anteriores, com descrições integrais. Fluxos do mapa e de gestão preservados. Na revisão autorizada de 25/11/2026, o endpoint de detalhes passou a ser público, com JWT opcional para quem já tem sessão; ações de gestão permanecem protegidas. Banco preservado. Lint, TypeScript, testes, exportação Web e interface no Edge com API simulada aprovados; build backend e sete verificações HTTP isoladas confirmaram acesso público e bloqueio de gestão sem sessão. Reinicie a API local. Integração real e protótipo externo não localizado permanecem pendentes. Consulte [implementação, validações e limites](validacoes/estabelecimento-detalhes-2026-11-25.md). PDFs preservados.
