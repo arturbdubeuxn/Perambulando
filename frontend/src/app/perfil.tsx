@@ -161,6 +161,14 @@ export default function ProfileScreen() {
   const initial = profile?.name.trim().charAt(0).toUpperCase() || 'A';
   const userType = profile?.typeofUser === 1 ? 'Turista' : 'Local';
 
+  const goBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+    router.replace('/explorar');
+  };
+
   return (
     <View style={styles.viewport}>
       <View style={[styles.appShell, { width: Math.min(viewportWidth, 430) }]}>
@@ -169,7 +177,7 @@ export default function ProfileScreen() {
           <Pressable
             accessibilityLabel="Voltar"
             accessibilityRole="button"
-            onPress={() => router.back()}
+            onPress={goBack}
             style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}
           >
             <Text style={styles.backIcon}>‹</Text>
@@ -210,7 +218,7 @@ export default function ProfileScreen() {
               {state === 'unauthenticated' ? (
                 <Pressable
                   accessibilityRole="button"
-                  onPress={() => router.replace('/cadastro_host')}
+                  onPress={() => router.replace({ pathname: '/cadastro_host', params: { origem: 'perfil' } })}
                   style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}
                 >
                   <Text style={styles.primaryButtonText}>Ir para cadastro e acesso</Text>

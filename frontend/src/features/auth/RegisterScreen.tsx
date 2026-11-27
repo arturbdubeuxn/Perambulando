@@ -24,7 +24,7 @@ import { hasErrors, validateRegister } from './registerValidation';
 import type { RegisterErrors, RegisterForm } from './registerValidation';
 
 const LOGIN_ROUTE = '/login' as Href;
-const HOST_REGISTER_ROUTE = '/cadastro_host' as Href;
+const HOME_ROUTE = '/home' as Href;
 // Tempo para a pessoa ler o aviso de sucesso antes de ir para o login.
 const REDIRECT_DELAY_MS = 1500;
 
@@ -99,7 +99,7 @@ export default function RegisterScreen() {
           <Pressable
             accessibilityLabel="Voltar"
             accessibilityRole="button"
-            onPress={() => router.replace('/')}
+            onPress={() => router.replace(HOME_ROUTE)}
             style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}
           >
             <Text style={styles.backIcon}>‹</Text>
@@ -186,7 +186,7 @@ export default function RegisterScreen() {
                 <Text style={styles.hostText}>Crie uma conta empresarial para publicar na cidade.</Text>
                 <Pressable
                   accessibilityRole="button"
-                  onPress={() => router.push(HOST_REGISTER_ROUTE)}
+                  onPress={() => router.push({ pathname: '/cadastro_host', params: { origem: 'cadastro' } })}
                   style={({ pressed }) => [styles.hostButton, pressed && styles.pressed]}
                 >
                   <Text style={styles.hostButtonText}>Torne-se Host / Cadastrar CNPJ</Text>

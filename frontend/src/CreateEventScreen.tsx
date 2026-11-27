@@ -1196,7 +1196,7 @@ export default function CreateEventScreen() {
               ) : (
                 <>
                   <Text style={styles.sessionText}>{referenceMessage || 'Nenhum host disponível.'}</Text>
-                  <Pressable onPress={() => router.push('/cadastro_host')} style={styles.sessionButton}>
+                  <Pressable onPress={() => router.push({ pathname: '/cadastro_host', params: { origem: 'criar_evento' } })} style={styles.sessionButton}>
                     <Text style={styles.sessionButtonText}>Ir para cadastro de host</Text>
                   </Pressable>
                 </>

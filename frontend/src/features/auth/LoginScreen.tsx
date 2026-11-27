@@ -24,9 +24,9 @@ import { hasLoginErrors, validateLogin } from './loginValidation';
 import type { LoginErrors, LoginForm } from './loginValidation';
 
 const REGISTER_ROUTE = '/cadastro' as Href;
-// Destino depois do login. Hoje a rota / é a tela de criar evento; trocar aqui
-// quando o head definir a home do app.
-const AFTER_LOGIN_ROUTE = '/' as Href;
+const HOME_ROUTE = '/home' as Href;
+// Depois da autenticação, a pessoa entra no catálogo público do aplicativo.
+const AFTER_LOGIN_ROUTE = '/explorar' as Href;
 
 const emptyForm: LoginForm = {
   email: '',
@@ -89,7 +89,7 @@ export default function LoginScreen() {
           <Pressable
             accessibilityLabel="Voltar"
             accessibilityRole="button"
-            onPress={() => router.replace('/')}
+            onPress={() => router.replace(HOME_ROUTE)}
             style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}
           >
             <Text style={styles.backIcon}>‹</Text>

@@ -399,7 +399,7 @@ export default function MyEventsScreen() {
               <Text style={styles.stateText}>{message}</Text>
               <Pressable
                 accessibilityRole="button"
-                onPress={() => router.push('/cadastro_host')}
+                onPress={() => router.push({ pathname: '/cadastro_host', params: { origem: 'meus_eventos' } })}
                 style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}
               >
                 <Text style={styles.primaryButtonText}>Acessar cadastro</Text>
@@ -425,7 +425,7 @@ export default function MyEventsScreen() {
               </Text>
               <Pressable
                 accessibilityRole="button"
-                onPress={() => router.push('/cadastro_host')}
+                onPress={() => router.push({ pathname: '/cadastro_host', params: { origem: 'meus_eventos' } })}
                 style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}
               >
                 <Text style={styles.primaryButtonText}>Cadastrar estabelecimento</Text>
@@ -521,7 +521,7 @@ export default function MyEventsScreen() {
                   onPress={() =>
                     router.push({
                       pathname: '/cadastro_host',
-                      params: { novoHost: '1', sourceHostId: String(selectedHost.id) },
+                      params: { novoHost: '1', sourceHostId: String(selectedHost.id), origem: 'meus_eventos' },
                     })
                   }
                   style={({ pressed }) => [styles.newHostOption, pressed && styles.newHostOptionPressed]}
@@ -578,7 +578,7 @@ export default function MyEventsScreen() {
                     onPress={() =>
                       router.push({
                         pathname: '/cadastro_host',
-                        params: { editarHost: '1', hostId: String(selectedHost.id) },
+                        params: { editarHost: '1', hostId: String(selectedHost.id), origem: 'meus_eventos' },
                       })
                     }
                     style={({ pressed }) => [styles.secondaryAction, pressed && styles.pressed]}

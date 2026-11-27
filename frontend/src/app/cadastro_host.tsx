@@ -452,6 +452,64 @@ export default function HostRegistrationScreen() {
   const needsExistingHours = isEditingHost && originalHostType !== 0;
   const openingUnavailable = supportsOpeningHours && needsExistingHours && hoursLoadedFor !== editingHostId;
 
+  const returnFromHostRegistration = () => {
+    switch (params.origem) {
+      case 'cadastro':
+        router.replace('/cadastro');
+        return;
+      case 'comercio':
+        router.replace({ pathname: '/comercio', params: { gestao: '1' } });
+        return;
+      case 'criar_evento':
+        router.replace('/');
+        return;
+      case 'home':
+        router.replace('/home');
+        return;
+      case 'painel':
+        router.replace('/painel');
+        return;
+      case 'perfil':
+        router.replace('/perfil');
+        return;
+      case 'meus_eventos':
+        router.replace('/meus_eventos');
+        return;
+      default:
+        router.replace(isAuthenticatedHostFlow ? '/meus_eventos' : '/home');
+    }
+  };
+
+  const continueAfterSuccess = () => {
+    switch (params.origem) {
+      case 'comercio':
+        router.replace({ pathname: '/comercio', params: { gestao: '1' } });
+        return;
+      case 'criar_evento':
+        router.replace('/');
+        return;
+      case 'painel':
+        router.replace('/painel');
+        return;
+      case 'perfil':
+        router.replace('/perfil');
+        return;
+      default:
+        router.replace('/meus_eventos');
+    }
+  };
+
+  const successActionLabel =
+    params.origem === 'comercio'
+      ? 'Voltar para meus estabelecimentos'
+      : params.origem === 'criar_evento'
+        ? 'Continuar criando evento'
+        : params.origem === 'painel'
+          ? 'Voltar ao painel'
+          : params.origem === 'perfil'
+            ? 'Voltar ao perfil'
+            : 'Ir para meus eventos';
+
   const loadOpeningHours = useCallback((signal?: AbortSignal) => {
     return apiRequest<OpeningWeek>(`/api/Host/${editingHostId}/OpeningHours`, {
       signal,
@@ -1066,7 +1124,7 @@ export default function HostRegistrationScreen() {
           <Pressable
             accessibilityLabel="Voltar"
             accessibilityRole="button"
-            onPress={() => params.origem === 'comercio' ? router.replace({ pathname: '/comercio', params: { gestao: '1' } }) : router.replace(isAuthenticatedHostFlow ? '/meus_eventos' : '/')}
+            onPress={returnFromHostRegistration}
             style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}
           >
             <Text style={styles.backIcon}>‹</Text>
@@ -1469,15 +1527,13 @@ export default function HostRegistrationScreen() {
                     {submission.message} ID do host: {submission.hostId}. ID do endereço:{' '}
                     {submission.addressId}.
                   </Text>
-                  {isAuthenticatedHostFlow || params.origem === 'comercio' ? (
-                    <Pressable
-                      accessibilityRole="button"
-                      onPress={() => params.origem === 'comercio' ? router.replace({ pathname: '/comercio', params: { gestao: '1' } }) : router.replace('/meus_eventos')}
-                      style={styles.returnToHostsButton}
-                    >
-                      <Text style={styles.returnToHostsButtonText}>{params.origem === 'comercio' ? 'Voltar para meus estabelecimentos' : 'Voltar para meus eventos'}</Text>
-                    </Pressable>
-                  ) : null}
+                  <Pressable
+                    accessibilityRole="button"
+                    onPress={continueAfterSuccess}
+                    style={styles.returnToHostsButton}
+                  >
+                    <Text style={styles.returnToHostsButtonText}>{successActionLabel}</Text>
+                  </Pressable>
                 </View>
               </View>
             ) : submission.status === 'error' ? (

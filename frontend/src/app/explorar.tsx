@@ -738,65 +738,6 @@ export default function ExploreScreen() {
           </View>
 
           <View style={styles.section}>
-            <View style={styles.sectionHeadingRow}>
-              <View style={styles.sectionHeadingCopy}>
-                <Text style={styles.sectionTitle}>Estabelecimentos no Recife Antigo</Text>
-                <Text style={styles.sectionSubtitle}>Gastronomia e comércio para conhecer durante o passeio.</Text>
-              </View>
-            </View>
-            {hostsLoading ? <View style={styles.inlineLoading}><ActivityIndicator color={colors.orange} /></View> : null}
-            {!hostsLoading && hosts.length > 0 ? (
-              <ScrollView horizontal contentContainerStyle={styles.hostList} showsHorizontalScrollIndicator={false}>
-                {hosts.map((host) => <HostCard favorite={favoriteSet.has(`host:${host.id}`)} host={host} key={host.id} onToggleFavorite={() => void toggleFavorite(`host:${host.id}`)} />)}
-              </ScrollView>
-            ) : null}
-            {!hostsLoading && hosts.length === 0 ? <Text style={styles.hostEmpty}>Nenhum estabelecimento disponível agora.</Text> : null}
-          </View>
-
-          {favoriteItems.length > 0 ? (
-            <View style={styles.section}>
-              <View style={styles.sectionHeadingRow}>
-                <View style={styles.sectionHeadingCopy}>
-                  <Text style={styles.sectionTitle}>Seus favoritos</Text>
-                  <Text style={styles.sectionSubtitle}>Eventos e estabelecimentos que você salvou para não perder.</Text>
-                </View>
-              </View>
-              <ScrollView horizontal contentContainerStyle={styles.favoriteList} showsHorizontalScrollIndicator={false}>
-                {favoriteItems.map((item) => (
-                  <FavoriteCard
-                    item={item}
-                    key={item.key}
-                    onOpen={'programmingId' in item ? () => router.push({ pathname: '/programacao/[programmingId]', params: { programmingId: String(item.programmingId) } } as Href) : () => router.push({ pathname: '/estabelecimento', params: { hostId: String(item.hostId), origin: 'favoritos' } } as Href)}
-                    onRemove={() => void toggleFavorite(item.key)}
-                  />
-                ))}
-              </ScrollView>
-            </View>
-          ) : null}
-
-          {favoriteMessage ? <Text accessibilityRole="alert" style={styles.syncMessage}>{favoriteMessage}</Text> : null}
-
-          <View style={styles.section}>
-            <View style={styles.sectionHeadingRow}><View style={styles.sectionHeadingCopy}><Text style={styles.sectionTitle}>Mais próximos de você</Text><Text style={styles.sectionSubtitle}>Eventos e estabelecimentos ordenados pela distância real.</Text></View></View>
-            {(nearbyState === 'idle' || nearbyState === 'denied' || nearbyState === 'error') ? <View style={styles.nearbyStateCard}><Text style={styles.nearbyStateText}>{nearbyMessage}</Text><Pressable onPress={() => void requestCurrentLocation(true)} style={styles.nearbyLocationButton}><Text style={styles.nearbyLocationButtonText}>{nearbyState === 'idle' ? 'Usar minha localização' : 'Tentar novamente'}</Text></Pressable></View> : null}
-            {(nearbyState === 'locating' || (nearbyState === 'loading' && nearbyItems.length === 0)) ? <View style={styles.inlineLoading}><ActivityIndicator color={colors.orange} /><Text style={styles.nearbyStateText}>{nearbyMessage}</Text></View> : null}
-            {nearbyState === 'empty' ? <View style={styles.nearbyStateCard}><Text style={styles.nearbyStateText}>{nearbyMessage}</Text></View> : null}
-            {nearbyItems.length > 0 ? <><ScrollView horizontal contentContainerStyle={styles.nearbyList} showsHorizontalScrollIndicator={false}>{nearbyItems.slice(0, nearbyVisibleCount).map((item) => <NearbyCard item={item} key={`${item.type}-${item.id}`} />)}</ScrollView>{nearbyVisibleCount < nearbyItems.length || nearbyHasMore ? <Pressable disabled={nearbyState === 'loading'} onPress={() => void showMoreNearby()} style={styles.showMoreNearby}>{nearbyState === 'loading' ? <ActivityIndicator color={colors.ink} /> : <Text style={styles.showMoreNearbyText}>Mostrar mais</Text>}</Pressable> : null}</> : null}
-          </View>
-
-          {token ? (
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Minhas preferências</Text>
-              <Text style={styles.sectionSubtitle}>Escolha até 3 categorias para personalizar suas sugestões.</Text>
-              <View style={styles.preferenceList}>
-                {categories.map((category) => <Pressable accessibilityState={{ selected: preferenceDraft.includes(category.id) }} key={category.id} onPress={() => togglePreference(category.id)} style={[styles.preferenceChip, preferenceDraft.includes(category.id) && styles.preferenceChipActive]}><Text style={[styles.preferenceChipText, preferenceDraft.includes(category.id) && styles.preferenceChipTextActive]}>{category.name}</Text></Pressable>)}
-              </View>
-              <Pressable disabled={preferenceSaving || preferenceDraft.join(',') === preferenceIds.join(',')} onPress={() => void savePreferences()} style={[styles.preferenceButton, (preferenceSaving || preferenceDraft.join(',') === preferenceIds.join(',')) && styles.preferenceButtonDisabled]}>{preferenceSaving ? <ActivityIndicator color={colors.card} /> : <Text style={styles.preferenceButtonText}>Salvar preferências</Text>}</Pressable>
-              {preferenceMessage ? <Text accessibilityRole="alert" style={styles.preferenceMessage}>{preferenceMessage}</Text> : null}
-            </View>
-          ) : null}
-
-          <View style={styles.section}>
             <Text style={styles.sectionTitle}>Qual é a sua vibe?</Text>
             <Text style={styles.sectionSubtitle}>Escolha uma categoria e deixe a cidade te levar.</Text>
             {categories.length > 0 ? (
@@ -866,6 +807,66 @@ export default function ExploreScreen() {
               </ScrollView>
             ) : null}
           </View>
+
+          <View style={styles.section}>
+            <View style={styles.sectionHeadingRow}>
+              <View style={styles.sectionHeadingCopy}>
+                <Text style={styles.sectionTitle}>Estabelecimentos no Recife</Text>
+                <Text style={styles.sectionSubtitle}>Gastronomia e comércio para conhecer durante o passeio.</Text>
+              </View>
+            </View>
+            {hostsLoading ? <View style={styles.inlineLoading}><ActivityIndicator color={colors.orange} /></View> : null}
+            {!hostsLoading && hosts.length > 0 ? (
+              <ScrollView horizontal contentContainerStyle={styles.hostList} showsHorizontalScrollIndicator={false}>
+                {hosts.map((host) => <HostCard favorite={favoriteSet.has(`host:${host.id}`)} host={host} key={host.id} onToggleFavorite={() => void toggleFavorite(`host:${host.id}`)} />)}
+              </ScrollView>
+            ) : null}
+            {!hostsLoading && hosts.length === 0 ? <Text style={styles.hostEmpty}>Nenhum estabelecimento disponível agora.</Text> : null}
+          </View>
+
+          {favoriteItems.length > 0 ? (
+            <View style={styles.section}>
+              <View style={styles.sectionHeadingRow}>
+                <View style={styles.sectionHeadingCopy}>
+                  <Text style={styles.sectionTitle}>Seus favoritos</Text>
+                  <Text style={styles.sectionSubtitle}>Eventos e estabelecimentos que você salvou para não perder.</Text>
+                </View>
+              </View>
+              <ScrollView horizontal contentContainerStyle={styles.favoriteList} showsHorizontalScrollIndicator={false}>
+                {favoriteItems.map((item) => (
+                  <FavoriteCard
+                    item={item}
+                    key={item.key}
+                    onOpen={'programmingId' in item ? () => router.push({ pathname: '/programacao/[programmingId]', params: { programmingId: String(item.programmingId) } } as Href) : () => router.push({ pathname: '/estabelecimento', params: { hostId: String(item.hostId), origin: 'favoritos' } } as Href)}
+                    onRemove={() => void toggleFavorite(item.key)}
+                  />
+                ))}
+              </ScrollView>
+            </View>
+          ) : null}
+
+          {favoriteMessage ? <Text accessibilityRole="alert" style={styles.syncMessage}>{favoriteMessage}</Text> : null}
+
+          <View style={styles.section}>
+            <View style={styles.sectionHeadingRow}><View style={styles.sectionHeadingCopy}><Text style={styles.sectionTitle}>Mais próximos de você</Text><Text style={styles.sectionSubtitle}>Eventos e estabelecimentos ordenados pela distância real.</Text></View></View>
+            {(nearbyState === 'idle' || nearbyState === 'denied' || nearbyState === 'error') ? <View style={styles.nearbyStateCard}><Text style={styles.nearbyStateText}>{nearbyMessage}</Text><Pressable onPress={() => void requestCurrentLocation(true)} style={styles.nearbyLocationButton}><Text style={styles.nearbyLocationButtonText}>{nearbyState === 'idle' ? 'Usar minha localização' : 'Tentar novamente'}</Text></Pressable></View> : null}
+            {(nearbyState === 'locating' || (nearbyState === 'loading' && nearbyItems.length === 0)) ? <View style={styles.inlineLoading}><ActivityIndicator color={colors.orange} /><Text style={styles.nearbyStateText}>{nearbyMessage}</Text></View> : null}
+            {nearbyState === 'empty' ? <View style={styles.nearbyStateCard}><Text style={styles.nearbyStateText}>{nearbyMessage}</Text></View> : null}
+            {nearbyItems.length > 0 ? <><ScrollView horizontal contentContainerStyle={styles.nearbyList} showsHorizontalScrollIndicator={false}>{nearbyItems.slice(0, nearbyVisibleCount).map((item) => <NearbyCard item={item} key={`${item.type}-${item.id}`} />)}</ScrollView>{nearbyVisibleCount < nearbyItems.length || nearbyHasMore ? <Pressable disabled={nearbyState === 'loading'} onPress={() => void showMoreNearby()} style={styles.showMoreNearby}>{nearbyState === 'loading' ? <ActivityIndicator color={colors.ink} /> : <Text style={styles.showMoreNearbyText}>Mostrar mais</Text>}</Pressable> : null}</> : null}
+          </View>
+
+          {token ? (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Minhas preferências</Text>
+              <Text style={styles.sectionSubtitle}>Escolha até 3 categorias para personalizar suas sugestões.</Text>
+              <View style={styles.preferenceList}>
+                {categories.map((category) => <Pressable accessibilityState={{ selected: preferenceDraft.includes(category.id) }} key={category.id} onPress={() => togglePreference(category.id)} style={[styles.preferenceChip, preferenceDraft.includes(category.id) && styles.preferenceChipActive]}><Text style={[styles.preferenceChipText, preferenceDraft.includes(category.id) && styles.preferenceChipTextActive]}>{category.name}</Text></Pressable>)}
+              </View>
+              <Pressable disabled={preferenceSaving || preferenceDraft.join(',') === preferenceIds.join(',')} onPress={() => void savePreferences()} style={[styles.preferenceButton, (preferenceSaving || preferenceDraft.join(',') === preferenceIds.join(',')) && styles.preferenceButtonDisabled]}>{preferenceSaving ? <ActivityIndicator color={colors.card} /> : <Text style={styles.preferenceButtonText}>Salvar preferências</Text>}</Pressable>
+              {preferenceMessage ? <Text accessibilityRole="alert" style={styles.preferenceMessage}>{preferenceMessage}</Text> : null}
+            </View>
+          ) : null}
+
         </ScrollView>
 
         <View style={styles.bottomNav}>
