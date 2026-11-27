@@ -19,6 +19,7 @@ import {
 import { FormField } from '../../components/FormField';
 import { colors } from '../../theme/colors';
 import { describeRegisterError, registerUser } from './authApi';
+import PasswordStrength from './PasswordStrength';
 import { hasErrors, validateRegister } from './registerValidation';
 import type { RegisterErrors, RegisterForm } from './registerValidation';
 
@@ -167,6 +168,7 @@ export default function RegisterScreen() {
                 secureTextEntry
                 value={form.password}
               />
+              <PasswordStrength password={form.password} />
               <FormField
                 autoCapitalize="none"
                 autoComplete="new-password"

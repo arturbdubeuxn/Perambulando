@@ -22,16 +22,30 @@ export const isValidEmail = (value: string) => EMAIL_PATTERN.test(value.trim());
 
 export const isValidUserName = (value: string) => USERNAME_PATTERN.test(value);
 
-// Mesma regra de senha usada hoje no cadastro de host: 8+ caracteres,
-// com maiúscula, minúscula, número e símbolo.
+// Requisitos de senha (mesma regra do cadastro de host): 8+ caracteres,
+// com minúscula, maiúscula, número e símbolo.
+export const PASSWORD_RULES = [
+  { id: 'length', label: 'Pelo menos 8 caracteres', test: (v: string) => v.length >= 8 },
+  { id: 'lower', label: 'Uma letra minúscula', test: (v: string) => /[a-z]/.test(v) },
+  { id: 'upper', label: 'Uma letra maiúscula', test: (v: string) => /[A-Z]/.test(v) },
+  { id: 'digit', label: 'Um número', test: (v: string) => /\d/.test(v) },
+  { id: 'symbol', label: 'Um símbolo (ex.: ! @ # $)', test: (v: string) => /[^A-Za-z0-9]/.test(v) },
+];
+
+export type PasswordLevel = 'empty' | 'weak' | 'medium' | 'strong';
+
+export function getPasswordStrength(value: string) {
+  const checks = PASSWORD_RULES.map((rule) => ({ ...rule, ok: rule.test(value) }));
+  const score = checks.filter((check) => check.ok).length;
+  let level: PasswordLevel = 'weak';
+  if (!value) level = 'empty';
+  else if (score === PASSWORD_RULES.length) level = 'strong';
+  else if (score === PASSWORD_RULES.length - 1) level = 'medium';
+  return { checks, score, level };
+}
+
 export function isStrongPassword(value: string) {
-  return (
-    value.length >= 8 &&
-    /[a-z]/.test(value) &&
-    /[A-Z]/.test(value) &&
-    /\d/.test(value) &&
-    /[^A-Za-z0-9]/.test(value)
-  );
+  return PASSWORD_RULES.every((rule) => rule.test(value));
 }
 
 export function validateRegister(form: RegisterForm): RegisterErrors {
