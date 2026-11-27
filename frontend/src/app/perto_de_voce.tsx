@@ -1,6 +1,4 @@
 import RoadmapButton from '../RoadmapButton';
-import { Fredoka_700Bold } from '@expo-google-fonts/fredoka/700Bold';
-import { useFonts } from 'expo-font';
 import * as Location from 'expo-location';
 import { router, type Href } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -18,6 +16,11 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
+
+import AppBottomNav from '../components/AppBottomNav';
+import AppHeader from '../components/AppHeader';
+import { responsiveShellWidth } from '../theme/responsive';
+import { useUserInitial } from '../useUserInitial';
 
 const colors = {
   background: '#F8F5EE',
@@ -38,7 +41,6 @@ type StorageLike = { getItem: (key: string) => string | null };
 type Coordinates = { latitude: number; longitude: number };
 type NearbyItem = NearbyPin;
 type NearbyResponse = { items: NearbyItem[]; skip: number; pageSize: number; hasMore: boolean };
-type UserProfile = { name: string };
 type Category = { id: number; name: string; isActive: boolean };
 type ScreenState = 'idle' | 'locating' | 'loading' | 'ready' | 'empty' | 'denied' | 'services-off' | 'error';
 
@@ -64,40 +66,14 @@ function formatDistance(meters: number) {
   return `${(meters / 1000).toFixed(1).replace('.', ',')} km`;
 }
 
-function Header({ initial, fontsLoaded }: { initial: string; fontsLoaded: boolean }) {
-  return (
-    <View style={styles.header}>
-      <View accessible accessibilityLabel="Perambulando" style={styles.brand}>
-        <Text style={[styles.brandName, fontsLoaded && styles.brandNameFredoka]}>Perambulando</Text>
-        <Image resizeMode="contain" source={require('../../assets/perambulando-mark.png')} style={styles.brandMark} />
-      </View>
-      <Pressable accessibilityLabel="Abrir perfil" onPress={() => router.push('/perfil' as Href)} style={styles.avatar}>
-        <Text style={styles.avatarText}>{initial}</Text>
-      </Pressable>
-    </View>
-  );
-}
-
-function NavItem({ active = false, icon, label, onPress }: { active?: boolean; icon: string; label: string; onPress?: () => void }) {
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityState={{ selected: active, disabled: !active && !onPress }}
-      disabled={!active && !onPress}
-      onPress={onPress}
-      style={({ pressed }) => [styles.navItem, active && styles.navItemActive, pressed && styles.pressed]}
-    >
-      <Text style={[styles.navIcon, active && styles.navTextActive]}>{icon}</Text>
-      <Text style={[styles.navLabel, active && styles.navTextActive]}>{label}</Text>
-    </Pressable>
-  );
+function Header({ initial }: { initial: string }) {
+  return <AppHeader initial={initial} />;
 }
 
 export default function NearMeScreen() {
   const { width: viewportWidth } = useWindowDimensions();
-  const [fontsLoaded] = useFonts({ Fredoka_700Bold });
   const [token] = useState(getSessionToken);
-  const [userInitial, setUserInitial] = useState('U');
+  const userInitial = useUserInitial();
   const [state, setState] = useState<ScreenState>('idle');
   const [message, setMessage] = useState('Toque em “Usar minha localização” para permitir o acesso.');
   const [coordinates, setCoordinates] = useState<Coordinates | null>(null);
@@ -201,15 +177,8 @@ export default function NearMeScreen() {
     requestJson<Category[]>('/api/Category/GetallCategories')
       .then((result) => { if (active) setCategories(result.filter((category) => category.isActive)); })
       .catch(() => undefined);
-    if (token) {
-      requestJson<UserProfile>('/api/User/Profile', token)
-        .then((profile) => {
-          if (active) setUserInitial(profile.name.trim().charAt(0).toUpperCase() || 'U');
-        })
-        .catch(() => undefined);
-    }
     return () => { active = false; };
-  }, [token]);
+  }, []);
 
   useEffect(() => {
     if (!coordinates || lastLoadedQuery.current === filterKey) return;
@@ -312,9 +281,9 @@ export default function NearMeScreen() {
 
   return (
     <View style={styles.viewport}>
-      <View style={[styles.appShell, { width: Math.min(viewportWidth, 430) }]}>
+      <View style={[styles.appShell, { width: responsiveShellWidth(viewportWidth) }]}>
         <StatusBar style="dark" />
-        <Header fontsLoaded={fontsLoaded} initial={userInitial} />
+        <Header initial={userInitial} />
 
         <ScrollView contentContainerStyle={styles.scrollContent} ref={pageScroll} showsVerticalScrollIndicator>
           <View style={styles.hero}>
@@ -427,13 +396,7 @@ export default function NearMeScreen() {
           </View>
         </ScrollView>
 
-        <View style={styles.bottomNav}>
-          <NavItem icon="⌾" label="Explorar" onPress={() => router.push('/explorar' as Href)} />
-          <NavItem icon="⌁" label="Roteiro" onPress={() => router.push('/roteiro' as Href)} />
-          <NavItem active icon="⌖" label="Perto de você" />
-          <NavItem icon="♡" label="Favoritos" onPress={() => router.push('/favoritos' as Href)} />
-          <NavItem icon="♙" label="Perfil" onPress={() => router.push('/perfil' as Href)} />
-        </View>
+        <AppBottomNav active="nearby" mode="user" />
       </View>
     </View>
   );
@@ -442,7 +405,7 @@ export default function NearMeScreen() {
 const styles = StyleSheet.create({
   selectedOpen: { flex: 1, minWidth: 0, flexDirection: 'row', gap: 11 },
   viewport: { flex: 1, alignItems: 'center', backgroundColor: '#E6DED2' },
-  appShell: { flex: 1, maxWidth: 430, minWidth: 0, overflow: 'hidden', backgroundColor: colors.background, borderLeftWidth: 1, borderRightWidth: 1, borderColor: '#DDD8D2' },
+  appShell: { flex: 1, maxWidth: 760, minWidth: 0, overflow: 'hidden', backgroundColor: colors.background, borderLeftWidth: 1, borderRightWidth: 1, borderColor: '#DDD8D2' },
   header: { minHeight: 70, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: colors.card, borderBottomWidth: 1, borderBottomColor: colors.line },
   brand: { flexDirection: 'row', alignItems: 'center', gap: 7 },
   brandName: { color: colors.ink, fontSize: 18, fontWeight: '700', letterSpacing: -0.5 },

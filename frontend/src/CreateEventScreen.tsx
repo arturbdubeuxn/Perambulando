@@ -1,10 +1,7 @@
-import { Fredoka_700Bold } from '@expo-google-fonts/fredoka/700Bold';
-import { useFonts } from 'expo-font';
-import { router, type Href, useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -15,6 +12,11 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
+
+import AppBottomNav from './components/AppBottomNav';
+import AppHeader from './components/AppHeader';
+import { responsiveShellWidth } from './theme/responsive';
+import { useUserInitial } from './useUserInitial';
 
 const colors = {
   background: '#F8F5EE',
@@ -255,30 +257,6 @@ function SectionTitle({ number, title, description }: { number: string; title: s
         <Text style={styles.sectionDescription}>{description}</Text>
       </View>
     </View>
-  );
-}
-
-function NavItem({
-  icon,
-  label,
-  active = false,
-  onPress,
-}: {
-  icon: string;
-  label: string;
-  active?: boolean;
-  onPress?: () => void;
-}) {
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityState={{ selected: active }}
-      onPress={onPress}
-      style={[styles.navItem, active && styles.navItemActive]}
-    >
-      <Text style={[styles.navIcon, active && styles.navIconActive]}>{icon}</Text>
-      <Text style={[styles.navLabel, active && styles.navLabelActive]}>{label}</Text>
-    </Pressable>
   );
 }
 
@@ -567,7 +545,7 @@ export default function CreateEventScreen() {
   const requestedHostId = Number(params.hostId ?? 0);
   const isEditing = Number.isInteger(editingProgrammingId) && editingProgrammingId > 0;
   const { width: viewportWidth } = useWindowDimensions();
-  const [fontsLoaded] = useFonts({ Fredoka_700Bold });
+  const userInitial = useUserInitial();
   const cepLookupRequest = useRef(0);
   const addressSearchRequest = useRef(0);
   const [draft, setDraft] = useState<EventDraft>(initialDraft);
@@ -1084,28 +1062,9 @@ export default function CreateEventScreen() {
 
   return (
     <View style={styles.viewport}>
-      <View style={[styles.appShell, { width: Math.min(viewportWidth, 430) }]}>
+      <View style={[styles.appShell, { width: responsiveShellWidth(viewportWidth) }]}>
         <StatusBar style="dark" />
-        <View style={styles.header}>
-          <View accessible accessibilityLabel="Perambulando" style={styles.brand}>
-            <Text style={[styles.brandName, fontsLoaded && styles.brandNameFredoka]}>Perambulando</Text>
-            <Image
-              accessibilityIgnoresInvertColors
-              resizeMode="contain"
-              source={require('../assets/perambulando-mark.png')}
-              style={styles.brandMark}
-            />
-          </View>
-          <Pressable
-            accessibilityHint="Abre os dados da sua conta"
-            accessibilityLabel="Abrir perfil do usuário"
-            accessibilityRole="button"
-            onPress={() => router.push('/perfil')}
-            style={({ pressed }) => [styles.avatar, pressed && styles.avatarPressed]}
-          >
-            <Text style={styles.avatarText}>A</Text>
-          </Pressable>
-        </View>
+        <AppHeader initial={userInitial} />
 
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -1446,22 +1405,7 @@ export default function CreateEventScreen() {
           </ScrollView>
         </KeyboardAvoidingView>
 
-        <View style={styles.bottomNav}>
-          <NavItem icon="▦" label="Painel" onPress={() => router.push('/painel' as Href)} />
-          <NavItem active={isEditing} icon="▣" label="Meus eventos" onPress={() => router.push('/meus_eventos')} />
-          <Pressable
-            accessibilityRole="button"
-            onPress={isEditing ? () => router.push('/') : undefined}
-            style={styles.activeNavItem}
-          >
-            <View style={[styles.activeNavButton, isEditing && styles.activeNavButtonInactive]}>
-              <Text style={[styles.activeNavPlus, isEditing && styles.activeNavPlusInactive]}>＋</Text>
-            </View>
-            <Text style={[styles.activeNavLabel, isEditing && styles.activeNavLabelInactive]}>Criar evento</Text>
-          </Pressable>
-          <NavItem icon="⊙" label="Explorar" onPress={() => router.push('/explorar' as Href)} />
-          <NavItem icon="▥" label="Comércio" onPress={() => router.push({ pathname: '/comercio', params: { gestao: '1' } } as Href)} />
-        </View>
+        <AppBottomNav active={isEditing ? 'events' : 'create'} mode="host" />
       </View>
     </View>
   );
@@ -1469,7 +1413,7 @@ export default function CreateEventScreen() {
 
 const styles = StyleSheet.create({
   viewport: { flex: 1, width: '100%', minWidth: 0, alignItems: 'center', backgroundColor: '#E6DED2' },
-  appShell: { flex: 1, width: '100%', maxWidth: 430, minWidth: 0, alignSelf: 'center', overflow: 'hidden', backgroundColor: colors.background, borderColor: '#DDD8D2', borderLeftWidth: 1, borderRightWidth: 1 },
+  appShell: { flex: 1, width: '100%', maxWidth: 760, minWidth: 0, alignSelf: 'center', overflow: 'hidden', backgroundColor: colors.background, borderColor: '#DDD8D2', borderLeftWidth: 1, borderRightWidth: 1 },
   header: { minHeight: 70, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: colors.card, borderBottomColor: colors.line, borderBottomWidth: 1 },
   brand: { flexDirection: 'row', alignItems: 'center', gap: 7 },
   brandName: { color: colors.ink, fontSize: 18, fontWeight: '700', letterSpacing: -0.5 },

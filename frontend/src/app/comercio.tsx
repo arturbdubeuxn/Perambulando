@@ -1,10 +1,13 @@
 import RoadmapButton from '../RoadmapButton';
-import { Fredoka_700Bold } from '@expo-google-fonts/fredoka/700Bold';
-import { useFonts } from 'expo-font';
 import { router, useLocalSearchParams, type Href } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Image, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
+
+import AppBottomNav from '../components/AppBottomNav';
+import AppHeader from '../components/AppHeader';
+import { responsiveShellWidth } from '../theme/responsive';
+import { useUserInitial } from '../useUserInitial';
 
 const colors = { ink: '#002B5C', orange: '#FF5A0A', orangeSoft: '#FFF0E7', background: '#F8F5EE', card: '#FFFEFC', line: '#E7E0D6', muted: '#667085', danger: '#B42318' };
 const apiBaseUrl = (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:5014').replace(/\/$/, '');
@@ -43,16 +46,12 @@ function addressLabel(address: Address) {
   return [street, address.neighborhood, address.city].filter(Boolean).join(' · ');
 }
 
-function NavItem({ active = false, icon, label, onPress }: { active?: boolean; icon: string; label: string; onPress?: () => void }) {
-  return <Pressable accessibilityRole="button" accessibilityState={{ selected: active }} onPress={onPress} style={({ pressed }) => [styles.navItem, active && styles.navItemActive, pressed && styles.pressed]}><Text style={[styles.navIcon, active && styles.navActive]}>{icon}</Text><Text style={[styles.navLabel, active && styles.navActive]}>{label}</Text></Pressable>;
-}
-
 export default function CommerceScreen() {
   const params = useLocalSearchParams<{ gestao?: string }>();
   const management = params.gestao === '1';
   const [token] = useState(() => Platform.OS === 'web' ? (globalThis as { sessionStorage?: { getItem: (key: string) => string | null } }).sessionStorage?.getItem('perambulando.accessToken') ?? '' : '');
   const { width } = useWindowDimensions();
-  const [fontsLoaded] = useFonts({ Fredoka_700Bold });
+  const userInitial = useUserInitial();
   const [type, setType] = useState<HostType>('all');
   const [search, setSearch] = useState('');
   const [hosts, setHosts] = useState<Host[]>([]);
@@ -98,12 +97,9 @@ export default function CommerceScreen() {
 
   return (
     <View style={styles.viewport}>
-      <View style={[styles.shell, { width: Math.min(width, 430) }]}>
+      <View style={[styles.shell, { width: responsiveShellWidth(width) }]}>
         <StatusBar style="dark" />
-        <View style={styles.header}>
-          <View style={styles.brand}><Text style={[styles.brandName, fontsLoaded && styles.brandFont]}>Perambulando</Text><Image accessibilityLabel="Marca Perambulando" resizeMode="contain" source={require('../../assets/perambulando-mark.png')} style={styles.mark} /></View>
-          <Pressable accessibilityLabel={management ? 'Voltar ao painel' : 'Abrir perfil'} onPress={() => router.push(management ? '/painel' : '/perfil' as Href)} style={styles.avatar}><Text style={styles.avatarText}>{management ? 'H' : 'U'}</Text></Pressable>
-        </View>
+        <AppHeader avatarLabel={management ? 'Voltar ao painel' : 'Abrir perfil'} initial={userInitial} onAvatarPress={() => router.push(management ? '/painel' : '/perfil' as Href)} />
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           <View><Text style={styles.eyebrow}>{management ? 'GESTÃO DO SEU NEGÓCIO' : 'ESTABELECIMENTOS'}</Text><Text style={styles.title}>{management ? 'Meus estabelecimentos' : 'Comércios para conhecer'}</Text><Text style={styles.subtitle}>{management ? 'Gerencie seus espaços, ajuste o funcionamento e acompanhe suas programações.' : 'Informações reais dos estabelecimentos cadastrados no Perambulando.'}</Text></View>
           {management && token && state === 'ready' ? <Pressable accessibilityRole="button" onPress={() => router.push({ pathname: '/cadastro_host', params: { ...(hasProfile ? { novoHost: '1' } : {}), origem: 'comercio' } })} style={styles.managementPrimary}><Text style={styles.managementPrimaryText}>+ Cadastrar estabelecimento</Text></Pressable> : null}
@@ -128,13 +124,7 @@ export default function CommerceScreen() {
             </View>;
           })}</View> : null}
         </ScrollView>
-        {management ? <View style={[styles.bottomNav, styles.managementNav]}>
-          <NavItem icon="▦" label="Painel" onPress={() => router.push('/painel' as Href)} />
-          <NavItem icon="▣" label="Meus eventos" onPress={() => router.push('/meus_eventos')} />
-          <Pressable accessibilityRole="button" accessibilityLabel="Criar evento" onPress={() => router.push('/')} style={styles.createNav}><View style={styles.createCircle}><Text style={styles.createPlus}>＋</Text></View><Text style={styles.createLabel}>Criar evento</Text></Pressable>
-          <NavItem icon="⊙" label="Explorar" onPress={() => router.push('/explorar' as Href)} />
-          <NavItem active icon="▥" label="Comércio" />
-        </View> : <View style={styles.bottomNav}><NavItem icon="⌾" label="Explorar" onPress={() => router.push('/explorar' as Href)} /><NavItem icon="⌁" label="Roteiro" onPress={() => router.push('/roteiro' as Href)} /><NavItem icon="⌖" label="Perto de você" onPress={() => router.push('/perto_de_voce' as Href)} /><NavItem icon="♡" label="Favoritos" onPress={() => router.push('/favoritos' as Href)} /><NavItem active icon="▥" label="Comércio" /></View>}
+        {management ? <AppBottomNav active="commerce" mode="host" /> : <AppBottomNav active="commerce" lastItem="commerce" mode="user" />}
       </View>
     </View>
   );
@@ -145,7 +135,7 @@ const styles = StyleSheet.create({
   managementPrimary: { minHeight: 44, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.orange }, managementPrimaryText: { color: '#FFFFFF', fontSize: 11, fontWeight: '800', textAlign: 'center' },
   managementSecondary: { minHeight: 42, paddingHorizontal: 12, borderRadius: 12, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' }, managementSecondaryText: { color: colors.ink, fontSize: 11, fontWeight: '700' },
   managementNav: { minHeight: 78, alignItems: 'flex-end', paddingBottom: 7 }, createNav: { flex: 1.18, minHeight: 68, alignItems: 'center', justifyContent: 'flex-end', gap: 4 }, createCircle: { width: 48, height: 48, borderRadius: 24, borderWidth: 4, borderColor: colors.card, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.orange }, createPlus: { color: '#FFFFFF', fontSize: 25, lineHeight: 27 }, createLabel: { color: colors.orange, fontSize: 8, fontWeight: '800' },
-  viewport: { flex: 1, alignItems: 'center', backgroundColor: '#E6DED2' }, shell: { flex: 1, maxWidth: 430, overflow: 'hidden', backgroundColor: colors.background, borderLeftWidth: 1, borderRightWidth: 1, borderColor: '#DDD8D2' },
+  viewport: { flex: 1, alignItems: 'center', backgroundColor: '#E6DED2' }, shell: { flex: 1, maxWidth: 760, overflow: 'hidden', backgroundColor: colors.background, borderLeftWidth: 1, borderRightWidth: 1, borderColor: '#DDD8D2' },
   header: { minHeight: 70, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: 1, borderBottomColor: colors.line, backgroundColor: colors.card }, brand: { flexDirection: 'row', alignItems: 'center', gap: 7 }, brandName: { color: colors.ink, fontSize: 18, fontWeight: '700' }, brandFont: { fontFamily: 'Fredoka_700Bold', fontWeight: 'normal' }, mark: { width: 40, height: 40 }, avatar: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.ink }, avatarText: { color: colors.card, fontWeight: '800' },
   content: { padding: 18, paddingBottom: 36, gap: 16 }, eyebrow: { color: colors.orange, fontSize: 10, fontWeight: '800', letterSpacing: 1.6 }, title: { marginTop: 8, color: colors.ink, fontSize: 30, lineHeight: 34, fontWeight: '700' }, subtitle: { marginTop: 7, color: colors.muted, fontSize: 12, lineHeight: 18 },
   searchBox: { minHeight: 48, paddingHorizontal: 13, flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 14, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card }, searchIcon: { color: colors.ink, fontSize: 18 }, searchInput: { flex: 1, minHeight: 46, color: colors.ink, fontSize: 12, outlineStyle: 'none' } as never,

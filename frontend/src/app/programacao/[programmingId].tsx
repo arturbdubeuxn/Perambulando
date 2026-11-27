@@ -1,6 +1,4 @@
 import RoadmapButton from '../../RoadmapButton';
-import { Fredoka_700Bold } from '@expo-google-fonts/fredoka/700Bold';
-import { useFonts } from 'expo-font';
 import { router, type Href, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useMemo, useState } from 'react';
@@ -22,6 +20,11 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
+
+import AppBottomNav from '../../components/AppBottomNav';
+import AppHeader from '../../components/AppHeader';
+import { responsiveShellWidth } from '../../theme/responsive';
+import { useUserInitial } from '../../useUserInitial';
 
 const colors = {
   background: '#F8F5EE',
@@ -158,21 +161,7 @@ function MapView({ coordinates, address }: { coordinates: Coordinates; address: 
 }
 
 function BottomNav() {
-  const item = (icon: string, label: string, onPress?: () => void) => (
-    <Pressable accessibilityRole="button" disabled={!onPress} onPress={onPress} style={styles.navItem}>
-      <Text style={styles.navIcon}>{icon}</Text>
-      <Text style={styles.navLabel}>{label}</Text>
-    </Pressable>
-  );
-  return (
-    <View style={styles.bottomNav}>
-      {item('⌾', 'Explorar', () => router.push('/explorar' as Href))}
-      {item('⌁', 'Roteiro', () => router.push('/roteiro' as Href))}
-      {item('⌖', 'Perto de você', () => router.push('/perto_de_voce' as Href))}
-      {item('♡', 'Favoritos', () => router.push('/favoritos' as Href))}
-      {item('♙', 'Perfil', () => router.push('/perfil' as Href))}
-    </View>
-  );
+  return <View style={styles.bottomNav}><AppBottomNav mode="user" /></View>;
 }
 
 export default function ProgrammingDetailsScreen() {
@@ -182,7 +171,7 @@ export default function ProgrammingDetailsScreen() {
   const cameFromNearbyMap = origin === 'nearby-map';
   const hasValidProgrammingId = Number.isInteger(programmingId) && programmingId > 0;
   const { width: viewportWidth } = useWindowDimensions();
-  const [fontsLoaded] = useFonts({ Fredoka_700Bold });
+  const userInitial = useUserInitial();
   const [token] = useState(getAccessToken);
   const [state, setState] = useState<LoadState>(hasValidProgrammingId ? 'loading' : 'error');
   const [message, setMessage] = useState(
@@ -303,17 +292,9 @@ export default function ProgrammingDetailsScreen() {
 
   return (
     <View style={styles.viewport}>
-      <View style={[styles.appShell, { width: Math.min(viewportWidth, 430) }]}>
+      <View style={[styles.appShell, { width: responsiveShellWidth(viewportWidth) }]}>
         <StatusBar style="dark" />
-        <View style={styles.header}>
-          <View style={styles.brand}>
-            <Text style={[styles.brandName, fontsLoaded && styles.brandNameFredoka]}>Perambulando</Text>
-            <Image resizeMode="contain" source={require('../../../assets/perambulando-mark.png')} style={styles.brandMark} />
-          </View>
-          <Pressable accessibilityLabel="Abrir perfil" onPress={() => router.push('/perfil' as Href)} style={styles.avatar}>
-            <Text style={styles.avatarText}>U</Text>
-          </Pressable>
-        </View>
+        <AppHeader initial={userInitial} />
 
         {state === 'loading' ? (
           <View style={styles.fullState}><ActivityIndicator color={colors.orange} /><Text style={styles.stateText}>{message}</Text></View>
@@ -417,7 +398,7 @@ export default function ProgrammingDetailsScreen() {
 
 const styles = StyleSheet.create({
   viewport: { flex: 1, alignItems: 'center', backgroundColor: '#E6DED2' },
-  appShell: { flex: 1, maxWidth: 430, minWidth: 0, position: 'relative', overflow: 'hidden', backgroundColor: colors.background, borderLeftWidth: 1, borderRightWidth: 1, borderColor: '#DDD8D2' },
+  appShell: { flex: 1, maxWidth: 760, minWidth: 0, position: 'relative', overflow: 'hidden', backgroundColor: colors.background, borderLeftWidth: 1, borderRightWidth: 1, borderColor: '#DDD8D2' },
   header: { minHeight: 64, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: colors.card, borderBottomWidth: 1, borderBottomColor: colors.line },
   brand: { flexDirection: 'row', alignItems: 'center', gap: 7 },
   brandName: { color: colors.ink, fontSize: 17, fontWeight: '700' },
@@ -499,7 +480,7 @@ const styles = StyleSheet.create({
   ticketButton: { flex: 1, maxWidth: 190, minHeight: 44, paddingHorizontal: 15, alignItems: 'center', justifyContent: 'center', borderRadius: 12, backgroundColor: colors.orange },
   ticketButtonDisabled: { backgroundColor: '#B9C0C8' },
   ticketButtonText: { color: colors.card, fontSize: 11, fontWeight: '800', textAlign: 'center' },
-  bottomNav: { position: 'absolute', left: 0, right: 0, bottom: 0, minHeight: 70, paddingHorizontal: 5, paddingBottom: 4, flexDirection: 'row', alignItems: 'center', borderTopWidth: 1, borderTopColor: colors.line, backgroundColor: colors.card },
+  bottomNav: { position: 'absolute', left: 0, right: 0, bottom: 0 },
   navItem: { flex: 1, minHeight: 55, alignItems: 'center', justifyContent: 'center', gap: 3 },
   navIcon: { color: '#8C8C93', fontSize: 17 },
   navLabel: { color: '#8C8C93', fontSize: 7, textAlign: 'center' },

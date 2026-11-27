@@ -1,9 +1,12 @@
-import { Fredoka_700Bold } from '@expo-google-fonts/fredoka/700Bold';
-import { useFonts } from 'expo-font';
-import { router, type Href } from 'expo-router';
+import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Image, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+
+import AppHeader from './components/AppHeader';
+import AppBottomNav from './components/AppBottomNav';
+import { responsiveShellWidth } from './theme/responsive';
+import { useUserInitial } from './useUserInitial';
 
 const colors = { ink: '#002B5C', orange: '#FF5A0A', orangeSoft: '#FFF0E7', background: '#F8F5EE', card: '#FFFEFC', line: '#E7E0D6', muted: '#667085', danger: '#B42318', success: '#257A48' };
 const apiBaseUrl = (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:5014').replace(/\/$/, '');
@@ -39,7 +42,6 @@ const plans: { id: PlanId; name: string; price: string; description: string; ben
 ];
 
 type Host = { id: number; name: string; isActive: boolean };
-type Profile = { name: string };
 type Summary = { detailViews: number; roadmapInclusions: number; carouselClicks: number; ticketClicks: number; nearbyClicks: number; activeFavoritesNow: number };
 type Daily = { date: string; detailViews: number; roadmapInclusions: number; carouselClicks: number; ticketClicks: number; nearbyClicks: number };
 type Ranking = { position: number; programmingId: number; name: string; detailViews: number; carouselClicks: number; ticketClicks: number; nearbyClicks: number; activeFavoritesNow: number };
@@ -77,18 +79,14 @@ function formatDate(value: string | null) {
   return Number.isNaN(date.getTime()) ? 'Não informada' : new Intl.DateTimeFormat('pt-BR').format(date);
 }
 
-function NavItem({ active = false, icon, label, onPress }: { active?: boolean; icon: string; label: string; onPress?: () => void }) {
-  return <Pressable accessibilityRole="button" accessibilityState={{ selected: active }} onPress={onPress} style={({ pressed }) => [styles.navItem, active && styles.navItemActive, pressed && styles.pressed]}><Text style={[styles.navIcon, active && styles.navActive]}>{icon}</Text><Text style={[styles.navLabel, active && styles.navActive]}>{label}</Text></Pressable>;
-}
-
 export default function DashboardScreen() {
-  const [fontsLoaded] = useFonts({ Fredoka_700Bold });
+  const { width: viewportWidth } = useWindowDimensions();
   const [token] = useState(getToken);
   const [tab, setTab] = useState<Tab>('results');
   const [period, setPeriod] = useState<Period>('7 dias');
   const [hosts, setHosts] = useState<Host[]>([]);
   const [selectedHostId, setSelectedHostId] = useState<number | null>(null);
-  const [initial, setInitial] = useState('U');
+  const initial = useUserInitial();
   const [summary, setSummary] = useState<Summary | null>(null);
   const [daily, setDaily] = useState<Daily[]>([]);
   const [ranking, setRanking] = useState<Ranking[]>([]);
@@ -105,7 +103,6 @@ export default function DashboardScreen() {
     let active = true;
     Promise.all([
       apiRequest<Host[]>('/api/Host/GetAllHostsbyUserId', token),
-      apiRequest<Profile>('/api/User/Profile', token).catch(() => null),
       apiRequest<Subscription>('/api/Subscription/MySubscription', token).catch((error) => {
         if (active) {
           setSubscriptionState('error');
@@ -113,12 +110,11 @@ export default function DashboardScreen() {
         }
         return null;
       }),
-    ]).then(([hostList, profile, currentSubscription]) => {
+    ]).then(([hostList, currentSubscription]) => {
       if (!active) return;
       const availableHosts = hostList.filter((host) => host.isActive);
       setHosts(availableHosts);
       setSelectedHostId(availableHosts[0]?.id ?? null);
-      setInitial(profile?.name.trim().charAt(0).toUpperCase() || 'U');
       setSubscription(currentSubscription);
       if (currentSubscription) { setSubscriptionState('ready'); setSubscriptionMessage(''); }
       if (availableHosts.length === 0) { setState('empty'); setMessage('Cadastre um estabelecimento para começar a acompanhar seus resultados.'); }
@@ -171,8 +167,8 @@ export default function DashboardScreen() {
     }
   }
 
-  return <View style={styles.viewport}><View style={styles.shell}><StatusBar style="dark" />
-    <View style={styles.header}><View style={styles.brand}><Text style={[styles.brandName, fontsLoaded && styles.brandFont]}>Perambulando</Text><Image accessibilityLabel="Marca Perambulando" resizeMode="contain" source={require('../assets/perambulando-mark.png')} style={styles.mark} /></View><Pressable accessibilityLabel="Abrir perfil" onPress={() => router.push('/perfil')} style={styles.avatar}><Text style={styles.avatarText}>{initial}</Text></Pressable></View>
+  return <View style={styles.viewport}><View style={[styles.shell, { width: responsiveShellWidth(viewportWidth) }]}><StatusBar style="dark" />
+    <AppHeader initial={initial} />
     <ScrollView contentContainerStyle={styles.content}>
       <View><Text style={styles.eyebrow}>SEU NEGÓCIO EM MOVIMENTO</Text><Text style={styles.title}>Seu painel</Text><Text style={styles.body}>Dados dos endpoints de estatísticas e assinatura do Perambulando.</Text></View>
       {!token ? <View style={styles.notice}><Text style={styles.cardTitle}>Sessão necessária</Text><Text style={styles.body}>{message}</Text><Pressable onPress={() => router.push({ pathname: '/cadastro_host', params: { origem: 'painel' } })} style={styles.primaryButton}><Text style={styles.primaryText}>Acessar cadastro</Text></Pressable></View> : null}
@@ -225,7 +221,7 @@ export default function DashboardScreen() {
         <View style={styles.paymentCard}><Text style={styles.cardTitle}>Pagamento no ambiente do provedor</Text><Text style={styles.body}>Quando o checkout estiver integrado, os dados completos de pagamento não serão informados ao Perambulando. A contratação acontecerá no ambiente seguro do provedor.</Text><Text style={styles.small}>O backend atual oferece consulta, ativação simulada e cancelamento; ainda não existe endpoint de checkout ou seleção de plano.</Text></View>
       </>}
     </ScrollView>
-    <View style={styles.bottomNav}><NavItem active icon="▦" label="Painel" /><NavItem icon="▣" label="Meus eventos" onPress={() => router.push('/meus_eventos')} /><Pressable onPress={() => router.push('/')} style={styles.createNav}><View style={styles.createButton}><Text style={styles.createPlus}>+</Text></View><Text style={styles.createLabel}>Criar evento</Text></Pressable><NavItem icon="⊙" label="Explorar" onPress={() => router.push('/explorar' as Href)} /><NavItem icon="▥" label="Comércio" onPress={() => router.push({ pathname: '/comercio', params: { gestao: '1' } } as Href)} /></View>
+    <AppBottomNav active="panel" mode="host" />
     <Modal animationType="fade" onRequestClose={() => setSelectedPlanId(null)} transparent visible={selectedPlan !== null}>
       <View style={styles.modalOverlay}><View accessibilityViewIsModal style={styles.modalCard}>
         <ScrollView contentContainerStyle={styles.modalContent}>
@@ -243,7 +239,7 @@ export default function DashboardScreen() {
 }
 
 const styles = StyleSheet.create({
-  viewport: { flex: 1, alignItems: 'center', backgroundColor: '#E6DED2' }, shell: { flex: 1, width: '100%', maxWidth: 430, overflow: 'hidden', backgroundColor: colors.background, borderLeftWidth: 1, borderRightWidth: 1, borderColor: '#DDD8D2' }, header: { minHeight: 70, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: 1, borderBottomColor: colors.line, backgroundColor: colors.card }, brand: { flexDirection: 'row', alignItems: 'center', gap: 7 }, brandName: { color: colors.ink, fontSize: 18, fontWeight: '700' }, brandFont: { fontFamily: 'Fredoka_700Bold', fontWeight: 'normal' }, mark: { width: 42, height: 42 }, avatar: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.ink }, avatarText: { color: colors.card, fontWeight: '800' },
+  viewport: { flex: 1, alignItems: 'center', backgroundColor: '#E6DED2' }, shell: { flex: 1, width: '100%', maxWidth: 760, overflow: 'hidden', backgroundColor: colors.background, borderLeftWidth: 1, borderRightWidth: 1, borderColor: '#DDD8D2' }, header: { minHeight: 70, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: 1, borderBottomColor: colors.line, backgroundColor: colors.card }, brand: { flexDirection: 'row', alignItems: 'center', gap: 7 }, brandName: { color: colors.ink, fontSize: 18, fontWeight: '700' }, brandFont: { fontFamily: 'Fredoka_700Bold', fontWeight: 'normal' }, mark: { width: 42, height: 42 }, avatar: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.ink }, avatarText: { color: colors.card, fontWeight: '800' },
   content: { padding: 16, paddingTop: 28, paddingBottom: 34, gap: 15 }, eyebrow: { color: colors.orange, fontSize: 9, fontWeight: '800', letterSpacing: 1.6 }, title: { marginTop: 8, color: colors.ink, fontSize: 30, fontWeight: '700' }, body: { color: colors.muted, fontSize: 12, lineHeight: 19 }, caption: { color: colors.muted, fontSize: 10, lineHeight: 15 }, small: { color: colors.muted, fontSize: 9, lineHeight: 14 }, notice: { padding: 17, gap: 10, borderRadius: 18, borderWidth: 1, borderColor: '#FFD8C2', backgroundColor: '#FFF7F1' }, stateCard: { minHeight: 145, padding: 18, alignItems: 'center', justifyContent: 'center', gap: 10, borderRadius: 18, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card }, errorCard: { borderColor: '#FECACA', backgroundColor: '#FFF1F0' },
   hostSelector: { paddingTop: 9, paddingRight: 12, gap: 7 }, hostChip: { minHeight: 38, paddingHorizontal: 13, alignItems: 'center', justifyContent: 'center', borderRadius: 19, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card }, hostChipActive: { borderColor: colors.orange, backgroundColor: colors.orangeSoft }, hostChipText: { color: colors.muted, fontSize: 10, fontWeight: '700' }, hostChipTextActive: { color: colors.orange }, tabs: { padding: 4, flexDirection: 'row', borderRadius: 14, backgroundColor: '#EEEAE2' }, tab: { flex: 1, minHeight: 42, alignItems: 'center', justifyContent: 'center', borderRadius: 10 }, tabActive: { backgroundColor: colors.ink }, tabText: { color: colors.muted, fontSize: 11, fontWeight: '700' }, tabTextActive: { color: colors.card },
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }, sectionTitle: { color: colors.ink, fontSize: 19, fontWeight: '800' }, periods: { flexDirection: 'row', gap: 7 }, period: { flex: 1, minHeight: 36, alignItems: 'center', justifyContent: 'center', borderRadius: 18, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card }, periodActive: { borderColor: colors.orange, backgroundColor: colors.orangeSoft }, orangeText: { color: colors.orange, fontWeight: '800' }, metrics: { flexDirection: 'row', flexWrap: 'wrap', gap: 9 }, metric: { flexBasis: '46%', flexGrow: 1, padding: 13, gap: 6, borderRadius: 16, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card }, metricValue: { color: colors.ink, fontSize: 26, fontWeight: '800' }, card: { padding: 16, gap: 11, borderRadius: 19, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card }, cardTitle: { color: colors.ink, fontSize: 16, fontWeight: '800' }, chart: { height: 126, paddingTop: 12, flexDirection: 'row', alignItems: 'flex-end', gap: 5 }, chartColumn: { flex: 1, alignItems: 'center', gap: 5 }, bar: { width: '100%', borderTopLeftRadius: 5, borderTopRightRadius: 5, backgroundColor: colors.orange }, empty: { paddingVertical: 20, color: colors.muted, fontSize: 11, textAlign: 'center' }, eventRow: { paddingTop: 10, gap: 4, borderTopWidth: 1, borderTopColor: colors.line }, eventName: { color: colors.ink, fontSize: 12, fontWeight: '800' }, badge: { paddingHorizontal: 9, paddingVertical: 5, borderRadius: 12, backgroundColor: '#EDF2F6' }, badgeText: { color: colors.ink, fontSize: 9, fontWeight: '800' },

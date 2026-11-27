@@ -16,6 +16,7 @@ import {
 
 import { colors } from './theme/colors';
 import { getToken } from './lib/session';
+import { responsiveShellWidth } from './theme/responsive';
 
 const LOGIN_ROUTE = '/login' as Href;
 const REGISTER_ROUTE = '/cadastro' as Href;
@@ -68,7 +69,7 @@ export default function HomeScreen() {
 
   return (
     <View style={styles.viewport}>
-      <View style={[styles.appShell, { width: Math.min(viewportWidth, 430) }]}>
+      <View style={[styles.appShell, { width: responsiveShellWidth(viewportWidth) }]}>
         <StatusBar style="light" />
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           <ImageBackground
@@ -131,7 +132,7 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   viewport: { flex: 1, alignItems: 'center', backgroundColor: '#E6DED2' },
-  appShell: { flex: 1, width: '100%', maxWidth: 430, minWidth: 0, alignSelf: 'center', overflow: 'hidden', backgroundColor: colors.background, borderColor: colors.line, borderLeftWidth: 1, borderRightWidth: 1 },
+  appShell: { flex: 1, width: '100%', maxWidth: 760, minWidth: 0, alignSelf: 'center', overflow: 'hidden', backgroundColor: colors.background, borderColor: colors.line, borderLeftWidth: 1, borderRightWidth: 1 },
   scrollContent: { flexGrow: 1, backgroundColor: colors.background },
   hero: { minHeight: 176, justifyContent: 'flex-end', backgroundColor: colors.ink },
   heroImage: { backgroundColor: colors.ink },

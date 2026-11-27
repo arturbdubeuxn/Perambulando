@@ -2,9 +2,10 @@ import RoadmapButton from './RoadmapButton';
 import { router, type Href } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useRef, useState, type ComponentRef } from 'react';
-import { ActivityIndicator, Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
 import { hostEventDate } from './hostDetails';
 import { sendTravelChatMessage, type ChatAddress, type TravelChatResult } from './travelChat';
+import { responsiveShellWidth } from './theme/responsive';
 
 const colors = { ink: '#002B5C', orange: '#FF5A0A', purple: '#7044E8', background: '#F8F5EE', card: '#FFFEFC', line: '#E7E0D6', muted: '#667085' };
 const suggestions = [
@@ -36,6 +37,7 @@ function ChatResults({ result }: { result: TravelChatResult }) {
 }
 
 export default function TravelChatScreen() {
+  const { width: viewportWidth } = useWindowDimensions();
   const [draft, setDraft] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
   const [sending, setSending] = useState(false);
@@ -101,7 +103,7 @@ export default function TravelChatScreen() {
     }
   };
 
-  return <View style={styles.viewport}><KeyboardAvoidingView style={styles.shell} behavior={Platform.OS === 'ios' ? 'padding' : Platform.OS === 'android' ? 'height' : undefined}>
+  return <View style={styles.viewport}><KeyboardAvoidingView style={[styles.shell, { width: responsiveShellWidth(viewportWidth) }]} behavior={Platform.OS === 'ios' ? 'padding' : Platform.OS === 'android' ? 'height' : undefined}>
     <StatusBar style="dark" />
     <View style={styles.header}><Pressable accessibilityRole="button" accessibilityLabel="Voltar para explorar" onPress={goBack} style={styles.back}><Text style={styles.backText}>‹</Text></Pressable><View style={styles.headerCopy}><Text style={styles.eyebrow}>ASSISTENTE DE PASSEIOS</Text><Text accessibilityRole="header" style={styles.title}>Meu roteiro</Text><View style={styles.badge}><Text style={styles.badgeText}>COM IA</Text></View></View></View>
     <View style={styles.panel}>
@@ -117,7 +119,7 @@ export default function TravelChatScreen() {
 }
 
 const styles = StyleSheet.create({
-  viewport: { flex: 1, backgroundColor: '#E6DED2', alignItems: 'center' }, shell: { flex: 1, width: '100%', maxWidth: 430, backgroundColor: colors.background },
+  viewport: { flex: 1, backgroundColor: '#E6DED2', alignItems: 'center' }, shell: { flex: 1, width: '100%', maxWidth: 760, backgroundColor: colors.background },
   header: { paddingHorizontal: 16, paddingTop: 28, paddingBottom: 22, flexDirection: 'row', gap: 14, alignItems: 'center', ...Platform.select({ web: { backgroundImage: 'radial-gradient(ellipse at 85% 0%, #EDE6FF 0%, #F8F5EE 75%)' } }) }, back: { width: 38, height: 40, borderRadius: 20, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, justifyContent: 'center', alignItems: 'center' }, backText: { color: colors.ink, fontSize: 27 }, headerCopy: { flex: 1, gap: 8 }, eyebrow: { color: colors.orange, fontSize: 9, fontWeight: '700', letterSpacing: 1.8 }, title: { color: colors.ink, fontSize: 30, letterSpacing: -1 }, badge: { alignSelf: 'flex-start', backgroundColor: '#EDE8DF', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 12 }, badgeText: { color: colors.muted, fontSize: 8, fontWeight: '700', letterSpacing: 0.8 },
   panel: { flex: 1, minHeight: 0, marginHorizontal: 14, marginBottom: 16, borderWidth: 1, borderColor: colors.line, borderRadius: 23, backgroundColor: colors.card, overflow: 'hidden', ...Platform.select({ web: { boxShadow: '0 8px 28px rgba(0,43,92,.05)' } }) }, conversation: { flex: 1 }, messages: { padding: 16, gap: 16 }, assistantRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 9 }, assistantIcon: { width: 35, height: 37, borderRadius: 12, borderBottomLeftRadius: 3, backgroundColor: colors.purple, alignItems: 'center', justifyContent: 'center' }, routeGlyph: { color: '#FFFFFF', fontSize: 25, fontWeight: '700' }, welcome: { flex: 1, minWidth: 0, padding: 14, borderRadius: 17, borderTopLeftRadius: 4, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.background, gap: 7 }, welcomeTitle: { color: colors.ink, fontSize: 15, fontWeight: '700', lineHeight: 21 }, body: { color: colors.muted, fontSize: 12, lineHeight: 19 }, small: { color: colors.muted, fontSize: 10, lineHeight: 16 },
   suggestions: { gap: 9 }, suggestion: { minHeight: 49, borderRadius: 14, borderWidth: 1, borderColor: colors.line, paddingHorizontal: 13, paddingVertical: 11, flexDirection: 'row', alignItems: 'center', gap: 8 }, suggestionLabel: { flex: 1, color: colors.ink, fontSize: 13, fontWeight: '600' }, chevron: { color: colors.muted, fontSize: 23 }, userBubble: { maxWidth: '90%', alignSelf: 'flex-end', backgroundColor: colors.ink, borderRadius: 17, borderBottomRightRadius: 4, padding: 13 }, userText: { color: '#FFFFFF', fontSize: 13, lineHeight: 20 }, assistantBubble: { backgroundColor: colors.background, borderWidth: 1, borderColor: colors.line, borderRadius: 17, borderTopLeftRadius: 4, padding: 12, gap: 12 }, typing: { flexDirection: 'row', gap: 10, alignItems: 'center', padding: 10 },

@@ -4,6 +4,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import HostOpeningHours from '../HostOpeningHours';
+import { responsiveShellWidth } from '../theme/responsive';
 import { emptyOpeningWeek, loadedOpeningDays, openingWeekError, openingWeekPayload, type OpeningDay, type OpeningWeek } from '../openingHours';
 import {
   Image,
@@ -1117,7 +1118,7 @@ export default function HostRegistrationScreen() {
 
   return (
     <View style={styles.viewport}>
-      <View style={[styles.appShell, { width: Math.min(viewportWidth, 430) }]}>
+      <View style={[styles.appShell, { width: responsiveShellWidth(viewportWidth) }]}>
         <StatusBar style="dark" />
 
         <View style={styles.header}>
@@ -1570,7 +1571,7 @@ const styles = StyleSheet.create({
   appShell: {
     flex: 1,
     width: '100%',
-    maxWidth: 430,
+    maxWidth: 760,
     minWidth: 0,
     alignSelf: 'center',
     overflow: 'hidden',

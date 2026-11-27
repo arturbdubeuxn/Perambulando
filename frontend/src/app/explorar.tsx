@@ -1,6 +1,4 @@
 import RoadmapButton from '../RoadmapButton';
-import { Fredoka_700Bold } from '@expo-google-fonts/fredoka/700Bold';
-import { useFonts } from 'expo-font';
 import * as Location from 'expo-location';
 import { router, type Href, useFocusEffect } from 'expo-router';
 import { getFavoriteKeys, storeFavoriteKeys, setLocalFavorite, subscribeToFavorites } from '../favorites';
@@ -18,6 +16,11 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
+
+import AppBottomNav from '../components/AppBottomNav';
+import AppHeader from '../components/AppHeader';
+import { responsiveShellWidth } from '../theme/responsive';
+import { useUserInitial } from '../useUserInitial';
 
 const colors = {
   background: '#F8F5EE',
@@ -75,10 +78,6 @@ type Host = {
   description: string;
   address: Address;
   isActive: boolean;
-};
-
-type UserProfile = {
-  name: string;
 };
 
 type FavoritePreview = { key: string; name: string; imageUrl: string; type: string; address: string } & ({ programmingId: number } | { hostId: number });
@@ -182,28 +181,8 @@ function addressLabel(address: Address) {
   return [address.street, address.neighborhood, address.city].filter(Boolean).join(' · ');
 }
 
-function Header({ initial, fontsLoaded }: { initial: string; fontsLoaded: boolean }) {
-  return (
-    <View style={styles.header}>
-      <View accessible accessibilityLabel="Perambulando" style={styles.brand}>
-        <Text style={[styles.brandName, fontsLoaded && styles.brandNameFredoka]}>Perambulando</Text>
-        <Image
-          accessibilityIgnoresInvertColors
-          resizeMode="contain"
-          source={require('../../assets/perambulando-mark.png')}
-          style={styles.brandMark}
-        />
-      </View>
-      <Pressable
-        accessibilityLabel="Abrir perfil do usuário"
-        accessibilityRole="button"
-        onPress={() => router.push('/perfil')}
-        style={({ pressed }) => [styles.avatar, pressed && styles.pressed]}
-      >
-        <Text style={styles.avatarText}>{initial}</Text>
-      </Pressable>
-    </View>
-  );
+function Header({ initial }: { initial: string }) {
+  return <AppHeader initial={initial} />;
 }
 
 function CategoryButton({
@@ -391,24 +370,8 @@ function NearbyCard({ item }: { item: NearbyItem }) {
   );
 }
 
-function NavItem({ icon, label, active = false, onPress }: { icon: string; label: string; active?: boolean; onPress?: () => void }) {
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityState={{ selected: active, disabled: !onPress && !active }}
-      disabled={!onPress && !active}
-      onPress={onPress}
-      style={({ pressed }) => [styles.navItem, pressed && styles.pressed]}
-    >
-      <Text style={[styles.navIcon, active && styles.navIconActive]}>{icon}</Text>
-      <Text style={[styles.navLabel, active && styles.navLabelActive]}>{label}</Text>
-    </Pressable>
-  );
-}
-
 export default function ExploreScreen() {
   const { width: viewportWidth } = useWindowDimensions();
-  const [fontsLoaded] = useFonts({ Fredoka_700Bold });
   const [token] = useState(getSessionToken);
   const [categories, setCategories] = useState<Category[]>([]);
   const [programmings, setProgrammings] = useState<Programming[]>([]);
@@ -432,7 +395,7 @@ export default function ExploreScreen() {
   const [searchText, setSearchText] = useState('');
   const [state, setState] = useState<LoadState>('loading');
   const [message, setMessage] = useState('Buscando experiências para você...');
-  const [userInitial, setUserInitial] = useState('U');
+  const userInitial = useUserInitial();
   const programmingRequest = useRef(0);
   const searchInput = useRef<ComponentRef<typeof TextInput>>(null);
   const pageScroll = useRef<ComponentRef<typeof ScrollView>>(null);
@@ -462,12 +425,6 @@ export default function ExploreScreen() {
       });
 
     if (token) {
-      requestJson<UserProfile>('/api/User/Profile', { headers: { Authorization: `Bearer ${token}` } })
-        .then((profile) => {
-          if (active) setUserInitial(profile.name.trim().charAt(0).toUpperCase() || 'U');
-        })
-        .catch(() => undefined);
-
       requestJson<Category[]>('/api/Category/GetUserCategoriesPreferences', { headers: { Authorization: `Bearer ${token}` } })
         .then((items) => {
           if (!active) return;
@@ -703,9 +660,9 @@ export default function ExploreScreen() {
 
   return (
     <View style={styles.viewport}>
-      <View style={[styles.appShell, { width: Math.min(viewportWidth, 430) }]}>
+      <View style={[styles.appShell, { width: responsiveShellWidth(viewportWidth) }]}>
         <StatusBar style="dark" />
-        <Header fontsLoaded={fontsLoaded} initial={userInitial} />
+        <Header initial={userInitial} />
 
         <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled" ref={pageScroll} showsVerticalScrollIndicator>
           <View style={styles.hero}>
@@ -869,13 +826,7 @@ export default function ExploreScreen() {
 
         </ScrollView>
 
-        <View style={styles.bottomNav}>
-          <NavItem active icon="⌾" label="Explorar" />
-          <NavItem icon="⌁" label="Roteiro" onPress={() => router.push('/roteiro' as Href)} />
-          <NavItem icon="⌖" label="Perto de você" onPress={() => router.push('/perto_de_voce' as Href)} />
-          <NavItem icon="♡" label="Favoritos" onPress={() => router.push('/favoritos' as Href)} />
-          <NavItem icon="♙" label="Perfil" onPress={() => router.push('/perfil' as Href)} />
-        </View>
+        <AppBottomNav active="explore" mode="user" />
       </View>
     </View>
   );
@@ -885,7 +836,7 @@ const styles = StyleSheet.create({
   eventImageLink: { width: '100%', height: '100%' },
   itineraryButton: { marginTop: 12, minHeight: 78, padding: 13, flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 17, borderWidth: 1, borderColor: '#47607C', backgroundColor: '#1C3D63' }, itineraryIcon: { width: 39, height: 40, borderRadius: 12, backgroundColor: '#D4FF48', alignItems: 'center', justifyContent: 'center' }, itineraryGlyph: { color: '#23350B', fontSize: 25, fontWeight: '700' }, itineraryCopy: { flex: 1 }, itineraryTitle: { color: '#FFFFFF', fontSize: 14, fontWeight: '700' }, itinerarySubtitle: { color: '#CDD8E5', fontSize: 11, lineHeight: 17, marginTop: 3 }, itineraryArrow: { color: '#FFFFFF', fontSize: 25 }, pressedItinerary: { opacity: 0.8 },
   viewport: { flex: 1, alignItems: 'center', backgroundColor: '#E6DED2' },
-  appShell: { flex: 1, maxWidth: 430, minWidth: 0, backgroundColor: colors.background, borderLeftWidth: 1, borderRightWidth: 1, borderColor: '#DDD8D2', overflow: 'hidden' },
+  appShell: { flex: 1, maxWidth: 760, minWidth: 0, backgroundColor: colors.background, borderLeftWidth: 1, borderRightWidth: 1, borderColor: '#DDD8D2', overflow: 'hidden' },
   header: { minHeight: 70, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: colors.card, borderBottomWidth: 1, borderBottomColor: colors.line },
   brand: { flexDirection: 'row', alignItems: 'center', gap: 7 },
   brandName: { color: colors.ink, fontSize: 18, fontWeight: '700', letterSpacing: -0.5 },

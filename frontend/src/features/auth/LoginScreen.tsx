@@ -19,6 +19,7 @@ import {
 import { FormField } from '../../components/FormField';
 import { setSession } from '../../lib/session';
 import { colors } from '../../theme/colors';
+import { responsiveShellWidth } from '../../theme/responsive';
 import { describeLoginError, loginUser } from './loginApi';
 import { hasLoginErrors, validateLogin } from './loginValidation';
 import type { LoginErrors, LoginForm } from './loginValidation';
@@ -82,7 +83,7 @@ export default function LoginScreen() {
 
   return (
     <View style={styles.viewport}>
-      <View style={[styles.appShell, { width: Math.min(viewportWidth, 430) }]}>
+      <View style={[styles.appShell, { width: responsiveShellWidth(viewportWidth) }]}>
         <StatusBar style="dark" />
 
         <View style={styles.header}>
@@ -207,7 +208,7 @@ const styles = StyleSheet.create({
   appShell: {
     flex: 1,
     width: '100%',
-    maxWidth: 430,
+    maxWidth: 760,
     minWidth: 0,
     alignSelf: 'center',
     overflow: 'hidden',

@@ -1,11 +1,14 @@
 import RoadmapButton from '../RoadmapButton';
-import { Fredoka_700Bold } from '@expo-google-fonts/fredoka/700Bold';
-import { useFonts } from 'expo-font';
 import { router, type Href, useFocusEffect } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { getFavoriteKeys as getLocalKeys, storeFavoriteKeys as storeLocalKeys } from '../favorites';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Image, Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+
+import AppBottomNav from '../components/AppBottomNav';
+import AppHeader from '../components/AppHeader';
+import { responsiveShellWidth } from '../theme/responsive';
+import { useUserInitial } from '../useUserInitial';
 
 const colors = { ink: '#002B5C', orange: '#FF5A0A', orangeSoft: '#FFF0E7', background: '#F8F5EE', card: '#FFFEFC', line: '#E7E0D6', muted: '#667085', danger: '#B42318', success: '#257A48' };
 const apiBaseUrl = (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:5014').replace(/\/$/, '');
@@ -19,7 +22,6 @@ type Programming = { id: number; name: string; description: string; startDate: s
 type Host = { id: number; typeofhost: number; logoUrl: string; name: string; description: string; address: Address; isActive: boolean };
 type FavoriteItem = { key: string; kind: 'programming'; programming: Programming } | { key: string; kind: 'host'; host: Host };
 type FavoriteResponse = { programmingId: number };
-type UserProfile = { name: string };
 type LoadState = 'loading' | 'ready' | 'empty' | 'error';
 
 function getStorage(name: 'localStorage' | 'sessionStorage') {
@@ -77,15 +79,10 @@ function priceLabel(item: Programming) {
 
 function addressLabel(address: Address) { return [address.street, address.number, address.neighborhood, address.city].filter(Boolean).join(' · '); }
 
-function NavItem({ active = false, icon, label, onPress }: { active?: boolean; icon: string; label: string; onPress?: () => void }) {
-  return <Pressable accessibilityRole="button" accessibilityState={{ selected: active }} onPress={onPress} style={({ pressed }) => [styles.navItem, active && styles.navItemActive, pressed && styles.pressed]}><Text style={[styles.navIcon, active && styles.navActive]}>{icon}</Text><Text style={[styles.navLabel, active && styles.navActive]}>{label}</Text></Pressable>;
-}
-
 export default function FavoritesScreen() {
   const { width } = useWindowDimensions();
-  const [fontsLoaded] = useFonts({ Fredoka_700Bold });
   const [token] = useState(getToken);
-  const [initial, setInitial] = useState('U');
+  const initial = useUserInitial();
   const [items, setItems] = useState<FavoriteItem[]>([]);
   const [state, setState] = useState<LoadState>('loading');
   const [message, setMessage] = useState('Carregando seus rolês salvos...');
@@ -100,7 +97,6 @@ export default function FavoritesScreen() {
         const localHostIds = localKeys.filter((key) => key.startsWith('host:')).map((key) => Number(key.split(':')[1])).filter(Number.isInteger);
         let ids = [...new Set(localIds)];
         if (token) {
-          requestJson<UserProfile>('/api/User/Profile', { headers: { Authorization: `Bearer ${token}` } }).then((profile) => { if (active) setInitial(profile.name.trim().charAt(0).toUpperCase() || 'U'); }).catch(() => undefined);
           const serverFavorites = await requestJson<FavoriteResponse[]>('/api/Favorite/GetAllByUserId', { headers: { Authorization: `Bearer ${token}` } }).catch(() => null);
           if (serverFavorites) {
             const serverIds = new Set(serverFavorites.map((favorite) => favorite.programmingId));
@@ -162,8 +158,8 @@ export default function FavoritesScreen() {
     }
   };
 
-  return <View style={styles.viewport}><View style={[styles.shell, { width: Math.min(width, 430) }]}><StatusBar style="dark" />
-    <View style={styles.header}><View style={styles.brand}><Text style={[styles.brandName, fontsLoaded && styles.brandFont]}>Perambulando</Text><Image accessibilityLabel="Marca Perambulando" resizeMode="contain" source={require('../../assets/perambulando-mark.png')} style={styles.mark} /></View><Pressable accessibilityLabel="Abrir perfil" onPress={() => router.push('/perfil' as Href)} style={styles.avatar}><Text style={styles.avatarText}>{initial}</Text></Pressable></View>
+  return <View style={styles.viewport}><View style={[styles.shell, { width: responsiveShellWidth(width) }]}><StatusBar style="dark" />
+    <AppHeader initial={initial} />
     <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator>
       <View><Text style={styles.eyebrow}>SUA COLEÇÃO</Text><Text style={styles.title}>Rolês salvos</Text><Text style={styles.subtitle}>Suas programações e seus estabelecimentos favoritos, todos aqui.</Text></View>
       {state === 'loading' ? <View style={styles.stateCard}><ActivityIndicator color={colors.orange} /><Text style={styles.stateText}>{message}</Text></View> : null}
@@ -179,12 +175,12 @@ export default function FavoritesScreen() {
         </Pressable><RoadmapButton kind={item.kind} id={data.id} name={data.name} /></View>;
       })}</View> : null}
     </ScrollView>
-    <View style={styles.bottomNav}><NavItem icon="⌾" label="Explorar" onPress={() => router.push('/explorar' as Href)} /><NavItem icon="⌁" label="Roteiro" onPress={() => router.push('/roteiro' as Href)} /><NavItem icon="⌖" label="Perto de você" onPress={() => router.push('/perto_de_voce' as Href)} /><NavItem active icon="♥" label="Favoritos" /><NavItem icon="♙" label="Perfil" onPress={() => router.push('/perfil' as Href)} /></View>
+    <AppBottomNav active="favorites" mode="user" />
   </View></View>;
 }
 
 const styles = StyleSheet.create({
-  viewport: { flex: 1, alignItems: 'center', backgroundColor: '#E6DED2' }, shell: { flex: 1, maxWidth: 430, overflow: 'hidden', backgroundColor: colors.background, borderLeftWidth: 1, borderRightWidth: 1, borderColor: '#DDD8D2' }, header: { minHeight: 70, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: 1, borderBottomColor: colors.line, backgroundColor: colors.card }, brand: { flexDirection: 'row', alignItems: 'center', gap: 7 }, brandName: { color: colors.ink, fontSize: 18, fontWeight: '700' }, brandFont: { fontFamily: 'Fredoka_700Bold', fontWeight: 'normal' }, mark: { width: 40, height: 40 }, avatar: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.ink }, avatarText: { color: colors.card, fontSize: 14, fontWeight: '800' },
+  viewport: { flex: 1, alignItems: 'center', backgroundColor: '#E6DED2' }, shell: { flex: 1, maxWidth: 760, overflow: 'hidden', backgroundColor: colors.background, borderLeftWidth: 1, borderRightWidth: 1, borderColor: '#DDD8D2' }, header: { minHeight: 70, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: 1, borderBottomColor: colors.line, backgroundColor: colors.card }, brand: { flexDirection: 'row', alignItems: 'center', gap: 7 }, brandName: { color: colors.ink, fontSize: 18, fontWeight: '700' }, brandFont: { fontFamily: 'Fredoka_700Bold', fontWeight: 'normal' }, mark: { width: 40, height: 40 }, avatar: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.ink }, avatarText: { color: colors.card, fontSize: 14, fontWeight: '800' },
   content: { padding: 16, paddingTop: 26, paddingBottom: 36, gap: 18 }, eyebrow: { color: colors.orange, fontSize: 9, fontWeight: '800', letterSpacing: 1.6 }, title: { marginTop: 8, color: colors.ink, fontSize: 32, lineHeight: 36, fontWeight: '400', letterSpacing: -1.2 }, subtitle: { marginTop: 7, color: colors.muted, fontSize: 12, lineHeight: 18 }, list: { gap: 18 }, card: { overflow: 'hidden', borderRadius: 20, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card }, imageFrame: { position: 'relative', height: 205, backgroundColor: '#DCE7E9' }, eventImage: { width: '100%', height: '100%' }, imageFallback: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#E9F1EF' }, fallbackMark: { width: 72, height: 72 }, dateBadge: { position: 'absolute', top: 12, left: 12, width: 48, height: 54, alignItems: 'center', justifyContent: 'center', borderRadius: 13, backgroundColor: colors.card }, dateDay: { color: colors.ink, fontSize: 17, lineHeight: 19, fontWeight: '800' }, dateMonth: { color: colors.orange, fontSize: 8, fontWeight: '800' }, hostBadge: { position: 'absolute', top: 12, left: 12, paddingHorizontal: 10, paddingVertical: 7, borderRadius: 10, backgroundColor: colors.card }, hostBadgeText: { color: colors.orange, fontSize: 8, fontWeight: '800', letterSpacing: 0.7 }, heartButton: { position: 'absolute', top: 12, right: 12, width: 42, height: 42, alignItems: 'center', justifyContent: 'center', borderRadius: 21, backgroundColor: colors.card }, heart: { color: '#EF4444', fontSize: 24, lineHeight: 26 }, cardCopy: { padding: 14 }, categories: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 }, category: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 9, backgroundColor: colors.orangeSoft }, categoryText: { color: colors.orange, fontSize: 8, fontWeight: '800' }, meta: { marginTop: 10, flexDirection: 'row', justifyContent: 'space-between', gap: 10 }, date: { flex: 1, color: colors.orange, fontSize: 9, fontWeight: '800' }, price: { color: colors.ink, fontSize: 9, fontWeight: '800' }, free: { color: colors.success }, eventName: { marginTop: 7, color: colors.ink, fontSize: 18, lineHeight: 22, fontWeight: '800' }, hostDescription: { marginTop: 7, color: colors.muted, fontSize: 11, lineHeight: 16 }, address: { marginTop: 7, color: colors.muted, fontSize: 10, lineHeight: 15 },
   stateCard: { minHeight: 190, padding: 22, alignItems: 'center', justifyContent: 'center', gap: 10, borderRadius: 20, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card }, errorCard: { borderColor: '#FECACA', backgroundColor: '#FFF1F0' }, stateIcon: { color: colors.orange, fontSize: 32 }, stateTitle: { color: colors.ink, fontSize: 16, fontWeight: '800' }, errorTitle: { color: colors.danger, fontSize: 16, fontWeight: '800' }, stateText: { color: colors.muted, fontSize: 11, lineHeight: 17, textAlign: 'center' }, exploreButton: { minHeight: 42, marginTop: 5, paddingHorizontal: 18, alignItems: 'center', justifyContent: 'center', borderRadius: 12, backgroundColor: colors.ink }, exploreButtonText: { color: colors.card, fontSize: 10, fontWeight: '800' }, pressed: { opacity: 0.75 },
   bottomNav: { minHeight: 72, paddingHorizontal: 6, paddingBottom: 5, flexDirection: 'row', alignItems: 'center', borderTopWidth: 1, borderTopColor: colors.line, backgroundColor: colors.card }, navItem: { flex: 1, minHeight: 56, alignItems: 'center', justifyContent: 'center', gap: 4, borderRadius: 12 }, navItemActive: { backgroundColor: colors.orangeSoft }, navIcon: { color: '#8C8C93', fontSize: 18 }, navLabel: { color: '#8C8C93', fontSize: 8, textAlign: 'center' }, navActive: { color: colors.orange, fontWeight: '800' },

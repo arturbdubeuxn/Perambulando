@@ -5,6 +5,8 @@ import { router, useFocusEffect, useLocalSearchParams, type Href } from 'expo-ro
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useMemo, useRef, useState, type ComponentRef } from 'react';
 import { ActivityIndicator, Image, Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import AppBottomNav from './components/AppBottomNav';
+import { responsiveShellWidth } from './theme/responsive';
 import { openingDayLabels, openingDayOrder } from './openingHours';
 import { groupHostEvents, hostEventDate, hostEventStatus, type HostDetails, type HostEvent } from './hostDetails';
 import NearbyPlaces from './NearbyPlaces';
@@ -44,11 +46,8 @@ function EventRail({ title, description, events, now, management }: { title: str
   </View>;
 }
 
-function NavItem({ label, icon, onPress, active = false }: { label: string; icon: string; onPress: () => void; active?: boolean }) {
-  return <Pressable accessibilityRole="button" accessibilityState={{ selected: active }} onPress={onPress} style={styles.navItem}><Text style={[styles.navIcon, active && styles.orange]}>{icon}</Text><Text style={[styles.navLabel, active && styles.orange]}>{label}</Text></Pressable>;
-}
-
 export default function HostDetailsScreen() {
+  const { width: viewportWidth } = useWindowDimensions();
   const params = useLocalSearchParams<{ hostId?: string | string[]; origin?: string | string[] }>();
   const hostId = Number(Array.isArray(params.hostId) ? params.hostId[0] : params.hostId);
   const origin = Array.isArray(params.origin) ? params.origin[0] : params.origin;
@@ -113,7 +112,7 @@ export default function HostDetailsScreen() {
   };
   const address = host ? [[host.address.street, host.address.number].filter(Boolean).join(', '), host.address.complement, host.address.neighborhood, host.address.city].filter(Boolean).join(' · ') : '';
 
-  return <View style={styles.viewport}><View style={styles.shell}>
+  return <View style={styles.viewport}><View style={[styles.shell, { width: responsiveShellWidth(viewportWidth) }]}>
     <StatusBar style="dark" />
     <View style={styles.header}><Pressable accessibilityRole="button" accessibilityLabel={origin === 'nearby-map' ? 'Voltar ao mapa' : 'Voltar'} onPress={goBack} style={styles.back}><Text style={styles.backText}>‹</Text></Pressable><View style={styles.brand}><Text style={[styles.brandName, fontsLoaded && styles.brandFont]}>Perambulando</Text><Image accessibilityLabel="Marca Perambulando" source={require('../assets/perambulando-mark.png')} resizeMode="contain" style={styles.brandMark} /></View><View style={{ width: 36 }} /></View>
     <ScrollView contentContainerStyle={styles.content}>
@@ -139,11 +138,9 @@ export default function HostDetailsScreen() {
         <NearbyPlaces key={`nearby-${host.id}`} host={host} onSelect={(item) => router.push(item.type === 'Host' ? { pathname: '/estabelecimento', params: { hostId: String(item.id), origin: 'estabelecimento' } } : { pathname: '/programacao/[programmingId]', params: { programmingId: String(item.id), origin: 'estabelecimento' } } as Href)} />
       </>}
     </ScrollView>
-    <View style={styles.nav}>{management ? <>
-      <NavItem label="Painel" icon="▦" onPress={() => router.push('/painel' as Href)} /><NavItem label="Meus eventos" icon="▣" onPress={() => router.push('/meus_eventos')} /><Pressable accessibilityRole="button" accessibilityLabel="Criar evento" onPress={() => router.push('/')} style={styles.navItem}><View style={styles.createCircle}><Text style={styles.createIcon}>＋</Text></View><Text style={[styles.navLabel, styles.orange]}>Criar evento</Text></Pressable><NavItem label="Explorar" icon="⊙" onPress={() => router.push('/explorar' as Href)} /><NavItem active label="Comércio" icon="▥" onPress={() => router.push({ pathname: '/comercio', params: { gestao: '1' } } as Href)} />
-    </> : <>
-      <NavItem active={!['nearby-map', 'favoritos', 'comercio', 'roteiro'].includes(origin ?? '')} label="Explorar" icon="⌾" onPress={() => router.push('/explorar' as Href)} /><NavItem active={origin === 'roteiro'} label="Roteiro" icon="⌁" onPress={() => router.push('/roteiro' as Href)} /><NavItem active={origin === 'nearby-map'} label="Perto de você" icon="⌖" onPress={() => router.push('/perto_de_voce' as Href)} /><NavItem active={origin === 'favoritos'} label="Favoritos" icon="♡" onPress={() => router.push('/favoritos' as Href)} /><NavItem active={origin === 'comercio'} label="Comércio" icon="▥" onPress={() => router.push('/comercio' as Href)} />
-    </>}</View>
+    {management
+      ? <AppBottomNav active="commerce" mode="host" />
+      : <AppBottomNav active={origin === 'roteiro' ? 'roadmap' : origin === 'nearby-map' ? 'nearby' : origin === 'favoritos' ? 'favorites' : origin === 'comercio' ? 'commerce' : 'explore'} lastItem={origin === 'comercio' ? 'commerce' : 'profile'} mode="user" />}
   </View></View>;
 }
 
@@ -151,7 +148,7 @@ const styles = StyleSheet.create({
   heroImageFrame: { position: 'relative' },
   favoriteButton: { position: 'absolute', top: 12, right: 12, width: 38, height: 38, zIndex: 3, alignItems: 'center', justifyContent: 'center', borderRadius: 19, backgroundColor: colors.card, ...Platform.select({ web: { boxShadow: '0 4px 12px rgba(0,43,92,0.16)' }, default: { elevation: 4 } }) },
   favoriteIcon: { color: '#F25555', fontSize: 22, lineHeight: 24 }, favoriteIconActive: { color: '#EF4444' },
-  viewport: { flex: 1, alignItems: 'center', backgroundColor: '#E6DED2' }, shell: { flex: 1, width: '100%', maxWidth: 430, minWidth: 0, backgroundColor: colors.background }, header: { minHeight: 70, paddingHorizontal: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderBottomWidth: 1, borderColor: colors.line, backgroundColor: colors.card }, brand: { flexDirection: 'row', alignItems: 'center', gap: 6 }, brandName: { color: colors.ink, fontSize: 18, fontWeight: '700' }, brandFont: { fontFamily: 'Fredoka_700Bold', fontWeight: 'normal' }, brandMark: { width: 40, height: 40 }, back: { width: 36, height: 40, borderRadius: 20, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' }, backText: { fontSize: 27, color: colors.ink },
+  viewport: { flex: 1, alignItems: 'center', backgroundColor: '#E6DED2' }, shell: { flex: 1, width: '100%', maxWidth: 760, minWidth: 0, backgroundColor: colors.background }, header: { minHeight: 70, paddingHorizontal: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderBottomWidth: 1, borderColor: colors.line, backgroundColor: colors.card }, brand: { flexDirection: 'row', alignItems: 'center', gap: 6 }, brandName: { color: colors.ink, fontSize: 18, fontWeight: '700' }, brandFont: { fontFamily: 'Fredoka_700Bold', fontWeight: 'normal' }, brandMark: { width: 40, height: 40 }, back: { width: 36, height: 40, borderRadius: 20, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' }, backText: { fontSize: 27, color: colors.ink },
   content: { padding: 16, paddingBottom: 32, gap: 20 }, heroCard: { borderRadius: 22, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card, overflow: 'hidden' }, heroImage: { width: '100%', height: 205 }, heroCopy: { padding: 18, gap: 10 }, title: { fontSize: 25, lineHeight: 31, fontWeight: '700', color: colors.ink, letterSpacing: -0.5 }, eyebrow: { fontSize: 9, letterSpacing: 1, fontWeight: '800', color: colors.orange }, body: { color: colors.muted, fontSize: 13, lineHeight: 21 }, helper: { color: colors.muted, fontSize: 11, lineHeight: 17 }, card: { padding: 18, borderRadius: 20, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card, gap: 12 }, sectionTitle: { color: colors.ink, fontSize: 18, fontWeight: '700' }, count: { color: colors.orange, fontSize: 14 },
   hoursRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'space-between', paddingTop: 10, borderTopWidth: 1, borderColor: colors.line }, dayName: { color: colors.ink, fontSize: 11, fontWeight: '600', width: 100, lineHeight: 18 }, periods: { flex: 1, minWidth: 145, gap: 5 }, hours: { color: colors.ink, fontSize: 11, lineHeight: 18 }, closed: { color: colors.muted, fontSize: 11, lineHeight: 18 },
   rail: { minWidth: 0, gap: 9 }, sectionHeading: { flexDirection: 'row', alignItems: 'center', gap: 8 }, headingCopy: { flex: 1, gap: 5 }, arrows: { flexDirection: 'row', gap: 5 }, arrow: { width: 36, height: 38, borderRadius: 19, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card, alignItems: 'center', justifyContent: 'center' }, arrowText: { color: colors.ink, fontSize: 24 }, disabled: { opacity: 0.35 }, swipeHint: { color: colors.orange, fontSize: 10 }, eventList: { gap: 12, paddingBottom: 10, alignItems: 'flex-start' }, eventCard: { borderRadius: 18, overflow: 'hidden', borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card }, eventImage: { width: '100%', height: 140 }, eventCopy: { padding: 15, gap: 8 }, eventTitle: { color: colors.ink, fontSize: 17, fontWeight: '700', lineHeight: 23 }, eventDate: { color: colors.ink, fontSize: 12, fontWeight: '600' }, eventPrice: { color: '#257A48', fontSize: 12, fontWeight: '700' }, eventLink: { color: colors.orange, fontSize: 11, fontWeight: '700', marginTop: 6 }, imageFallback: { backgroundColor: colors.ink, alignItems: 'center', justifyContent: 'center' }, imageInitial: { fontSize: 40, fontWeight: '700', color: '#FFFFFF' }, empty: { padding: 18, borderRadius: 16, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card },

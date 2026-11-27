@@ -14,6 +14,9 @@ import {
   View,
 } from 'react-native';
 
+import AppBottomNav from '../components/AppBottomNav';
+import { responsiveShellWidth } from '../theme/responsive';
+
 const colors = {
   background: '#F8F5EE',
   card: '#FFFEFC',
@@ -171,7 +174,7 @@ export default function ProfileScreen() {
 
   return (
     <View style={styles.viewport}>
-      <View style={[styles.appShell, { width: Math.min(viewportWidth, 430) }]}>
+      <View style={[styles.appShell, { width: responsiveShellWidth(viewportWidth) }]}>
         <StatusBar style="dark" />
         <View style={styles.header}>
           <Pressable
@@ -263,6 +266,7 @@ export default function ProfileScreen() {
             </>
           ) : null}
         </ScrollView>
+        <AppBottomNav active="profile" mode="user" />
       </View>
     </View>
   );
@@ -279,7 +283,7 @@ const styles = StyleSheet.create({
   appShell: {
     flex: 1,
     width: '100%',
-    maxWidth: 430,
+    maxWidth: 760,
     minWidth: 0,
     alignSelf: 'center',
     overflow: 'hidden',

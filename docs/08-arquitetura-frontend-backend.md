@@ -875,3 +875,19 @@ Em `/explorar`, o componente completo de categorias “Qual é a sua vibe?” e 
 O `DashboardScreen` incorporou da branch remota os componentes de divulgação, catálogo de planos, detalhes em modal e aviso de checkout. A implementação foi adaptada à arquitetura atual: dados de hosts, perfil, assinatura, resumo, série diária e ranking continuam vindos dos endpoints existentes, e a demonstração só aparece no fluxo explicitamente identificado quando estatísticas reais não estão disponíveis.
 
 Os planos Essencial, Impulso e Destaque são metadados de apresentação do frontend. Essencial contém somente página do estabelecimento e publicação; métricas aparecem nos dois planos pagos. O contrato `Subscription` atual não possui `planId`, preço ou checkout. Por isso selecionar um plano abre detalhes, mas eventual ativação chama apenas `POST /api/Subscription/Activate`, deixando claro que se trata do acesso PRO simulado configurado no backend. Consulta e cancelamento continuam usando `GET MySubscription` e `PATCH Cancel`. Nenhum arquivo de backend, schema ou dado foi alterado.
+
+## Sistema compartilhado de navegação e largura — 27/11/2026
+
+`components/AppBottomNav.tsx` concentra duas variantes. Host possui quatro destinos (`/painel`, `/meus_eventos`, `/` e `/comercio?gestao=1`) e não oferece Explorar. Participante possui Explorar, Roteiro, Perto de você, Favoritos e um último destino configurável entre Perfil e Comércio. Altura total, área de toque, ícones, rótulos, destaque e botão de criação são únicos para todas as telas consumidoras.
+
+Em 27/11/2026, os ícones passaram a usar Ionicons com variantes de contorno e preenchida conforme o estado selecionado. O destino Criar evento usa `add-circle-outline`/`add-circle` com 21 px, dentro da mesma estrutura de item dos demais destinos; não existe mais botão central elevado ou dimensão exclusiva. A dependência `@expo/vector-icons` fica restrita à apresentação e não altera navegação ou integração HTTP.
+
+Na variante do participante, os pares são `compass-outline`/`compass`, `map-outline`/`map`, `navigate-circle-outline`/`navigate-circle`, `heart-outline`/`heart` e `person-circle-outline`/`person-circle`. A opção contextual Comércio reutiliza `storefront-outline`/`storefront`. Assim, todas as telas consumidoras recebem os mesmos símbolos e estados sem duplicar estilos.
+
+`/perfil` passou a consumir diretamente `AppBottomNav` com `active="profile"`, em vez de encerrar o fluxo sem navegação inferior. A barra permanece fora do `ScrollView`, portanto fica estável enquanto os dados cadastrais são percorridos.
+
+## Inicial compartilhada do usuário — 27/11/2026
+
+`useUserInitial.ts` concentra a identificação exibida nos avatares dos cabeçalhos. O hook obtém o token por `lib/session`, consulta o contrato existente `GET /api/User/Profile`, extrai a primeira letra de `name` com normalização para maiúscula e compartilha resultado e requisição pendente por token. Isso remove letras fixas como `A`, `H` e `U` das páginas autenticadas e evita consultas duplicadas durante a mesma sessão. O fallback `U` representa somente ausência de sessão ou impossibilidade de carregar o perfil; nenhum endpoint ou DTO foi alterado.
+
+`theme/responsive.ts` define o breakpoint de 600 px, margem desktop total de 48 px e largura máxima de 760 px. Cada tela calcula a largura a partir de `useWindowDimensions`, mantendo 100% da largura útil no celular e uma coluna central maior no desktop sem distorcer formulários, cards ou navegação. O conteúdo interno da navbar permanece limitado a 620 px. Mudança exclusiva do frontend, sem alteração de endpoints.

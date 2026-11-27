@@ -1,10 +1,7 @@
-import { Fredoka_700Bold } from '@expo-google-fonts/fredoka/700Bold';
-import { useFonts } from 'expo-font';
-import { router, type Href } from 'expo-router';
+import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Image,
   Modal,
   Platform,
   Pressable,
@@ -15,6 +12,11 @@ import {
   View,
 } from 'react-native';
 import type { ScrollViewInstance } from 'react-native';
+
+import AppBottomNav from '../components/AppBottomNav';
+import AppHeader from '../components/AppHeader';
+import { responsiveShellWidth } from '../theme/responsive';
+import { useUserInitial } from '../useUserInitial';
 
 const colors = {
   background: '#F8F5EE',
@@ -133,30 +135,6 @@ async function apiRequest<T>(path: string, token: string, options: RequestInit =
   return body as T;
 }
 
-function NavItem({
-  icon,
-  label,
-  active = false,
-  onPress,
-}: {
-  icon: string;
-  label: string;
-  active?: boolean;
-  onPress?: () => void;
-}) {
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityState={{ selected: active }}
-      onPress={onPress}
-      style={({ pressed }) => [styles.navItem, active && styles.navItemActive, pressed && styles.pressed]}
-    >
-      <Text style={[styles.navIcon, active && styles.navIconActive]}>{icon}</Text>
-      <Text style={[styles.navLabel, active && styles.navLabelActive]}>{label}</Text>
-    </Pressable>
-  );
-}
-
 function formatDate(value: string) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) {
@@ -194,7 +172,7 @@ const hostTypeLabels: Record<number, string> = {
 
 export default function MyEventsScreen() {
   const { width: viewportWidth } = useWindowDimensions();
-  const [fontsLoaded] = useFonts({ Fredoka_700Bold });
+  const userInitial = useUserInitial();
   const scrollRef = useRef<ScrollViewInstance>(null);
   const hostScrollRef = useRef<ScrollViewInstance>(null);
   const hostScrollXRef = useRef(0);
@@ -354,28 +332,9 @@ export default function MyEventsScreen() {
 
   return (
     <View style={styles.viewport}>
-      <View style={[styles.appShell, { width: Math.min(viewportWidth, 430) }]}>
+      <View style={[styles.appShell, { width: responsiveShellWidth(viewportWidth) }]}>
         <StatusBar style="dark" />
-        <View style={styles.header}>
-          <View accessible accessibilityLabel="Perambulando" style={styles.brand}>
-            <Text style={[styles.brandName, fontsLoaded && styles.brandNameFredoka]}>Perambulando</Text>
-            <Image
-              accessibilityIgnoresInvertColors
-              resizeMode="contain"
-              source={require('../../assets/perambulando-mark.png')}
-              style={styles.brandMark}
-            />
-          </View>
-          <Pressable
-            accessibilityHint="Abre os dados da sua conta"
-            accessibilityLabel="Abrir perfil do usuário"
-            accessibilityRole="button"
-            onPress={() => router.push('/perfil')}
-            style={({ pressed }) => [styles.avatar, pressed && styles.avatarPressed]}
-          >
-            <Text style={styles.avatarText}>A</Text>
-          </Pressable>
-        </View>
+        <AppHeader initial={userInitial} />
 
         <ScrollView ref={scrollRef} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator>
           <View style={styles.intro}>
@@ -716,23 +675,7 @@ export default function MyEventsScreen() {
           </View>
         </Modal>
 
-        <View style={styles.bottomNav}>
-          <NavItem icon="▦" label="Painel" onPress={() => router.push('/painel' as Href)} />
-          <NavItem active icon="▣" label="Meus eventos" />
-          <Pressable
-            accessibilityLabel="Criar evento"
-            accessibilityRole="button"
-            onPress={() => router.push('/')}
-            style={({ pressed }) => [styles.createNavItem, pressed && styles.pressed]}
-          >
-            <View style={styles.createNavButton}>
-              <Text style={styles.createNavPlus}>+</Text>
-            </View>
-            <Text style={styles.createNavLabel}>Criar evento</Text>
-          </Pressable>
-          <NavItem icon="⊙" label="Explorar" onPress={() => router.push('/explorar' as Href)} />
-          <NavItem icon="▥" label="Comércio" onPress={() => router.push({ pathname: '/comercio', params: { gestao: '1' } } as Href)} />
-        </View>
+        <AppBottomNav active="events" mode="host" />
       </View>
     </View>
   );
@@ -749,7 +692,7 @@ const styles = StyleSheet.create({
   appShell: {
     flex: 1,
     width: '100%',
-    maxWidth: 430,
+    maxWidth: 760,
     minWidth: 0,
     alignSelf: 'center',
     overflow: 'hidden',
