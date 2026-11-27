@@ -1,6 +1,6 @@
 import { test, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { deleteRoadmap, formatRoadmapTime, getRoadmapDraft, listRoadmaps, loadRoadmap, nextHostVisit, parseRoadmapTime, resetRoadmapDraft, roadmapCatalogQueries, roadmapError, roadmapFromResponse, roadmapPayload, saveRoadmap, storeRoadmapDraft, subscribeToRoadmap, toggleRoadmapStop } from './roadmap.ts';
+import { deleteRoadmap, formatRoadmapTime, getRoadmapDraft, getVisitorRoadmapIds, listAccessibleRoadmaps, listRoadmaps, loadRoadmap, nextHostVisit, parseRoadmapTime, rememberVisitorRoadmap, resetRoadmapDraft, roadmapCatalogQueries, roadmapError, roadmapFromResponse, roadmapPayload, saveRoadmap, storeRoadmapDraft, subscribeToRoadmap, toggleRoadmapStop } from './roadmap.ts';
 
 const originalFetch = globalThis.fetch;
 const originalLocal = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
@@ -67,6 +67,22 @@ test('visitante cria e consulta roteiro; consulta usa nomes, tipos e ordem do co
   assert.deepEqual(loaded.stops.map((item) => item.key), ['programming:2', 'host:2']);
   assert.deepEqual(loaded.stops.map((item) => item.name), ['Feira', 'Café']);
   assert.equal(loaded.stops[0].eventEnd, eventStop.eventEnd);
+});
+test('visitante lista no navegador os roteiros públicos salvos e conta continua usando JWT', async () => {
+  rememberVisitorRoadmap(10); rememberVisitorRoadmap(10);
+  assert.deepEqual(getVisitorRoadmapIds(), [10]);
+  const calls = [];
+  globalThis.fetch = async (url, options) => {
+    calls.push([url, options]);
+    return new Response(JSON.stringify(token ? [response] : response));
+  };
+  assert.deepEqual((await listAccessibleRoadmaps()).map((item) => item.id), [10]);
+  assert.equal(new URL(calls[0][0]).pathname, '/api/Roadmap/Details/10');
+  assert.equal(calls[0][1].headers.Authorization, undefined);
+  token = 'test-roadmap-owner';
+  assert.deepEqual((await listAccessibleRoadmaps()).map((item) => item.id), [10]);
+  assert.equal(new URL(calls[1][0]).pathname, '/api/Roadmap/GetAllRoadmapsByUserId');
+  assert.equal(calls[1][1].headers.Authorization, 'Bearer test-roadmap-owner');
 });
 test('conta lista, edita e exclui com JWT e verbos corretos; PATCH aceita 204', async () => {
   token = 'test-roadmap-owner'; const calls = [];

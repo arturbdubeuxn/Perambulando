@@ -11,7 +11,7 @@ Atualização: 27/11/2026.
 - `RoadmapButton.tsx` compartilha o estado do roteiro por `roadmap.ts`. O botão + fica verde, exibe **Incluído no roteiro**, faz uma animação curta de escala e remove ao clicar novamente. Respeita a preferência de redução de movimento. Uma inclusão busca os detalhes para obter os horários; a retirada não depende da API.
 - A ação está nos cards de eventos, estabelecimentos, favoritos e proximidade de Explorar, na busca de comércio, na página de favoritos, no card selecionado e na lista do mapa, nos detalhes e listas públicas de eventos de estabelecimentos, nos locais próximos dos detalhes e nos resultados do chat.
 - O chat existente foi preservado em `/roteiro_ia`. A chamada de Explorar e a nova página de roteiro abrem esse endereço. Os resultados do chat também usam o botão compartilhado.
-- O rascunho selecionado é compartilhado entre as telas e salvo no armazenamento local do navegador, separado entre visitante e sessão autenticada, sem gravar o JWT nessa coleção. Se o armazenamento não estiver disponível, o estado permanece somente em memória da sessão. Trocar de sessão não mistura os rascunhos.
+- O rascunho selecionado é compartilhado entre as telas e salvo no armazenamento local do navegador, separado entre visitante e sessão autenticada, sem gravar o JWT nessa coleção. Se o armazenamento não estiver disponível, o estado permanece somente em memória da sessão. Trocar de sessão não mistura os rascunhos. Para visitantes, um segundo índice local guarda somente os IDs dos roteiros públicos salvos e permite reconstruir “Meus roteiros” por consultas `Details`.
 - Inclusões assíncronas não sobrescrevem uma troca/edição de roteiro ocorrida durante a consulta. Falhas de envio preservam o rascunho; erros de autorização são apresentados ao usuário.
 
 Nenhuma pasta, dependência, backend, contrato, banco, migration ou PDF foi alterado/criado por esta implementação. Foram adicionados arquivos nas pastas existentes do frontend e atualizados os Markdown afetados.
@@ -22,18 +22,18 @@ Nenhuma pasta, dependência, backend, contrato, banco, migration ou PDF foi alte
 |---|---|---|
 | Salvar roteiro novo | `POST /api/Roadmap/Create` | Público; usa JWT quando disponível |
 | Selecionar/consultar versão salva | `GET /api/Roadmap/Details/{roadmapId}` | Público |
-| Listar Meus roteiros | `GET /api/Roadmap/GetAllRoadmapsByUserId` | Conta autenticada |
+| Listar Meus roteiros | `GET /api/Roadmap/GetAllRoadmapsByUserId` com JWT; `Details/{id}` para IDs do índice local sem JWT | Conta autenticada ou visitante no mesmo navegador |
 | Salvar alterações de roteiro próprio | `PUT /api/Roadmap/{roadmapId}/Edit` | Conta proprietária |
 | Excluir roteiro próprio | `PATCH /api/Roadmap/{roadmapId}/Delete` | Conta proprietária |
 
 Entrada de criação/edição: `{ name, description, roadmapProgrammingDTO }`. Cada parada envia somente `programmingId` **ou** `hostId`, `order` e datas UTC com sufixo Z. Não envia objetos de cadastro de local/evento nem altera os destinos. A leitura usa `roadmapProgrammingResponseDTO`, `programming` e `hostDTO` do contrato atual. Exclusão trata resposta 204 sem tentar interpretar JSON.
 
-Visitantes podem criar e consultar a versão pública. Como o backend exige proprietário autenticado para PUT/PATCH, um roteiro salvo anonimamente permanece editável como rascunho e é enviado como **nova versão**, sem tentar editar/excluir o registro público anterior. Listagem remota e exclusão não são apresentadas como disponíveis ao visitante.
+Visitantes podem criar e consultar a versão pública. “Meus roteiros” lista no mesmo navegador os IDs registrados localmente; não é uma listagem global nem transfere propriedade. Como o backend exige proprietário autenticado para PUT/PATCH, um roteiro salvo anonimamente permanece editável como rascunho e é enviado como **nova versão**, sem tentar editar/excluir o registro público anterior. Exclusão remota não é apresentada como disponível ao visitante. Ao autenticar, a tela troca para a listagem privada do JWT.
 
 ## Validações realizadas
 
 - `tsc --noEmit` e `npm run lint`: aprovados.
-- `node --test src/*.test.mjs`: **41 testes aprovados**, incluindo 11 novos testes de roteiros com fetch/armazenamento simulados. Cobrem os cinco contratos, JWT, 204, erro sem perda de dados, ordenação, UTC, intervalo do evento, conflitos, abertura com pausa e após meia-noite, filtros por união, estado compartilhado e resposta atrasada.
+- Execução sequencial dos sete arquivos `src/*.test.mjs`: **42 testes aprovados**, incluindo 12 testes de roteiros com fetch/armazenamento simulados. Cobrem os cinco contratos, JWT, 204, listagem local sem conta, erro sem perda de dados, ordenação, UTC, intervalo do evento, conflitos, abertura com pausa e após meia-noite, filtros por união, estado compartilhado e resposta atrasada. O modo paralelo de `node --test` não foi usado nesta validação porque o ambiente bloqueou a criação do processo filho com `EPERM`; os mesmos arquivos foram executados individualmente e todos passaram.
 - Exportação Web Expo concluída, incluindo `/roteiro` e `/roteiro_ia`, para pasta temporária fora do repositório.
 - Edge headless com API simulada: inclusão desde Explorar e retorno à timeline, duas categorias selecionadas juntas, roteiro misto, ajuste de horários, erro de funcionamento seguido de nova tentativa, POST/GET anônimos, persistência após reload, chat preservado e remoção compartilhada, GET da conta, PUT com JWT e PATCH 204 com confirmação/cancelamento.
 - Conferência adicional no navegador: seleção de pin por mensagem do iframe real inclui no roteiro; busca de comércio remove a mesma parada e favoritos reflete/inclui novamente. Não foi validado o carregamento real dos tiles nesse teste.

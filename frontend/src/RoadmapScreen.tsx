@@ -5,7 +5,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Image, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import RoadmapButton from './RoadmapButton';
-import { deleteRoadmap, formatRoadmapTime, getRoadmapDraft, listRoadmaps, loadRoadmap, parseRoadmapTime, resetRoadmapDraft, roadmapCatalogQueries, roadmapError, roadmapFromResponse, roadmapRequest, roadmapToken, saveRoadmap, storeRoadmapDraft, subscribeToRoadmap, type RoadmapDraft, type RoadmapKind, type RoadmapResponse, type RoadmapStop } from './roadmap';
+import { deleteRoadmap, formatRoadmapTime, getRoadmapDraft, listAccessibleRoadmaps, listRoadmaps, loadRoadmap, parseRoadmapTime, rememberVisitorRoadmap, resetRoadmapDraft, roadmapCatalogQueries, roadmapError, roadmapFromResponse, roadmapRequest, roadmapToken, saveRoadmap, storeRoadmapDraft, subscribeToRoadmap, type RoadmapDraft, type RoadmapKind, type RoadmapResponse, type RoadmapStop } from './roadmap';
 
 const colors = { ink: '#002B5C', orange: '#FF5A0A', background: '#F8F5EE', card: '#FFFEFC', line: '#E7E0D6', muted: '#667085', green: '#257A48' };
 type CatalogItem = { id: number; name: string; imageUrl?: string; logoUrl?: string; description: string; address?: { neighborhood: string; city: string }; startDate?: string; kind: RoadmapKind };
@@ -77,10 +77,9 @@ export default function RoadmapScreen() {
   const lock = useRef(false); const token = roadmapToken();
   useEffect(() => subscribeToRoadmap(() => setDraft(getRoadmapDraft())), []);
   useFocusEffect(useCallback(() => {
-    let active = true; setDraft(getRoadmapDraft()); setListError('');
-    if (!roadmapToken()) { setSaved([]); return; }
+    let active = true; const session = roadmapToken(); setDraft(getRoadmapDraft()); setListError('');
     setListing(true);
-    void listRoadmaps().then((result) => { if (active) { setSaved(result); } }).catch((error) => { if (active) { setListError(explain(error)); } }).finally(() => { if (active) { setListing(false); } });
+    void listAccessibleRoadmaps().then((result) => { if (active && roadmapToken() === session) { setSaved(result); } }).catch((error) => { if (active) { setListError(explain(error)); } }).finally(() => { if (active) { setListing(false); } });
     return () => { active = false; };
   }, []));
   const update = (change: Partial<RoadmapDraft>) => storeRoadmapDraft({ ...getRoadmapDraft(), ...change, dirty: true });
@@ -112,6 +111,10 @@ export default function RoadmapScreen() {
       } else { setMessage('A versão enviada foi salva. Há novas alterações no rascunho; confira antes de salvar novamente.'); }
       if (session) {
         try { setSaved(await listRoadmaps()); }
+        catch (error) { setListError(explain(error)); }
+      } else {
+        rememberVisitorRoadmap(result.id);
+        try { setSaved(await listAccessibleRoadmaps()); }
         catch (error) { setListError(explain(error)); }
       }
     } catch (error) { setMessage(explain(error)); }
@@ -145,7 +148,7 @@ export default function RoadmapScreen() {
       <Text style={styles.body}>Junte eventos e estabelecimentos. Organize cada parada nos horários do seu passeio.</Text>
       {draft.id ? <Pressable accessibilityRole="button" disabled={busy} onPress={() => protectDraft(() => void select(draft.id!))} style={styles.secondary}><Text style={styles.secondaryText}>Consultar versão salva</Text></Pressable> : null}
       <Pressable accessibilityRole="button" onPress={() => router.push('/roteiro_ia' as Href)} style={styles.ai}><Text style={styles.aiTitle}>⌁  Montar roteiro com IA  ›</Text><Text style={styles.small}>Busque sugestões e inclua suas preferidas na timeline.</Text></Pressable>
-      <View style={styles.section}><Text style={styles.sectionTitle}>Meus roteiros</Text>{listing ? <ActivityIndicator color={colors.orange} /> : null}{token ? <><ScrollView horizontal contentContainerStyle={styles.chips}>{saved.map((item) => <Pressable accessibilityRole="button" accessibilityState={{ selected: item.id === draft.id, disabled: busy }} key={item.id} disabled={busy} onPress={() => protectDraft(() => void select(item.id))} style={[styles.chip, item.id === draft.id && styles.chipSelected]}><Text style={styles.chipText}>{item.name}</Text></Pressable>)}</ScrollView>{!listing && !saved.length && !listError ? <Text style={styles.small}>Seus roteiros salvos aparecerão aqui.</Text> : null}</> : <Text style={styles.small}>Monte seu passeio sem conta. O rascunho fica neste navegador. Entre na sua conta para listar, editar e excluir roteiros salvos.</Text>}{listError ? <><Text accessibilityRole="alert" style={styles.error}>{listError}</Text><Pressable accessibilityRole="button" onPress={() => { setListing(true); void listRoadmaps().then((result) => { setSaved(result); setListError(''); }).catch((error) => setListError(explain(error))).finally(() => setListing(false)); }} style={styles.secondary}><Text style={styles.secondaryText}>Recarregar roteiros</Text></Pressable></> : null}</View>
+      <View style={styles.section}><Text style={styles.sectionTitle}>Meus roteiros</Text>{listing ? <ActivityIndicator color={colors.orange} /> : null}<ScrollView horizontal contentContainerStyle={styles.chips}>{saved.map((item) => <Pressable accessibilityRole="button" accessibilityState={{ selected: item.id === draft.id, disabled: busy }} key={item.id} disabled={busy} onPress={() => protectDraft(() => void select(item.id))} style={[styles.chip, item.id === draft.id && styles.chipSelected]}><Text style={styles.chipText}>{item.name}</Text></Pressable>)}</ScrollView>{!listing && !saved.length && !listError ? <Text style={styles.small}>{token ? 'Seus roteiros salvos na conta aparecerão aqui.' : 'Seus roteiros salvos neste navegador aparecerão aqui.'}</Text> : null}{!token && saved.length ? <Text style={styles.small}>Disponíveis neste navegador. Entre na sua conta para manter novos roteiros vinculados ao seu perfil e gerenciá-los em outros dispositivos.</Text> : null}{listError ? <><Text accessibilityRole="alert" style={styles.error}>{listError}</Text><Pressable accessibilityRole="button" onPress={() => { setListing(true); void listAccessibleRoadmaps().then((result) => { setSaved(result); setListError(''); }).catch((error) => setListError(explain(error))).finally(() => setListing(false)); }} style={styles.secondary}><Text style={styles.secondaryText}>Recarregar roteiros</Text></Pressable></> : null}</View>
       <View style={styles.section}><Text style={styles.label}>Nome do passeio</Text><TextInput accessibilityLabel="Nome do roteiro" value={draft.name} editable={!busy} onChangeText={(name) => update({ name })} style={styles.input} /><Text style={styles.label}>Uma descrição, se quiser</Text><TextInput accessibilityLabel="Descrição do roteiro" multiline value={draft.description} editable={!busy} onChangeText={(description) => update({ description })} placeholder="Como você imagina esse passeio?" style={styles.input} /><Text style={styles.small}>{draft.dirty ? 'Alterações ainda não salvas' : draft.id ? `Roteiro salvo · #${draft.id}` : 'Comece adicionando uma parada'} · Horários de Recife</Text></View>
       <View style={styles.row}><Text style={styles.sectionTitle}>Seu passeio em {draft.stops.length} parada{draft.stops.length === 1 ? '' : 's'}</Text></View>
       {!draft.stops.length ? <View style={styles.section}><Text style={styles.stopName}>Seu próximo passeio começa aqui</Text><Text style={styles.body}>Toque no + para escolher um evento ou estabelecimento. Você também pode incluir locais nos cards do catálogo e do mapa.</Text></View> : null}

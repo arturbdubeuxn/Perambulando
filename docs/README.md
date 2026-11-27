@@ -2,7 +2,7 @@
 
 ## Roteiros com timeline — 27/11/2026
 
-A navegação do visitante agora tem Roteiro no lugar de Buscar. `/roteiro` integra os cinco endpoints de Roadmap e mostra uma timeline de eventos e estabelecimentos, com horários editáveis e seleção por filtros combinados. Cards e mapa compartilham o botão + verde de inclusão/remoção. O chat permanece em `/roteiro_ia`. Visitantes criam/consultam; listar, editar e excluir exige conta/propriedade conforme o backend. Implementação, 41 testes, conferências no navegador com API simulada e limitações em [roteiros e timeline](validacoes/roteiros-timeline-2026-11-27.md). A cobertura atual é de 39/51 endpoints, restando 12; a auditoria abaixo representa o momento anterior. Backend e PDFs preservados.
+A navegação do visitante agora tem Roteiro no lugar de Buscar. `/roteiro` integra os cinco endpoints de Roadmap e mostra uma timeline de eventos e estabelecimentos, com horários editáveis e seleção por filtros combinados. Cards e mapa compartilham o botão + verde de inclusão/remoção. O chat permanece em `/roteiro_ia`. “Meus roteiros” funciona sem conta: IDs das versões públicas criadas são mantidos no navegador e recarregados por `Details`; com JWT, a listagem, edição e exclusão continuam vinculadas ao proprietário. O visitante não recebe falsa propriedade: alterar um roteiro anônimo salvo cria nova versão. ESLint, TypeScript e 12 testes específicos de roteiro aprovados. Implementação e limitações em [roteiros e timeline](validacoes/roteiros-timeline-2026-11-27.md). A cobertura atual é de 39/51 endpoints, restando 12; a auditoria abaixo representa o momento anterior. Backend e PDFs preservados.
 
 ## Cobertura dos endpoints no frontend — 27/11/2026
 

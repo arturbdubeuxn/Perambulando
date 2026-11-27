@@ -8,6 +8,7 @@ const listeners = new Set<() => void>();
 const drafts = new Map<string, RoadmapDraft>();
 let pending = Promise.resolve();
 const newDraft = (): RoadmapDraft => ({ owned: false, name: 'Meu passeio', description: '', stops: [], dirty: false, revision: 0 });
+const visitorRoadmapIndexKey = 'perambulando.roadmaps.guest';
 
 export function roadmapToken() {
   try {
@@ -59,6 +60,23 @@ export function subscribeToRoadmap(listener: () => void) {
 
 export function resetRoadmapDraft() { return storeRoadmapDraft(newDraft()); }
 
+export function getVisitorRoadmapIds() {
+  try {
+    const value = JSON.parse(globalThis.localStorage?.getItem(visitorRoadmapIndexKey) ?? '[]');
+    return Array.isArray(value) ? [...new Set(value.filter((id): id is number => Number.isInteger(id) && id > 0))] : [];
+  } catch {
+    return [];
+  }
+}
+
+function storeVisitorRoadmapIds(ids: number[]) {
+  try { globalThis.localStorage?.setItem(visitorRoadmapIndexKey, JSON.stringify([...new Set(ids)])); } catch { /* The current draft remains available in memory. */ }
+}
+
+export function rememberVisitorRoadmap(id: number) {
+  if (Number.isInteger(id) && id > 0) { storeVisitorRoadmapIds([...getVisitorRoadmapIds(), id]); }
+}
+
 export async function roadmapRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = roadmapToken();
   const base = (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:5014').replace(/\/$/, '');
@@ -73,6 +91,17 @@ export async function roadmapRequest<T>(path: string, options: RequestInit = {})
 export const listRoadmaps = () => roadmapRequest<RoadmapResponse[]>('/api/Roadmap/GetAllRoadmapsByUserId');
 export const loadRoadmap = (id: number) => roadmapRequest<RoadmapResponse>(`/api/Roadmap/Details/${id}`);
 export const deleteRoadmap = (id: number) => roadmapRequest<void>(`/api/Roadmap/${id}/Delete`, { method: 'PATCH' });
+
+export async function listAccessibleRoadmaps() {
+  if (roadmapToken()) { return listRoadmaps(); }
+  const current = getRoadmapDraft();
+  if (current.id && !current.owned) { rememberVisitorRoadmap(current.id); }
+  const ids = getVisitorRoadmapIds();
+  const results = await Promise.allSettled(ids.map((id) => loadRoadmap(id)));
+  const available = results.flatMap((result) => result.status === 'fulfilled' ? [result.value] : []);
+  if (ids.length > 0 && available.length === 0) { throw new Error('Não foi possível consultar os roteiros salvos neste navegador. Tente novamente.'); }
+  return available;
+}
 
 export function roadmapFromResponse(response: RoadmapResponse, owned: boolean): RoadmapDraft {
   if (!response || !Number.isInteger(response.id) || !Array.isArray(response.roadmapProgrammingResponseDTO)) { throw new Error('Resposta de roteiro inválida. Tente novamente.'); }
