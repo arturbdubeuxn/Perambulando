@@ -1,3 +1,4 @@
+import RoadmapButton from './RoadmapButton';
 import { router, type Href } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useRef, useState, type ComponentRef } from 'react';
@@ -25,12 +26,12 @@ function addressLabel(address: ChatAddress | undefined) {
 
 function ChatResults({ result }: { result: TravelChatResult }) {
   return <View style={styles.results}>
-    {result.programmings.map((event) => <Pressable accessibilityRole="button" accessibilityLabel={`Ver evento ${event.name}`} key={`event-${event.id}`} onPress={() => router.push({ pathname: '/programacao/[programmingId]', params: { programmingId: String(event.id), origin: 'roteiro' } } as Href)} style={({ pressed }) => [styles.resultCard, pressed && styles.pressed]}>
+    {result.programmings.map((event) => <View key={`event-${event.id}`}><Pressable accessibilityRole="button" accessibilityLabel={`Ver evento ${event.name}`} key={`event-${event.id}`} onPress={() => router.push({ pathname: '/programacao/[programmingId]', params: { programmingId: String(event.id), origin: 'roteiro' } } as Href)} style={({ pressed }) => [styles.resultCard, pressed && styles.pressed]}>
       <ResultImage uri={event.imageUrl} name={event.name} /><View style={styles.resultCopy}><Text style={styles.resultType}>PROGRAMAÇÃO</Text><Text style={styles.resultName}>{event.name}</Text><Text style={styles.small}>{hostEventDate(event.startDate)} → {hostEventDate(event.endDate)}</Text><Text style={styles.price}>{event.isFree ? 'Grátis' : Number.isFinite(event.minPrice) ? 'A partir de ' + new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(event.minPrice) : 'Valor a consultar'}</Text><Text style={styles.small}>{addressLabel(event.address)}</Text><Text numberOfLines={2} style={styles.small}>{event.description}</Text><Text style={styles.resultLink}>Ver detalhes ›</Text></View>
-    </Pressable>)}
-    {result.hosts.map((host) => <Pressable accessibilityRole="button" accessibilityLabel={`Ver estabelecimento ${host.name}`} key={`host-${host.id}`} onPress={() => router.push({ pathname: '/estabelecimento', params: { hostId: String(host.id), origin: 'roteiro' } } as Href)} style={({ pressed }) => [styles.resultCard, pressed && styles.pressed]}>
+    </Pressable><RoadmapButton kind="programming" id={event.id} name={event.name} /></View>)}
+    {result.hosts.map((host) => <View key={`host-${host.id}`}><Pressable accessibilityRole="button" accessibilityLabel={`Ver estabelecimento ${host.name}`} key={`host-${host.id}`} onPress={() => router.push({ pathname: '/estabelecimento', params: { hostId: String(host.id), origin: 'roteiro' } } as Href)} style={({ pressed }) => [styles.resultCard, pressed && styles.pressed]}>
       <ResultImage uri={host.logoUrl} name={host.name} /><View style={styles.resultCopy}><Text style={styles.resultType}>{host.typeofhost === 1 ? 'GASTRONOMIA' : host.typeofhost === 2 ? 'COMÉRCIO' : 'ESTABELECIMENTO'}</Text><Text style={styles.resultName}>{host.name}</Text><Text style={styles.small}>{addressLabel(host.address)}</Text><Text numberOfLines={2} style={styles.small}>{host.description}</Text><Text style={styles.resultLink}>Conhecer o local ›</Text></View>
-    </Pressable>)}
+    </Pressable><RoadmapButton kind="host" id={host.id} name={host.name} /></View>)}
   </View>;
 }
 

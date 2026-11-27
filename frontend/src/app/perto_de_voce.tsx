@@ -1,3 +1,4 @@
+import RoadmapButton from '../RoadmapButton';
 import { Fredoka_700Bold } from '@expo-google-fonts/fredoka/700Bold';
 import { useFonts } from 'expo-font';
 import * as Location from 'expo-location';
@@ -397,6 +398,7 @@ export default function NearMeScreen() {
                         <View style={styles.detailsButton}><Text style={styles.detailsButtonText}>{selectedItem.type === 'Programming' ? 'Ver programação' : 'Ver estabelecimento'} ›</Text></View>
                       </View>
                       </Pressable>
+                      <RoadmapButton kind={selectedItem.type === 'Host' ? 'host' : 'programming'} id={selectedItem.id} name={selectedItem.name} />
                     </View>
                   ) : null}
                 </View>
@@ -406,7 +408,7 @@ export default function NearMeScreen() {
                   <Text style={styles.nearestSubtitle}>Os cinco eventos ou estabelecimentos com menor distância.</Text>
                   <View style={styles.nearestList}>
                     {nearestItems.map((item, index) => (
-                      <Pressable accessibilityHint={item.type === 'Host' ? 'Abre descrição, horários e eventos do estabelecimento' : 'Centraliza o mapa e abre o card deste local'} accessibilityRole="button" key={`${item.type}-${item.id}`} onPress={() => item.type === 'Host' ? openItem(item) : focusItemOnMap(item)} style={({ pressed }) => [styles.nearestCard, selectedItem?.id === item.id && selectedItem.type === item.type && styles.nearestCardSelected, pressed && styles.pressed]}>
+                      <View key={`${item.type}-${item.id}`}><Pressable accessibilityHint={item.type === 'Host' ? 'Abre descrição, horários e eventos do estabelecimento' : 'Centraliza o mapa e abre o card deste local'} accessibilityRole="button" key={`${item.type}-${item.id}`} onPress={() => item.type === 'Host' ? openItem(item) : focusItemOnMap(item)} style={({ pressed }) => [styles.nearestCard, selectedItem?.id === item.id && selectedItem.type === item.type && styles.nearestCardSelected, pressed && styles.pressed]}>
                         <View style={styles.nearestPosition}><Text style={styles.nearestPositionText}>{index + 1}</Text></View>
                         {item.imageUrl ? <Image resizeMode="cover" source={{ uri: item.imageUrl }} style={styles.nearestImage} /> : <View style={styles.nearestFallback}><Text style={styles.nearestFallbackText}>{item.name.charAt(0).toUpperCase()}</Text></View>}
                         <View style={styles.nearestCopy}>
@@ -415,7 +417,7 @@ export default function NearMeScreen() {
                           <Text style={styles.nearestDistance}>⌖ {formatDistance(item.distanceMeters)}</Text>
                         </View>
                         <Text style={styles.nearestArrow}>›</Text>
-                      </Pressable>
+                      </Pressable><RoadmapButton kind={item.type === 'Host' ? 'host' : 'programming'} id={item.id} name={item.name} /></View>
                     ))}
                   </View>
                 </View>
@@ -427,7 +429,7 @@ export default function NearMeScreen() {
 
         <View style={styles.bottomNav}>
           <NavItem icon="⌾" label="Explorar" onPress={() => router.push('/explorar' as Href)} />
-          <NavItem icon="⌕" label="Buscar" onPress={() => router.push('/explorar' as Href)} />
+          <NavItem icon="⌁" label="Roteiro" onPress={() => router.push('/roteiro' as Href)} />
           <NavItem active icon="⌖" label="Perto de você" />
           <NavItem icon="♡" label="Favoritos" onPress={() => router.push('/favoritos' as Href)} />
           <NavItem icon="♙" label="Perfil" onPress={() => router.push('/perfil' as Href)} />
@@ -489,7 +491,7 @@ const styles = StyleSheet.create({
   nativeMapFallback: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#E8EEE9' },
   nativeMapIcon: { color: colors.orange, fontSize: 30 },
   nativeMapText: { maxWidth: 240, color: colors.muted, fontSize: 11, lineHeight: 17, textAlign: 'center' },
-  selectedCard: { position: 'absolute', left: 12, right: 12, bottom: 12, minHeight: 145, padding: 11, paddingRight: 36, flexDirection: 'row', gap: 11, borderRadius: 18, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card, ...Platform.select({ web: { boxShadow: '0 8px 24px rgba(0,43,92,0.24)' }, default: { elevation: 8 } }) },
+  selectedCard: { position: 'absolute', left: 12, right: 12, bottom: 12, minHeight: 145, padding: 11, paddingRight: 36, flexDirection: 'column', gap: 11, borderRadius: 18, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card, ...Platform.select({ web: { boxShadow: '0 8px 24px rgba(0,43,92,0.24)' }, default: { elevation: 8 } }) },
   closeCardButton: { position: 'absolute', top: 7, right: 7, width: 28, height: 28, zIndex: 3, alignItems: 'center', justifyContent: 'center', borderRadius: 14, backgroundColor: colors.orangeSoft },
   closeCardText: { color: colors.orange, fontSize: 22, lineHeight: 23, fontWeight: '700' },
   selectedImage: { width: 94, minHeight: 123, borderRadius: 14 },

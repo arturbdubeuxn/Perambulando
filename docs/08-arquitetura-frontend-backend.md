@@ -1,5 +1,15 @@
 # Arquitetura e separação entre frontend e backend
 
+## Gestão de roteiro pelo visitante — 27/11/2026
+
+`RoadmapScreen.tsx`, exposto em `/roteiro`, consome os cinco endpoints de Roadmap para criação, consulta, listagem, edição e desativação. `roadmap.ts` concentra contratos, estado compartilhado do rascunho, persistência no navegador e validações de horário; `RoadmapButton.tsx` é reutilizado nos cards e mapa para inclusão/remoção com feedback verde e animação. A timeline permite alterar horários e adicionar paradas com união de tipos de local e categorias de evento. Respeita os limites de autorização atuais: visitantes criam/consultam versões públicas; a gestão remota usa JWT de proprietário. Os cards alteram o rascunho e a página Roteiro salva explicitamente.
+
+O chat anterior foi movido para `/roteiro_ia`, mantendo TravelChat e acrescentando inclusão na timeline. Backend, banco e dependências preservados. Cobertura de chamadas atualizada para 39/51 endpoints, com 12 sem uso identificado. Detalhes da implementação, validações e pendências em [roteiros e timeline](validacoes/roteiros-timeline-2026-11-27.md). As seções de auditoria/chat abaixo registram o estado anterior a essa integração.
+
+## Auditoria das integrações — 27/11/2026
+
+O inventário estático atual identificou 51 endpoints de negócio: 34 têm chamadas no aplicativo e 17 não. Entre os não consumidos estão os cinco de Roadmap, três de galeria de host, desativação de host, edição/exclusão de conta, duas consultas específicas de proximidade e quatro consultas de programação. O chat utiliza TravelChat, enquanto os locais próximos utilizam GetNearMe; esses fluxos não integram automaticamente Roadmap/GetNearHost/GetNearProgramming. Consulte [rotas, evidências e limitações da auditoria](validacoes/cobertura-endpoints-frontend-2026-11-27.md). Não houve alteração de implementação nem testes de execução nesta análise.
+
 ## Chat para planejar o passeio — 27/11/2026
 
 `/explorar` oferece Montar roteiro com IA abaixo da busca e abre a rota plana `/roteiro`, cuja interface fica em `TravelChatScreen.tsx`. `travelChat.ts` envia `{ text }` a `POST /api/TravelChat/Messages`, público, com JWT opcional e fallback anônimo único em 401. A resposta existente contém programações e hosts, apresentados em cards de detalhes. Não há histórico enviado ao modelo, sequência definitiva, garantia de horários compatíveis ou persistência de roteiro nesta etapa. As mensagens da sessão permanecem na pilha ao abrir e voltar dos detalhes.

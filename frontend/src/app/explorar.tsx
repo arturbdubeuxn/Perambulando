@@ -1,3 +1,4 @@
+import RoadmapButton from '../RoadmapButton';
 import { Fredoka_700Bold } from '@expo-google-fonts/fredoka/700Bold';
 import { useFonts } from 'expo-font';
 import * as Location from 'expo-location';
@@ -322,6 +323,7 @@ function EventCard({ programming, favorite, onToggleFavorite }: { programming: P
         <Text numberOfLines={2} style={styles.eventName}>{programming.name}</Text>
         <Text numberOfLines={2} style={styles.eventAddress}>⌖ {addressLabel(programming.address) || 'Local a confirmar'}</Text>
       </Pressable>
+      <RoadmapButton kind="programming" id={programming.id} name={programming.name} />
     </View>
   );
 }
@@ -347,6 +349,7 @@ function HostCard({ host, favorite, onToggleFavorite }: { host: Host; favorite: 
         <Text numberOfLines={2} style={styles.hostName}>{host.name}</Text>
         <Text numberOfLines={2} style={styles.hostAddress}>⌖ {addressLabel(host.address)}</Text>
       </Pressable>
+      <RoadmapButton kind="host" id={host.id} name={host.name} />
     </View>
   );
 }
@@ -354,7 +357,7 @@ function HostCard({ host, favorite, onToggleFavorite }: { host: Host; favorite: 
 function FavoriteCard({ item, onOpen, onRemove }: { item: { key: string; name: string; imageUrl: string; type: string; address: string }; onOpen?: () => void; onRemove: () => void }) {
   const [imageFailed, setImageFailed] = useState(false);
   return (
-    <Pressable onPress={onOpen} style={({ pressed }) => [styles.favoriteCard, onOpen && pressed && styles.eventCardPressed]}>
+    <View style={styles.favoriteCard}><Pressable onPress={onOpen} style={({ pressed }) => [onOpen && pressed && styles.eventCardPressed]}>
       <View style={styles.favoriteImageFrame}>
         {item.imageUrl && !imageFailed ? <Image onError={() => setImageFailed(true)} resizeMode="cover" source={{ uri: item.imageUrl }} style={styles.favoriteImage} /> : <View style={styles.favoriteImageFallback}><Text style={styles.favoriteImageFallbackText}>{item.name.charAt(0).toUpperCase()}</Text></View>}
         <FavoriteButton active label={item.name} onPress={onRemove} />
@@ -364,7 +367,7 @@ function FavoriteCard({ item, onOpen, onRemove }: { item: { key: string; name: s
         <Text numberOfLines={2} style={styles.favoriteName}>{item.name}</Text>
         <Text numberOfLines={2} style={styles.favoriteAddress}>⌖ {item.address}</Text>
       </View>
-    </Pressable>
+    </Pressable><RoadmapButton kind={item.key.startsWith('host:') ? 'host' : 'programming'} id={Number(item.key.split(':')[1])} name={item.name} /></View>
   );
 }
 
@@ -378,13 +381,13 @@ function NearbyCard({ item }: { item: NearbyItem }) {
     }
   };
   return (
-    <Pressable accessibilityHint="Abre as informações deste local" accessibilityRole="button" onPress={openItem} style={({ pressed }) => [styles.nearbyCard, pressed && styles.eventCardPressed]}>
+    <View><Pressable accessibilityHint="Abre as informações deste local" accessibilityRole="button" onPress={openItem} style={({ pressed }) => [styles.nearbyCard, pressed && styles.eventCardPressed]}>
       <View style={styles.nearbyImageFrame}>
         {item.imageUrl && !imageFailed ? <Image onError={() => setImageFailed(true)} resizeMode="cover" source={{ uri: item.imageUrl }} style={styles.nearbyImage} /> : <View style={styles.nearbyImageFallback}><Text style={styles.nearbyImageFallbackText}>{item.name.charAt(0).toUpperCase()}</Text></View>}
         <View style={styles.nearbyDistanceBadge}><Text style={styles.nearbyDistanceText}>⌖ {formatDistance(item.distanceMeters)}</Text></View>
       </View>
       <View style={styles.nearbyCopy}><Text style={styles.nearbyType}>{item.type === 'Programming' ? 'PROGRAMAÇÃO' : 'ESTABELECIMENTO'}</Text><Text numberOfLines={2} style={styles.nearbyName}>{item.name}</Text><Text numberOfLines={2} style={styles.nearbyAddress}>{item.address || 'Endereço não informado'}</Text></View>
-    </Pressable>
+    </Pressable><RoadmapButton kind={item.type === 'Host' ? 'host' : 'programming'} id={item.id} name={item.name} /></View>
   );
 }
 
@@ -729,7 +732,7 @@ export default function ExploreScreen() {
                 </Pressable>
               ) : null}
             </View>
-            <Pressable accessibilityRole="button" accessibilityLabel="Montar roteiro com IA" onPress={() => router.push('/roteiro' as Href)} style={({ pressed }) => [styles.itineraryButton, pressed && styles.pressedItinerary]}>
+            <Pressable accessibilityRole="button" accessibilityLabel="Montar roteiro com IA" onPress={() => router.push('/roteiro_ia' as Href)} style={({ pressed }) => [styles.itineraryButton, pressed && styles.pressedItinerary]}>
               <View style={styles.itineraryIcon}><Text style={styles.itineraryGlyph}>⌁</Text></View><View style={styles.itineraryCopy}><Text style={styles.itineraryTitle}>Montar roteiro com IA</Text><Text style={styles.itinerarySubtitle}>Um passeio do seu jeito, em poucos passos.</Text></View><Text style={styles.itineraryArrow}>›</Text>
             </Pressable>
           </View>
@@ -867,7 +870,7 @@ export default function ExploreScreen() {
 
         <View style={styles.bottomNav}>
           <NavItem active icon="⌾" label="Explorar" />
-          <NavItem icon="⌕" label="Buscar" onPress={() => searchInput.current?.focus()} />
+          <NavItem icon="⌁" label="Roteiro" onPress={() => router.push('/roteiro' as Href)} />
           <NavItem icon="⌖" label="Perto de você" onPress={() => router.push('/perto_de_voce' as Href)} />
           <NavItem icon="♡" label="Favoritos" onPress={() => router.push('/favoritos' as Href)} />
           <NavItem icon="♙" label="Perfil" onPress={() => router.push('/perfil' as Href)} />

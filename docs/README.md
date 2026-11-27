@@ -1,5 +1,13 @@
 # Documentação do Perambulando
 
+## Roteiros com timeline — 27/11/2026
+
+A navegação do visitante agora tem Roteiro no lugar de Buscar. `/roteiro` integra os cinco endpoints de Roadmap e mostra uma timeline de eventos e estabelecimentos, com horários editáveis e seleção por filtros combinados. Cards e mapa compartilham o botão + verde de inclusão/remoção. O chat permanece em `/roteiro_ia`. Visitantes criam/consultam; listar, editar e excluir exige conta/propriedade conforme o backend. Implementação, 41 testes, conferências no navegador com API simulada e limitações em [roteiros e timeline](validacoes/roteiros-timeline-2026-11-27.md). A cobertura atual é de 39/51 endpoints, restando 12; a auditoria abaixo representa o momento anterior. Backend e PDFs preservados.
+
+## Cobertura dos endpoints no frontend — 27/11/2026
+
+Auditoria estática do código atual: 51 endpoints de negócio nos controllers, 34 com chamadas no frontend e 17 sem consumo identificado. A contagem inclui rotas e métodos montados dinamicamente; não comprova funcionamento em execução nem necessidade de integrar todas as consultas alternativas. Lista completa, evidências e limites no [relatório de cobertura](validacoes/cobertura-endpoints-frontend-2026-11-27.md). Nenhum código, banco ou PDF alterado.
+
 ## Montar roteiro com IA — 27/11/2026
 
 Nova entrada abaixo da busca de Explorar abre `/roteiro`, com sugestões rápidas, mensagens e opções clicáveis do catálogo. Usa o endpoint público TravelChat existente, sem login obrigatório nem alteração do backend. Trata consulta, vazio e falha; não simula respostas em produção nem promete roteiro ordenado/sem conflitos. Interface e contrato testados com API simulada; provedor real não chamado. Implementação e dependências de configuração em [chat de roteiro](validacoes/chat-roteiro-2026-11-27.md). PDFs preservados.

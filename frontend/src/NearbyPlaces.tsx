@@ -1,3 +1,4 @@
+import RoadmapButton from './RoadmapButton';
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Image, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
@@ -49,10 +50,10 @@ export default function NearbyPlaces({ host, onSelect }: { host: HostDetails; on
     {state === 'loading' ? <View style={styles.state}><ActivityIndicator color="#FF5A0A" /><Text style={styles.helper}>Calculando locais próximos...</Text></View> : null}
     {state === 'empty' ? <View style={styles.state}><Text style={styles.helper}>Nenhum outro local encontrado nas proximidades.</Text></View> : null}
     {state === 'error' ? <View style={styles.state}><Text style={styles.helper}>Não foi possível consultar os locais próximos agora.</Text><Pressable accessibilityRole="button" accessibilityLabel="Tentar novamente os locais próximos" onPress={() => setReload((value) => value + 1)} style={styles.retry}><Text style={styles.retryText}>Tentar novamente</Text></Pressable></View> : null}
-    {state === 'ready' ? <View style={styles.list}>{places.map(({ item, label }) => <Pressable accessibilityRole="button" accessibilityLabel={`Ver ${item.type === 'Host' ? 'estabelecimento' : 'evento'} ${item.name}`} key={`${item.type}-${item.id}`} onPress={() => onSelect(item)} style={({ pressed }) => [styles.card, pressed && styles.pressed]}>
+    {state === 'ready' ? <View style={styles.list}>{places.map(({ item, label }) => <View key={`${item.type}-${item.id}`}><Pressable accessibilityRole="button" accessibilityLabel={`Ver ${item.type === 'Host' ? 'estabelecimento' : 'evento'} ${item.name}`} key={`${item.type}-${item.id}`} onPress={() => onSelect(item)} style={({ pressed }) => [styles.card, pressed && styles.pressed]}>
       {item.imageUrl ? <Image source={{ uri: item.imageUrl }} resizeMode="cover" style={styles.image} /> : <View style={[styles.image, styles.fallback]}><Text style={styles.initial}>{item.name.charAt(0).toUpperCase()}</Text></View>}
       <View style={styles.copy}><Text numberOfLines={2} style={styles.name}>{item.name}</Text><Text style={styles.category}>{label}</Text><Text style={styles.distance}>⌖ {formatDistance(item.distanceMeters)}</Text></View><Text style={styles.arrow}>›</Text>
-    </Pressable>)}</View> : null}
+    </Pressable><RoadmapButton kind={item.type === 'Host' ? 'host' : 'programming'} id={item.id} name={item.name} /></View>)}</View> : null}
   </View>;
 }
 

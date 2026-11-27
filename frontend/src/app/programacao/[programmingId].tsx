@@ -1,3 +1,4 @@
+import RoadmapButton from '../../RoadmapButton';
 import { Fredoka_700Bold } from '@expo-google-fonts/fredoka/700Bold';
 import { useFonts } from 'expo-font';
 import { router, type Href, useLocalSearchParams } from 'expo-router';
@@ -166,7 +167,7 @@ function BottomNav() {
   return (
     <View style={styles.bottomNav}>
       {item('⌾', 'Explorar', () => router.push('/explorar' as Href))}
-      {item('⌕', 'Buscar', () => router.push('/explorar' as Href))}
+      {item('⌁', 'Roteiro', () => router.push('/roteiro' as Href))}
       {item('⌖', 'Perto de você', () => router.push('/perto_de_voce' as Href))}
       {item('♡', 'Favoritos', () => router.push('/favoritos' as Href))}
       {item('♙', 'Perfil', () => router.push('/perfil' as Href))}
@@ -347,6 +348,7 @@ export default function ProgrammingDetailsScreen() {
 
               {favoriteMessage ? <Text accessibilityRole="status" style={styles.feedback}>{favoriteMessage}</Text> : null}
 
+              <RoadmapButton kind="programming" id={programming.id} name={programming.name} />
               <View style={styles.factsCard}>
                 <View style={styles.factRow}><View style={styles.factIcon}><Text style={styles.factIconText}>▣</Text></View><View style={styles.factCopy}><Text style={styles.factTitle}>{formatDate(programming.startDate)}</Text><Text style={styles.factSubtitle}>Término: {formatDate(programming.endDate)}</Text></View></View>
                 <View style={styles.factRow}><View style={styles.factIcon}><Text style={styles.factIconText}>⌖</Text></View><View style={styles.factCopy}><Text style={styles.factTitle}>{programming.address.street}, {programming.address.number}</Text><Text style={styles.factSubtitle}>{programming.address.neighborhood} · {programming.address.city}</Text></View></View>
@@ -381,11 +383,11 @@ export default function ProgrammingDetailsScreen() {
                 {nearbyState === 'ready' ? (
                   <View style={styles.nearbyList}>
                     {nearby.map(({ item, label }) => (
-                      <Pressable key={`${item.type}-${item.id}`} onPress={() => openNearby(item)} style={({ pressed }) => [styles.nearbyCard, pressed && styles.pressed]}>
+                      <View key={`${item.type}-${item.id}`}><Pressable onPress={() => openNearby(item)} style={({ pressed }) => [styles.nearbyCard, pressed && styles.pressed]}>
                         {item.imageUrl ? <Image resizeMode="cover" source={{ uri: item.imageUrl }} style={styles.nearbyImage} /> : <View style={styles.nearbyImageFallback}><Text style={styles.nearbyImageText}>{item.name.charAt(0).toUpperCase()}</Text></View>}
                         <View style={styles.nearbyCopy}><Text numberOfLines={1} style={styles.nearbyName}>{item.name}</Text><Text style={styles.nearbyCategory}>{label}</Text><Text style={styles.nearbyDistance}>⌖ {formatDistance(item.distanceMeters)}</Text></View>
                         <Text style={styles.nearbyArrow}>›</Text>
-                      </Pressable>
+                      </Pressable><RoadmapButton kind={item.type === 'Host' ? 'host' : 'programming'} id={item.id} name={item.name} /></View>
                     ))}
                   </View>
                 ) : null}
@@ -397,6 +399,7 @@ export default function ProgrammingDetailsScreen() {
                   {programming.hostLogoUrl ? <Image resizeMode="cover" source={{ uri: programming.hostLogoUrl }} style={styles.hostLogo} /> : <View style={styles.hostLogoFallback}><Text style={styles.hostLogoText}>{programming.hostName.charAt(0).toUpperCase()}</Text></View>}
                   <View style={styles.hostCopy}><Text style={styles.hostName}>{programming.hostName}</Text><Text style={styles.hostDescription}>Responsável por esta programação</Text></View>
                 </Pressable>
+                <RoadmapButton kind="host" id={programming.hostId} name={programming.hostName} />
               </View>
             </ScrollView>
 

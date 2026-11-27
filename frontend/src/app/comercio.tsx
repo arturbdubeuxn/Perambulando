@@ -1,3 +1,4 @@
+import RoadmapButton from '../RoadmapButton';
 import { Fredoka_700Bold } from '@expo-google-fonts/fredoka/700Bold';
 import { useFonts } from 'expo-font';
 import { router, useLocalSearchParams, type Href } from 'expo-router';
@@ -121,6 +122,7 @@ export default function CommerceScreen() {
                   <Pressable accessibilityRole="button" accessibilityLabel={`Editar estabelecimento ${host.name}`} onPress={(event) => { event.stopPropagation(); manageHost(host.id, true); }} style={styles.managementPrimary}><Text style={styles.managementPrimaryText}>Editar estabelecimento e horários</Text></Pressable>
                   <Pressable accessibilityRole="button" accessibilityLabel={`Gerenciar eventos de ${host.name}`} onPress={(event) => { event.stopPropagation(); manageHost(host.id, false); }} style={styles.managementSecondary}><Text style={styles.managementSecondaryText}>Gerenciar eventos</Text></Pressable>
                 </View> : null}
+                <RoadmapButton kind="host" id={host.id} name={host.name} />
                 <Pressable accessibilityHint="Exibe as informações do estabelecimento" accessibilityLabel={`Informações de ${host.name}`} accessibilityRole="button" onPress={() => openHostDetails(host.id)} style={{ minHeight: 44, justifyContent: 'center' }}><Text style={styles.expandText}>Ver estabelecimento</Text></Pressable>
               </View>
             </View>;
@@ -132,7 +134,7 @@ export default function CommerceScreen() {
           <Pressable accessibilityRole="button" accessibilityLabel="Criar evento" onPress={() => router.push('/')} style={styles.createNav}><View style={styles.createCircle}><Text style={styles.createPlus}>＋</Text></View><Text style={styles.createLabel}>Criar evento</Text></Pressable>
           <NavItem icon="⊙" label="Explorar" onPress={() => router.push('/explorar' as Href)} />
           <NavItem active icon="▥" label="Comércio" />
-        </View> : <View style={styles.bottomNav}><NavItem icon="⌾" label="Explorar" onPress={() => router.push('/explorar' as Href)} /><NavItem icon="⌕" label="Buscar" onPress={() => router.push('/explorar' as Href)} /><NavItem icon="⌖" label="Perto de você" onPress={() => router.push('/perto_de_voce' as Href)} /><NavItem icon="♡" label="Favoritos" onPress={() => router.push('/favoritos' as Href)} /><NavItem active icon="▥" label="Comércio" /></View>}
+        </View> : <View style={styles.bottomNav}><NavItem icon="⌾" label="Explorar" onPress={() => router.push('/explorar' as Href)} /><NavItem icon="⌁" label="Roteiro" onPress={() => router.push('/roteiro' as Href)} /><NavItem icon="⌖" label="Perto de você" onPress={() => router.push('/perto_de_voce' as Href)} /><NavItem icon="♡" label="Favoritos" onPress={() => router.push('/favoritos' as Href)} /><NavItem active icon="▥" label="Comércio" /></View>}
       </View>
     </View>
   );
