@@ -6,6 +6,8 @@ import { useCallback, useMemo, useRef, useState, type ComponentRef } from 'react
 import { ActivityIndicator, Image, Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { openingDayLabels, openingDayOrder } from './openingHours';
 import { groupHostEvents, hostEventDate, hostEventStatus, type HostDetails, type HostEvent } from './hostDetails';
+import NearbyPlaces from './NearbyPlaces';
+import { useFavorite } from './useFavorite';
 
 const colors = { ink: '#002B5C', orange: '#FF5A0A', background: '#F8F5EE', card: '#FFFEFC', line: '#E7E0D6', muted: '#667085' };
 const apiBaseUrl = (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:5014').replace(/\/$/, '');
@@ -50,6 +52,7 @@ export default function HostDetailsScreen() {
   const hostId = Number(Array.isArray(params.hostId) ? params.hostId[0] : params.hostId);
   const origin = Array.isArray(params.origin) ? params.origin[0] : params.origin;
   const management = origin === 'comercio-gestao';
+  const { favorite, busy: favoriteBusy, message: favoriteMessage, toggle: toggleFavorite } = useFavorite(`host:${hostId}`);
   const [fontsLoaded] = useFonts({ Fredoka_700Bold });
   const [host, setHost] = useState<HostDetails | null>(null);
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
@@ -120,7 +123,8 @@ export default function HostDetailsScreen() {
         {state === 'error' ? <Pressable accessibilityRole="button" onPress={() => setReload((value) => value + 1)} style={styles.secondaryButton}><Text style={styles.secondaryText}>Tentar novamente</Text></Pressable> : null}
         {state !== 'loading' ? <Pressable accessibilityRole="button" onPress={goBack} style={styles.primaryButton}><Text style={styles.primaryText}>{origin === 'nearby-map' ? 'Voltar ao mapa' : 'Voltar'}</Text></Pressable> : null}
       </View> : <>
-        <View style={styles.heroCard}><Cover key={host.logoUrl} uri={host.logoUrl} name={host.name} hero /><View style={styles.heroCopy}><Text style={styles.eyebrow}>{host.typeofhost === 1 ? 'GASTRONOMIA' : host.typeofhost === 2 ? 'COMÉRCIO' : 'PRODUTOR DE EVENTOS'}</Text><Text accessibilityRole="header" style={styles.title}>{host.name}</Text><Text selectable style={styles.body}>⌖ {address || 'Endereço ainda não informado.'}</Text>{host.phone ? <Text selectable style={styles.body}>Contato: {host.phone}</Text> : null}{host.minPrice != null && host.maxPrice != null ? <Text style={styles.helper}>Estimativa por pessoa: {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(host.minPrice)} a {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(host.maxPrice)}</Text> : null}</View></View>
+        {favoriteMessage ? <Text accessibilityRole="status" style={styles.helper}>{favoriteMessage}</Text> : null}
+        <View style={styles.heroCard}><View style={styles.heroImageFrame}><Cover key={host.logoUrl} uri={host.logoUrl} name={host.name} hero /><Pressable accessibilityRole="button" accessibilityLabel={favorite ? 'Remover estabelecimento dos favoritos' : 'Adicionar estabelecimento aos favoritos'} accessibilityState={{ selected: favorite, disabled: favoriteBusy || state !== 'ready' }} disabled={favoriteBusy || state !== 'ready'} onPress={toggleFavorite} style={({ pressed }) => [styles.favoriteButton, pressed && styles.pressed]}><Text style={[styles.favoriteIcon, favorite && styles.favoriteIconActive]}>{favorite ? '♥' : '♡'}</Text></Pressable></View><View style={styles.heroCopy}><Text style={styles.eyebrow}>{host.typeofhost === 1 ? 'GASTRONOMIA' : host.typeofhost === 2 ? 'COMÉRCIO' : 'PRODUTOR DE EVENTOS'}</Text><Text accessibilityRole="header" style={styles.title}>{host.name}</Text><Text selectable style={styles.body}>⌖ {address || 'Endereço ainda não informado.'}</Text>{host.phone ? <Text selectable style={styles.body}>Contato: {host.phone}</Text> : null}{host.minPrice != null && host.maxPrice != null ? <Text style={styles.helper}>Estimativa por pessoa: {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(host.minPrice)} a {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(host.maxPrice)}</Text> : null}</View></View>
         <View style={styles.card}><Text accessibilityRole="header" style={styles.sectionTitle}>Sobre o estabelecimento</Text><Text selectable style={styles.body}>{host.description?.trim() || 'Este estabelecimento ainda não publicou uma descrição.'}</Text></View>
         <View style={styles.card}><Text accessibilityRole="header" style={styles.sectionTitle}>Dias e horários</Text><Text style={styles.helper}>Horários locais de atendimento</Text>
           {host.typeofhost === 0 ? <Text style={styles.body}>Atendimento conforme a programação. Consulte as datas e horários de cada evento.</Text> : host.openingWeek?.days?.length ? openingDayOrder.map((dayOfWeek) => {
@@ -130,6 +134,7 @@ export default function HostDetailsScreen() {
         </View>
         <EventRail key={`next-${host.id}`} title="Próximos eventos" description="O que acontece agora e o que vem por aí" events={events.upcoming} now={now} management={management} />
         <EventRail key={`past-${host.id}`} title="Eventos anteriores" description="Programações que já passaram por aqui" events={events.past} now={now} management={management} />
+        <NearbyPlaces key={`nearby-${host.id}`} host={host} onSelect={(item) => router.push(item.type === 'Host' ? { pathname: '/estabelecimento', params: { hostId: String(item.id), origin: 'estabelecimento' } } : { pathname: '/programacao/[programmingId]', params: { programmingId: String(item.id), origin: 'estabelecimento' } } as Href)} />
       </>}
     </ScrollView>
     <View style={styles.nav}>{management ? <>
@@ -141,6 +146,9 @@ export default function HostDetailsScreen() {
 }
 
 const styles = StyleSheet.create({
+  heroImageFrame: { position: 'relative' },
+  favoriteButton: { position: 'absolute', top: 12, right: 12, width: 38, height: 38, zIndex: 3, alignItems: 'center', justifyContent: 'center', borderRadius: 19, backgroundColor: colors.card, ...Platform.select({ web: { boxShadow: '0 4px 12px rgba(0,43,92,0.16)' }, default: { elevation: 4 } }) },
+  favoriteIcon: { color: '#F25555', fontSize: 22, lineHeight: 24 }, favoriteIconActive: { color: '#EF4444' },
   viewport: { flex: 1, alignItems: 'center', backgroundColor: '#E6DED2' }, shell: { flex: 1, width: '100%', maxWidth: 430, minWidth: 0, backgroundColor: colors.background }, header: { minHeight: 70, paddingHorizontal: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderBottomWidth: 1, borderColor: colors.line, backgroundColor: colors.card }, brand: { flexDirection: 'row', alignItems: 'center', gap: 6 }, brandName: { color: colors.ink, fontSize: 18, fontWeight: '700' }, brandFont: { fontFamily: 'Fredoka_700Bold', fontWeight: 'normal' }, brandMark: { width: 40, height: 40 }, back: { width: 36, height: 40, borderRadius: 20, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' }, backText: { fontSize: 27, color: colors.ink },
   content: { padding: 16, paddingBottom: 32, gap: 20 }, heroCard: { borderRadius: 22, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card, overflow: 'hidden' }, heroImage: { width: '100%', height: 205 }, heroCopy: { padding: 18, gap: 10 }, title: { fontSize: 25, lineHeight: 31, fontWeight: '700', color: colors.ink, letterSpacing: -0.5 }, eyebrow: { fontSize: 9, letterSpacing: 1, fontWeight: '800', color: colors.orange }, body: { color: colors.muted, fontSize: 13, lineHeight: 21 }, helper: { color: colors.muted, fontSize: 11, lineHeight: 17 }, card: { padding: 18, borderRadius: 20, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card, gap: 12 }, sectionTitle: { color: colors.ink, fontSize: 18, fontWeight: '700' }, count: { color: colors.orange, fontSize: 14 },
   hoursRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'space-between', paddingTop: 10, borderTopWidth: 1, borderColor: colors.line }, dayName: { color: colors.ink, fontSize: 11, fontWeight: '600', width: 100, lineHeight: 18 }, periods: { flex: 1, minWidth: 145, gap: 5 }, hours: { color: colors.ink, fontSize: 11, lineHeight: 18 }, closed: { color: colors.muted, fontSize: 11, lineHeight: 18 },

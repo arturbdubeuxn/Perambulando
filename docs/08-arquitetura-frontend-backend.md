@@ -1,5 +1,33 @@
 # Arquitetura e separação entre frontend e backend
 
+## Chat para planejar o passeio — 27/11/2026
+
+`/explorar` oferece Montar roteiro com IA abaixo da busca e abre a rota plana `/roteiro`, cuja interface fica em `TravelChatScreen.tsx`. `travelChat.ts` envia `{ text }` a `POST /api/TravelChat/Messages`, público, com JWT opcional e fallback anônimo único em 401. A resposta existente contém programações e hosts, apresentados em cards de detalhes. Não há histórico enviado ao modelo, sequência definitiva, garantia de horários compatíveis ou persistência de roteiro nesta etapa. As mensagens da sessão permanecem na pilha ao abrir e voltar dos detalhes.
+
+A integração depende do serviço de interpretação configurado no backend; URL/chave do provedor permanecem no servidor. Sem configuração/disponibilidade, o chat mostra erro e nova tentativa. Nenhum backend, banco ou pacote alterado. Cinco testes Node e fluxo no Edge com API simulada validados; provedor real e dispositivo físico pendentes. Foi corrigido também o aninhamento do botão de favorito nos cards de programação da entrada. Consulte [contrato, validações e limites](validacoes/chat-roteiro-2026-11-27.md). PDFs preservados.
+
+Padronização visual de 27/11/2026: `HostDetailsScreen` posiciona o coração sobre a foto principal, seguindo dimensões, cores, sombra e afastamento das postagens de Explorar. O cabeçalho mantém voltar e marca. `useFavorite`, armazenamento local e integração existente permanecem iguais. Lint, TypeScript e conferência de posição/clique no Edge com API simulada aprovados; backend e banco preservados. Detalhes em [favoritos sem login](validacoes/favoritos-sem-login-2026-11-27.md).
+
+## Favoritos de visitante nos detalhes — 27/11/2026
+
+`favorites.ts` centraliza o armazenamento já utilizado (`perambulando.exploreFavorites`) e notificações entre telas/abas; `useFavorite` é compartilhado por programação e estabelecimento. Visitantes adicionam/removem sem login e mantêm a coleção neste navegador. Explorar/Favoritos reutilizam as funções, atualizam corações e preservam dados locais quando a API não responde. Com JWT existente, programações continuam usando o FavoriteController; não há emissão de JWT de visitante nem chamada de favorito de host, que o backend não oferece. Falhas de sincronização são informadas, mantendo a alteração local. Não foi criada fila offline durável. Backend, contratos e banco preservados. Validações e limitações em [favoritos sem login](validacoes/favoritos-sem-login-2026-11-27.md); integração com conta real pendente. PDFs preservados.
+
+## Proximidade ao final do perfil de estabelecimento — 27/11/2026
+
+`HostDetailsScreen` acrescenta `NearbyPlaces` depois do histórico. Os cinco outros locais são consultados pelo endpoint público `Nearby/GetNearMe`, com origem no endereço do host, sem pedir a localização do usuário. A lista exclui o host atual e suas programações e completa os resultados por paginação, sem duplicatas. A localização foi extraída da programação para `addressLocation.ts`, enquanto `loadNearbyPlaces` e `formatDistance` em `nearbyPins.ts` são reutilizados pelas duas páginas. Há carregamento, vazio, erro, nova tentativa e cancelamento ao sair. Sem backend, banco ou pacote novo. Lint, TypeScript, 21 testes Node e navegação no Edge com API simulada aprovados; integração real pendente. Consulte [implementação e validações](validacoes/estabelecimento-proximos-2026-11-27.md).
+
+## Categorias do mapa por união — 27/11/2026
+
+`/perto_de_voce` mantém todos os IDs em `CategoriesId`, usando a união já existente na API. Ao filtrar, busca todas as páginas, consolida tipo/ID e avança o cursor pelos registros originais. `resolveNearbyPins` preserva o host correspondente a eventos futuros filtrados, com pin azul, e mantém a troca temporal pelo evento durante a duração. A seleção mostra uma legenda de soma; controles ignoram respostas antigas após trocar categorias. Sem filtro, permanece a paginação manual. Backend, contratos e banco não alterados. Lint, TypeScript, testes Node e cenários no Edge com API simulada validados; integração real pendente. Detalhes em [categorias combinadas](validacoes/categorias-mapa-2026-11-27.md).
+
+## Pins por horário e mapa do evento — 27/11/2026
+
+O usuário manteve a restrição de não alterar o backend. `nearbyPins.ts` consulta os detalhes públicos para reconstituir hosts que a API oculta por terem eventos futuros, usando o ponto retornado pelo Nearby no mesmo AddressId. No mapa, gastronomia/comércio recebem pin azul antes/depois e pin de evento durante `início <= agora < término`; o timer acompanha as transições. Paginação usa os registros originais, antes da consolidação. Filtros de categoria não introduzem hosts fora do filtro; produtores e eventos em outros endereços preservam seus resultados.
+
+`NearbyMap.tsx` passou a ser reutilizado pelos detalhes da programação. As 75 referências de endereço da carga foram conferidas com OSM e limites de bairros municipais e guardadas em `frontend/assets/enderecos-demonstracao-recife.json`. Correspondência exata do endereço permite usar o mesmo ponto do PostGIS sem geocodificar novamente o lote, incluindo eventos passados. Para outros endereços, o cache de geocodificação passou a considerar todos os campos e a busca deixou de usar somente CEP. A proximidade continua usando os endpoints existentes, com origem no evento selecionado. Sem novas dependências ou pastas.
+
+Lint, TypeScript, 16 testes Node e exportação Web aprovados. Edge com retrato do banco e respostas HTTP simuladas verificou histórico/agenda, origem da consulta de proximidade, pins clicáveis e troca automática por horário. API de aplicação não estava ativa e não foi iniciada; integração HTTP real permanece pendente. Fontes, backup e limites em [agenda e localização](validacoes/agenda-enderecos-2026-11-27.md). PDFs preservados.
+
 Atualização: 03/11/2026.
 
 ## Objetivo da separação

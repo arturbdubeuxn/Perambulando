@@ -1,5 +1,27 @@
 # Documentação do Perambulando
 
+## Montar roteiro com IA — 27/11/2026
+
+Nova entrada abaixo da busca de Explorar abre `/roteiro`, com sugestões rápidas, mensagens e opções clicáveis do catálogo. Usa o endpoint público TravelChat existente, sem login obrigatório nem alteração do backend. Trata consulta, vazio e falha; não simula respostas em produção nem promete roteiro ordenado/sem conflitos. Interface e contrato testados com API simulada; provedor real não chamado. Implementação e dependências de configuração em [chat de roteiro](validacoes/chat-roteiro-2026-11-27.md). PDFs preservados.
+
+## Favoritos nos detalhes sem login — 27/11/2026
+
+Programações e estabelecimentos podem ser favoritados diretamente nos detalhes sem conta, reutilizando a coleção local de Explorar/Favoritos. Os corações permanecem coerentes entre telas e após recarregar. JWT existente continua sendo usado para programações quando disponível; estabelecimentos permanecem locais. Backend preservado. Implementação, testes e limites em [favoritos sem login](validacoes/favoritos-sem-login-2026-11-27.md). PDFs preservados.
+
+Padronização visual na mesma data: coração do estabelecimento movido do cabeçalho para o canto da foto, com tamanho, cores e sombra das postagens de Explorar. Persistência sem login preservada; posição e clique conferidos no navegador com API simulada.
+
+## Locais mais próximos no estabelecimento — 27/11/2026
+
+O perfil agora termina com até cinco locais próximos, usando a posição do estabelecimento, sem exigir login ou localização pessoal. Exclui o próprio host e suas programações, pagina quando necessário e permite abrir estabelecimentos/eventos. Reutiliza as funções de proximidade e localização da página de evento. Backend e banco preservados; testes e verificações do frontend aprovados. Detalhes e limites em [locais próximos do estabelecimento](validacoes/estabelecimento-proximos-2026-11-27.md). PDFs preservados.
+
+## Soma das categorias do mapa — 27/11/2026
+
+Filtros selecionados são combinados por união: Música + Feiras + Oficinas mostra os locais de qualquer uma delas. O frontend passa a buscar todas as páginas da seleção, deduplicar eventos e preservar estabelecimentos com eventos futuros pelo pin azul. Respostas antigas não substituem uma nova seleção. Backend e banco preservados. Implementação e validações em [categorias combinadas](validacoes/categorias-mapa-2026-11-27.md). PDFs preservados.
+
+## Agenda, endereços e pins por horário — 27/11/2026
+
+Os 75 hosts fictícios receberam dois eventos passados e dois futuros cada, mais cinco eventos em andamento para demonstração. O lote totaliza 355 eventos com imagens e categorias. Endereços reais de referência do OpenStreetMap foram gravados com coordenadas e bairros conferidos na base municipal. O frontend mostra o estabelecimento em azul e o substitui pelo evento somente durante sua duração, mantendo o backend sem novas alterações. Detalhes da programação usam o mesmo mapa vetorial e as referências para calcular proximidade. Backup, script, fontes, testes e limites em [agenda e localização](validacoes/agenda-enderecos-2026-11-27.md). PDFs preservados.
+
 > Ambiente local de banco atualizado em 26/10/2026: o PostgreSQL 17.11 com PostGIS 3.6.4 definido pelo projeto usa `127.0.0.1:5434`, pois 5432 e 5433 já estão ocupadas por instalações anteriores preservadas. Compose e `appsettings.Development.json` local foram alinhados; as 16 migrations existentes foram aplicadas ao volume novo. O banco anterior foi preservado, mas seus registros não foram migrados. Nenhum código funcional, model, migration ou contrato HTTP foi alterado. Consulte [Docker](05-docker.md).
 
 > Atualização estrutural de 26/10/2026: o código foi organizado como um único repositório com `backend/` e `frontend/`. A solução e o projeto .NET mantêm o nome `Projetos - 4` dentro de `backend/`. `frontend/` contém a aplicação Expo/React Native Web com TypeScript, identidade visual Perambulando e rotas locais para criação de evento e cadastro de host, ainda sem integração com a API. `docs/`, `docker/` e `compose.postgis.yaml` permanecem na raiz. O backend não teve contratos, regras, modelos, migrations ou configuração de execução alterados. Consulte [Arquitetura frontend e backend](08-arquitetura-frontend-backend.md) para a descrição completa. PDFs não foram regenerados.

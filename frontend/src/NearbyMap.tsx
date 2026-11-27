@@ -1,4 +1,4 @@
-﻿import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { Platform, StyleSheet, Text, View } from 'react-native';
 import type { NearbyPin } from './nearbyPins';
 export default function NearbyMap({ focusKey, origin, items, onSelect, originLabel = 'Sua localização', title = 'Mapa dos locais mais próximos' }: { focusKey?: string; origin: { latitude: number; longitude: number }; items: NearbyPin[]; onSelect?: (item: NearbyPin | null) => void; originLabel?: string; title?: string }) {
@@ -68,7 +68,7 @@ html,body,#map{height:100%;margin:0;background:#e8eee9} .leaflet-control-attribu
 .host-marker .pin-rays i{background:#1976d2}
 .user-pin{width:18px;height:18px;border:4px solid #fff;border-radius:50%;background:#1976d2;box-shadow:0 2px 8px rgba(0,43,92,.38)}
 .map-error{position:absolute;inset:0;z-index:1200;padding:24px;background:#f8f5ee;color:#002b5c;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;text-align:center;font:14px/1.5 Arial,sans-serif}.map-error[hidden]{display:none}.map-error p{margin:0;color:#667085}.map-error button{min-height:44px;padding:10px 18px;border:0;border-radius:12px;background:#002b5c;color:white;font-weight:bold;cursor:pointer}
-</style></head><body><div id="map"></div><div id="map-error" class="map-error" role="alert" hidden><strong>Não foi possível carregar o mapa</strong><p>Confira sua conexão. A lista de locais continua disponível abaixo.</p><button type="button">Tentar novamente</button></div>
+</style></head><body><div id="map" aria-busy="true"></div><div id="map-error" class="map-error" role="alert" hidden><strong>Não foi possível carregar o mapa</strong><p>Confira sua conexão. A lista de locais continua disponível abaixo.</p><button type="button">Tentar novamente</button></div>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/maplibre-gl@5.24.1/dist/maplibre-gl.js"></script>
 <script src="https://unpkg.com/@maplibre/maplibre-gl-leaflet@0.1.3/leaflet-maplibre-gl.js"></script><script>
@@ -83,7 +83,7 @@ try{
   var basemap=L.maplibreGL({style:'https://tiles.openfreemap.org/styles/liberty',attribution:'<a href="https://openfreemap.org/" target="_blank" rel="noopener noreferrer">OpenFreeMap</a> &copy; <a href="https://openmaptiles.org/" target="_blank" rel="noopener noreferrer">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap contributors</a>'}).addTo(map);
   var ready=false;
   var loadingTimer=setTimeout(function(){if(!ready){showMapError()}},20000);
-  basemap.getMaplibreMap().once('load',function(){ready=true;clearTimeout(loadingTimer);errorBox.hidden=true});
+  basemap.getMaplibreMap().once('load',function(){ready=true;clearTimeout(loadingTimer);errorBox.hidden=true;document.getElementById('map').setAttribute('aria-busy','false')});
   basemap.getMaplibreMap().on('error',function(){if(!ready){showMapError()}});
 }catch(error){showMapError()}
 var bounds=L.latLngBounds([[${origin.latitude},${origin.longitude}]]);

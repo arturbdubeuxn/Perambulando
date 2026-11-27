@@ -2,7 +2,12 @@ import { Fredoka_700Bold } from '@expo-google-fonts/fredoka/700Bold';
 import { useFonts } from 'expo-font';
 import { router, type Href, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { createElement, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import NearbyMap from '../../NearbyMap';
+import { useFavorite } from '../../useFavorite';
+import { geocodeAddress } from '../../addressLocation';
+import { loadNearbyPlaces, formatDistance, type NearbyPin } from '../../nearbyPins';
+import referenceAddresses from '../../../assets/enderecos-demonstracao-recife.json';
 import {
   ActivityIndicator,
   Image,
@@ -67,19 +72,9 @@ type ProgrammingDetail = {
   categories: Category[];
 };
 
-type NearbyItem = {
-  id: number;
-  type: 'Host' | 'Programming';
-  name: string;
-  imageUrl?: string;
-  distanceMeters: number;
-  latitude: number;
-  longitude: number;
-};
+type NearbyItem = NearbyPin;
 
-type NearbyResponse = { items: NearbyItem[]; skip: number; pageSize: number; hasMore: boolean };
-type FavoriteResponse = { programmingId: number };
-type GeoResult = { lat: string; lon: string; display_name: string };
+
 type Coordinates = { latitude: number; longitude: number; displayName: string };
 type LoadState = 'loading' | 'ready' | 'error';
 type NearbyState = 'loading' | 'ready' | 'empty' | 'error';
@@ -133,11 +128,6 @@ function formatPrice(programming: ProgrammingDetail) {
   return `${currency.format(programming.minPrice)} a ${currency.format(programming.maxPrice)}`;
 }
 
-function formatDistance(meters: number) {
-  if (meters < 1000) return `${Math.round(meters)} m`;
-  return `${(meters / 1000).toFixed(1).replace('.', ',')} km`;
-}
-
 function fullAddress(address: Address) {
   return [
     [address.street, address.number].filter(Boolean).join(', '),
@@ -149,66 +139,7 @@ function fullAddress(address: Address) {
   ].filter(Boolean).join(', ');
 }
 
-async function geocodeAddress(address: Address) {
-  const cep = address.cep.replace(/\D/g, '');
-  const streetAndNumber = [address.street, address.number].filter(Boolean).join(', ');
-  const queries = [
-    [streetAndNumber, address.city, cep, 'Brasil'].filter(Boolean).join(', '),
-    [cep, 'Brasil'].filter(Boolean).join(', '),
-    [streetAndNumber, address.city, 'Brasil'].filter(Boolean).join(', '),
-    [address.street, address.city, 'Brasil'].filter(Boolean).join(', '),
-  ].filter((query, index, all) => query && all.indexOf(query) === index);
-  const cacheKey = `perambulando.geocode.v2.${address.id}.${cep}`;
-  const storage = getStorage();
-  const cached = storage?.getItem(cacheKey);
-  if (cached) {
-    try {
-      return JSON.parse(cached) as Coordinates;
-    } catch {
-      storage?.setItem(cacheKey, '');
-    }
-  }
-
-  for (let index = 0; index < queries.length; index += 1) {
-    if (index > 0) {
-      await new Promise((resolve) => setTimeout(resolve, 1100));
-    }
-    const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=br&q=${encodeURIComponent(queries[index])}`;
-    const response = await fetch(url, { headers: { Accept: 'application/json', 'Accept-Language': 'pt-BR' } });
-    if (!response.ok) {
-      continue;
-    }
-    const results = (await response.json()) as GeoResult[];
-    const first = results[0];
-    if (!first) {
-      continue;
-    }
-    const coordinates = {
-      latitude: Number(first.lat),
-      longitude: Number(first.lon),
-      displayName: first.display_name,
-    };
-    if (!Number.isFinite(coordinates.latitude) || !Number.isFinite(coordinates.longitude)) {
-      continue;
-    }
-    storage?.setItem(cacheKey, JSON.stringify(coordinates));
-    return coordinates;
-  }
-
-  throw new Error('O mapa não encontrou uma coordenada para o endereço ou CEP cadastrado.');
-}
-
 function MapView({ coordinates, address }: { coordinates: Coordinates; address: string }) {
-  const deltaLongitude = 0.008;
-  const deltaLatitude = 0.005;
-  const bbox = [
-    coordinates.longitude - deltaLongitude,
-    coordinates.latitude - deltaLatitude,
-    coordinates.longitude + deltaLongitude,
-    coordinates.latitude + deltaLatitude,
-  ].join(',');
-  const source = `https://www.openstreetmap.org/export/embed.html?bbox=${encodeURIComponent(bbox)}&layer=mapnik&marker=${coordinates.latitude}%2C${coordinates.longitude}`;
-
   if (Platform.OS !== 'web') {
     return (
       <Pressable
@@ -222,12 +153,7 @@ function MapView({ coordinates, address }: { coordinates: Coordinates; address: 
     );
   }
 
-  return createElement('iframe', {
-    src: source,
-    title: `Mapa de ${address}`,
-    loading: 'lazy',
-    style: { width: '100%', height: '100%', border: 0 },
-  });
+  return <NearbyMap origin={coordinates} originLabel="Local do evento" title={`Mapa de ${address}`} items={[]} />;
 }
 
 function BottomNav() {
@@ -267,9 +193,7 @@ export default function ProgrammingDetailsScreen() {
   const [coordinates, setCoordinates] = useState<Coordinates | null>(null);
   const [mapState, setMapState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [mapMessage, setMapMessage] = useState('Localizando o endereço cadastrado...');
-  const [favorite, setFavorite] = useState(false);
-  const [favoriteBusy, setFavoriteBusy] = useState(false);
-  const [feedback, setFeedback] = useState('');
+  const { favorite, busy: favoriteBusy, message: favoriteMessage, toggle: toggleFavorite } = useFavorite(`programming:${programmingId}`);
   const [heroImageFailed, setHeroImageFailed] = useState(false);
 
   useEffect(() => {
@@ -296,19 +220,13 @@ export default function ProgrammingDetailsScreen() {
         setMessage(error instanceof Error ? error.message : 'Não foi possível carregar a programação.');
       });
 
-    if (token) {
-      requestJson<FavoriteResponse[]>('/api/Favorite/GetAllByUserId', { headers: { Authorization: `Bearer ${token}` } })
-        .then((favorites) => { if (active) setFavorite(favorites.some((item) => item.programmingId === programmingId)); })
-        .catch(() => undefined);
-    }
-
     return () => { active = false; };
   }, [hasValidProgrammingId, programmingId, token]);
 
   useEffect(() => {
     let active = true;
     if (!programming) return () => { active = false; };
-    geocodeAddress(programming.address)
+    geocodeAddress(programming.address, referenceAddresses, getStorage())
       .then((result) => {
         if (!active) return;
         setCoordinates(result);
@@ -330,33 +248,7 @@ export default function ProgrammingDetailsScreen() {
       return () => { active = false; };
     }
 
-    const loadNearby = async () => {
-      const selected: NearbyItem[] = [];
-      let skip = 0;
-      let hasMore = true;
-      while (selected.length < 5 && hasMore) {
-        const query = new URLSearchParams({
-          Latitude: String(coordinates.latitude),
-          Longitude: String(coordinates.longitude),
-          MaxDistanceKm: '20',
-          Skip: String(skip),
-        });
-        const response = await requestJson<NearbyResponse>(`/api/Nearby/GetNearMe?${query.toString()}`);
-        response.items.forEach((item) => {
-          if (selected.length < 5 && !(item.type === 'Programming' && item.id === programmingId)) selected.push(item);
-        });
-        skip += response.items.length;
-        hasMore = response.hasMore && response.items.length > 0;
-      }
-      const categoryEntries = await Promise.all(selected.map(async (item) => {
-        if (item.type === 'Host') return { item, label: 'Estabelecimento' };
-        const details = await requestJson<ProgrammingDetail>(`/api/Programming/Details/${item.id}`).catch(() => null);
-        return { item, label: details?.categories[0]?.name ?? 'Programação' };
-      }));
-      return categoryEntries;
-    };
-
-    loadNearby()
+    loadNearbyPlaces(coordinates, requestJson, { programmingId })
       .then((items) => {
         if (!active) return;
         setNearby(items);
@@ -370,26 +262,6 @@ export default function ProgrammingDetailsScreen() {
 
   const address = useMemo(() => programming ? fullAddress(programming.address) : '', [programming]);
   const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
-
-  const toggleFavorite = async () => {
-    if (!token || !programming) {
-      setFeedback('Entre na sua conta para favoritar esta programação.');
-      return;
-    }
-    setFavoriteBusy(true);
-    setFeedback('');
-    try {
-      await requestJson(`/api/Favorite/${programming.id}/${favorite ? 'Delete' : 'Create'}`, {
-        method: favorite ? 'PATCH' : 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setFavorite((current) => !current);
-    } catch (error) {
-      setFeedback(error instanceof Error ? error.message : 'Não foi possível atualizar o favorito.');
-    } finally {
-      setFavoriteBusy(false);
-    }
-  };
 
   const shareProgramming = async () => {
     if (!programming) return;
@@ -462,7 +334,7 @@ export default function ProgrammingDetailsScreen() {
                 <View style={styles.heroActions}>
                   <Pressable accessibilityRole="button" accessibilityLabel={cameFromNearbyMap ? 'Voltar ao ponto selecionado no mapa' : 'Voltar'} onPress={goBack} style={styles.roundAction}><Text style={styles.roundActionText}>‹</Text></Pressable>
                   <View style={styles.heroActionsRight}>
-                    <Pressable accessibilityLabel="Favoritar" disabled={favoriteBusy} onPress={toggleFavorite} style={styles.roundAction}><Text style={[styles.roundIcon, favorite && styles.favoriteActive]}>{favorite ? '♥' : '♡'}</Text></Pressable>
+                    <Pressable accessibilityRole="button" accessibilityLabel={favorite ? 'Remover programação dos favoritos' : 'Adicionar programação aos favoritos'} accessibilityState={{ selected: favorite, disabled: favoriteBusy }} disabled={favoriteBusy} onPress={toggleFavorite} style={styles.roundAction}><Text style={[styles.roundIcon, favorite && styles.favoriteActive]}>{favorite ? '♥' : '♡'}</Text></Pressable>
                     <Pressable accessibilityLabel="Compartilhar" onPress={shareProgramming} style={styles.roundAction}><Text style={styles.roundIcon}>↗</Text></Pressable>
                   </View>
                 </View>
@@ -473,7 +345,7 @@ export default function ProgrammingDetailsScreen() {
                 </View>
               </View>
 
-              {feedback ? <Text accessibilityRole="alert" style={styles.feedback}>{feedback}</Text> : null}
+              {favoriteMessage ? <Text accessibilityRole="status" style={styles.feedback}>{favoriteMessage}</Text> : null}
 
               <View style={styles.factsCard}>
                 <View style={styles.factRow}><View style={styles.factIcon}><Text style={styles.factIconText}>▣</Text></View><View style={styles.factCopy}><Text style={styles.factTitle}>{formatDate(programming.startDate)}</Text><Text style={styles.factSubtitle}>Término: {formatDate(programming.endDate)}</Text></View></View>
@@ -488,7 +360,7 @@ export default function ProgrammingDetailsScreen() {
 
               <View style={styles.section}>
                 <Text style={styles.sectionTitle}>Onde vai ser</Text>
-                <Text style={styles.sectionSubtitle}>Localização real baseada no endereço cadastrado pelo host.</Text>
+                <Text style={styles.sectionSubtitle}>Localização baseada no endereço cadastrado pelo host.</Text>
                 <View style={styles.mapFrame}>
                   {mapState === 'loading' ? <View style={styles.mapState}><ActivityIndicator color={colors.orange} /><Text style={styles.stateText}>{mapMessage}</Text></View> : null}
                   {mapState === 'ready' && coordinates ? <MapView address={address} coordinates={coordinates} /> : null}
@@ -497,7 +369,7 @@ export default function ProgrammingDetailsScreen() {
                 <Text style={styles.addressText}>{address}</Text>
                 {coordinates ? <Text style={styles.mapResolvedText}>{coordinates.displayName}</Text> : null}
                 <Pressable accessibilityRole="link" onPress={() => Linking.openURL(mapsUrl)} style={styles.mapLink}><Text style={styles.mapLinkText}>Abrir no Google Maps ↗</Text></Pressable>
-                <Text style={styles.attribution}>Mapa © colaboradores do OpenStreetMap</Text>
+                <Text style={styles.attribution}>Mapa OpenFreeMap · dados © colaboradores do OpenStreetMap (ODbL)</Text>
               </View>
 
               <View style={styles.section}>

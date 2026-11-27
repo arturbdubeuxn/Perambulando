@@ -1,5 +1,9 @@
 # Banco de dados
 
+## Agenda e endereços do lote fictício — 27/11/2026
+
+Aplicada a [carga de agenda e referências geográficas](validacoes/agenda-enderecos-2026-11-27.md) nos 75 hosts técnicos de demonstração, com backup e transação. Adicionados 305 eventos, preservando os 50 anteriores: total de 355 no lote, com mínimo de dois passados e dois futuros por host e cinco em andamento no instante da carga. Os 75 endereços agora usam rua/número e ponto reais do OSM, com bairros conferidos por geometria municipal; CEP ausente na fonte permanece vazio. Todos os eventos usam o AddressId do host, foto, categoria e descrição fictícia. Preservados os três hosts externos ao lote e os 357 dias/496 períodos existentes. Não houve alteração de schema, migration ou backend. Reexecução sem duplicatas e verificações PostGIS aprovadas; integração com API de aplicação ativa pendente. PDFs preservados.
+
 > Atualização de 21/10/2026: a refatoração de Address está preparada no código e aguarda revisão **antes da migration**. O banco ainda tem o schema anterior. Consulte a [revisão dos contratos e da transferência de dados](validacoes/refatoracao-address-revisao-2026-10-21.md); as descrições antigas de endereço neste arquivo representam a versão anterior.
 
 

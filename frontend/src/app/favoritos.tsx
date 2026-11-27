@@ -2,13 +2,14 @@ import { Fredoka_700Bold } from '@expo-google-fonts/fredoka/700Bold';
 import { useFonts } from 'expo-font';
 import { router, type Href, useFocusEffect } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { getFavoriteKeys as getLocalKeys, storeFavoriteKeys as storeLocalKeys } from '../favorites';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Image, Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
 const colors = { ink: '#002B5C', orange: '#FF5A0A', orangeSoft: '#FFF0E7', background: '#F8F5EE', card: '#FFFEFC', line: '#E7E0D6', muted: '#667085', danger: '#B42318', success: '#257A48' };
 const apiBaseUrl = (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:5014').replace(/\/$/, '');
 const accessTokenStorageKey = 'perambulando.accessToken';
-const favoritesStorageKey = 'perambulando.exploreFavorites';
+
 
 type StorageLike = { getItem: (key: string) => string | null; setItem?: (key: string, value: string) => void };
 type Category = { id: number; name: string; isActive: boolean };
@@ -26,17 +27,6 @@ function getStorage(name: 'localStorage' | 'sessionStorage') {
 }
 
 function getToken() { return getStorage('sessionStorage')?.getItem(accessTokenStorageKey) ?? ''; }
-
-function getLocalKeys() {
-  try {
-    const parsed = JSON.parse(getStorage('localStorage')?.getItem(favoritesStorageKey) ?? '[]');
-    return Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === 'string') : [];
-  } catch { return []; }
-}
-
-function storeLocalKeys(keys: string[]) {
-  getStorage('localStorage')?.setItem?.(favoritesStorageKey, JSON.stringify(keys));
-}
 
 async function requestJson<T>(path: string, init: RequestInit = {}) {
   const response = await fetch(`${apiBaseUrl}${path}`, { ...init, headers: { Accept: 'application/json', ...init.headers } });
@@ -110,11 +100,13 @@ export default function FavoritesScreen() {
         let ids = [...new Set(localIds)];
         if (token) {
           requestJson<UserProfile>('/api/User/Profile', { headers: { Authorization: `Bearer ${token}` } }).then((profile) => { if (active) setInitial(profile.name.trim().charAt(0).toUpperCase() || 'U'); }).catch(() => undefined);
-          const serverFavorites = await requestJson<FavoriteResponse[]>('/api/Favorite/GetAllByUserId', { headers: { Authorization: `Bearer ${token}` } });
-          const serverIds = new Set(serverFavorites.map((favorite) => favorite.programmingId));
-          await Promise.all(localIds.filter((id) => !serverIds.has(id)).map((id) => requestJson(`/api/Favorite/${id}/Create`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } }).then(() => serverIds.add(id)).catch(() => undefined)));
-          ids = [...serverIds];
-          storeLocalKeys([...localKeys.filter((key) => key.startsWith('host:')), ...ids.map((id) => `programming:${id}`)]);
+          const serverFavorites = await requestJson<FavoriteResponse[]>('/api/Favorite/GetAllByUserId', { headers: { Authorization: `Bearer ${token}` } }).catch(() => null);
+          if (serverFavorites) {
+            const serverIds = new Set(serverFavorites.map((favorite) => favorite.programmingId));
+            await Promise.all(localIds.filter((id) => !serverIds.has(id)).map((id) => requestJson(`/api/Favorite/${id}/Create`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } }).then(() => serverIds.add(id)).catch(() => undefined)));
+            ids = [...new Set([...localIds, ...serverIds])];
+            storeLocalKeys([...getLocalKeys().filter((key) => key.startsWith('host:')), ...ids.map((id) => `programming:${id}`)]);
+          }
         }
         const [details, favoriteHosts] = await Promise.all([
           Promise.all(ids.map((id) => requestJson<Programming>(`/api/Programming/Details/${id}`).catch(() => null))),
@@ -153,16 +145,17 @@ export default function FavoritesScreen() {
     const previous = items;
     setRemovingKeys((current) => [...current, item.key]);
     setItems((current) => current.filter((favorite) => favorite.key !== item.key));
+    setMessage('');
     const localKeys = getLocalKeys().filter((key) => key !== item.key);
     storeLocalKeys(localKeys);
     try {
       if (token && item.kind === 'programming') await requestJson(`/api/Favorite/${id}/Delete`, { method: 'PATCH', headers: { Authorization: `Bearer ${token}` } });
       if (previous.length === 1) { setState('empty'); setMessage('Você ainda não favoritou nenhuma programação ou estabelecimento.'); }
-    } catch (error) {
-      setItems(previous);
-      storeLocalKeys([...localKeys, item.key]);
-      setState('error');
-      setMessage(error instanceof Error ? error.message : 'Não foi possível remover o favorito.');
+    } catch {
+      if (previous.length === 1) {
+        setState('empty');
+      }
+      setMessage('Favorito removido neste navegador. Não foi possível sincronizar com a conta agora.');
     } finally {
       setRemovingKeys((current) => current.filter((key) => key !== item.key));
     }
@@ -175,6 +168,7 @@ export default function FavoritesScreen() {
       {state === 'loading' ? <View style={styles.stateCard}><ActivityIndicator color={colors.orange} /><Text style={styles.stateText}>{message}</Text></View> : null}
       {state === 'empty' ? <View style={styles.stateCard}><Text style={styles.stateIcon}>♡</Text><Text style={styles.stateTitle}>Nenhum favorito salvo</Text><Text style={styles.stateText}>{message}</Text><Pressable onPress={() => router.push('/explorar' as Href)} style={styles.exploreButton}><Text style={styles.exploreButtonText}>Explorar opções</Text></Pressable></View> : null}
       {state === 'error' ? <View style={[styles.stateCard, styles.errorCard]}><Text style={styles.errorTitle}>Favoritos indisponíveis</Text><Text style={styles.stateText}>{message}</Text></View> : null}
+      {state === 'ready' && message ? <Text accessibilityRole="status" style={styles.stateText}>{message}</Text> : null}
       {items.length > 0 ? <View style={styles.list}>{items.map((item) => {
         const isProgramming = item.kind === 'programming';
         const data = isProgramming ? item.programming : item.host;

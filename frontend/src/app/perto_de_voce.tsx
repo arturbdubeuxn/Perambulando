@@ -1,4 +1,4 @@
-﻿import { Fredoka_700Bold } from '@expo-google-fonts/fredoka/700Bold';
+import { Fredoka_700Bold } from '@expo-google-fonts/fredoka/700Bold';
 import { useFonts } from 'expo-font';
 import * as Location from 'expo-location';
 import { router, type Href } from 'expo-router';
@@ -107,10 +107,12 @@ export default function NearMeScreen() {
   const [now, setNow] = useState(Date.now);
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [selectedItem, setSelectedItem] = useState<NearbyItem | null>(null);
+  const [selection, setSelectedItem] = useState<NearbyItem | null>(null);
   const [mapFocusKey, setMapFocusKey] = useState<string | undefined>();
   const [mapSectionY, setMapSectionY] = useState(0);
   const lastLoadedQuery = useRef('');
+  const nextSkip = useRef(0);
+  const requestVersion = useRef(0);
   const pageScroll = useRef<ComponentRef<typeof ScrollView>>(null);
   const filterKey = `${distanceKm}|${selectedCategoryIds.join(',')}`;
 
@@ -129,17 +131,20 @@ export default function NearMeScreen() {
     let response = await loadNearby(location, maxDistanceKm);
     const combined = [...response.items];
     let availableTypes = new Set(combined.map((item) => item.type));
-    const requiredTypes = selectedCategoryIds.length > 0 ? 1 : 2;
-    while (response.hasMore && availableTypes.size < requiredTypes && combined.length < 50) {
-      response = await loadNearby(location, maxDistanceKm, combined.length);
+    let skip = response.skip + response.items.length;
+    while (response.hasMore && response.items.length > 0 && (selectedCategoryIds.length > 0 || (availableTypes.size < 2 && combined.length < 50))) {
+      response = await loadNearby(location, maxDistanceKm, skip);
       combined.push(...response.items);
+      skip = response.skip + response.items.length;
       availableTypes = new Set(combined.map((item) => item.type));
     }
-    const enriched = await loadNearbyPinDetails(combined, <T,>(path: string) => requestJson<T>(path, token));
-    return { ...response, items: enriched };
+    const unique = [...new Map(combined.map((item) => [`${item.type}-${item.id}`, item])).values()];
+    const enriched = await loadNearbyPinDetails(unique, <T,>(path: string) => requestJson<T>(path, token));
+    return { ...response, hasMore: response.hasMore && response.items.length > 0, items: enriched, nextSkip: skip };
   }, [loadNearby, selectedCategoryIds.length, token]);
 
   const requestLocation = useCallback(async () => {
+    const version = ++requestVersion.current;
     setState('locating');
     setMessage('Solicitando sua localização...');
     try {
@@ -162,11 +167,19 @@ export default function NearMeScreen() {
         latitude: current.coords.latitude,
         longitude: current.coords.longitude,
       };
+      setCoordinates(nextCoordinates);
+      if (version !== requestVersion.current) {
+        return;
+      }
+      lastLoadedQuery.current = filterKey;
       setState('loading');
       setMessage('Calculando o que está perto de você...');
       const response = await loadMapItems(nextCoordinates, distanceKm);
+      if (version !== requestVersion.current) {
+        return;
+      }
       lastLoadedQuery.current = filterKey;
-      setCoordinates(nextCoordinates);
+      nextSkip.current = response.nextSkip;
       setItems(response.items);
       setSelectedItem(null);
       setMapFocusKey(undefined);
@@ -174,6 +187,9 @@ export default function NearMeScreen() {
       setState(response.items.length > 0 ? 'ready' : 'empty');
       setMessage(response.items.length > 0 ? '' : `Não encontramos resultados em até ${distanceKm} km.`);
     } catch (error) {
+      if (version !== requestVersion.current) {
+        return;
+      }
       setState('error');
       setMessage(error instanceof Error ? error.message : 'Não foi possível obter sua localização.');
     }
@@ -196,12 +212,16 @@ export default function NearMeScreen() {
 
   useEffect(() => {
     if (!coordinates || lastLoadedQuery.current === filterKey) return;
+    const version = ++requestVersion.current;
     let active = true;
     const timer = setTimeout(() => {
       void loadMapItems(coordinates, distanceKm)
         .then((response) => {
-          if (!active) return;
+          if (!active || version !== requestVersion.current) {
+            return;
+          }
           lastLoadedQuery.current = filterKey;
+          nextSkip.current = response.nextSkip;
           setItems(response.items);
           setSelectedItem(null);
           setMapFocusKey(undefined);
@@ -210,7 +230,9 @@ export default function NearMeScreen() {
           setMessage(response.items.length > 0 ? '' : `Não encontramos resultados em até ${distanceKm} km.`);
         })
         .catch((error) => {
-          if (!active) return;
+          if (!active || version !== requestVersion.current) {
+            return;
+          }
           setState('error');
           setMessage(error instanceof Error ? error.message : 'Não foi possível atualizar a consulta.');
         });
@@ -222,6 +244,8 @@ export default function NearMeScreen() {
   }, [coordinates, distanceKm, filterKey, loadMapItems]);
 
   const toggleCategory = (categoryId: number) => {
+    requestVersion.current += 1;
+    lastLoadedQuery.current = '';
     setSelectedCategoryIds((current) => current.includes(categoryId) ? current.filter((id) => id !== categoryId) : [...current, categoryId]);
     setSelectedItem(null);
     setMapFocusKey(undefined);
@@ -232,15 +256,24 @@ export default function NearMeScreen() {
   };
 
   const loadMore = async () => {
-    if (!coordinates || loadingMore) return;
+    if (!coordinates || loadingMore || state !== 'ready' || lastLoadedQuery.current !== filterKey) {
+      return;
+    }
+    const version = requestVersion.current;
     setLoadingMore(true);
     try {
-      const response = await loadNearby(coordinates, distanceKm, items.length);
+      const response = await loadNearby(coordinates, distanceKm, nextSkip.current);
       const enriched = await loadNearbyPinDetails(response.items, <T,>(path: string) => requestJson<T>(path, token));
-      setItems((current) => [...current, ...enriched]);
-      setHasMore(response.hasMore);
+      if (version !== requestVersion.current) {
+        return;
+      }
+      nextSkip.current = response.skip + response.items.length;
+      setItems((current) => [...new Map([...current, ...enriched].map((item) => [`${item.type}-${item.id}`, item])).values()]);
+      setHasMore(response.hasMore && response.items.length > 0);
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Não foi possível carregar mais resultados.');
+      if (version === requestVersion.current) {
+        setMessage(error instanceof Error ? error.message : 'Não foi possível carregar mais resultados.');
+      }
     } finally {
       setLoadingMore(false);
     }
@@ -262,6 +295,7 @@ export default function NearMeScreen() {
 
   const mapItems = useMemo(() => resolveNearbyPins(items, now, selectedCategoryIds.length > 0), [items, now, selectedCategoryIds.length]);
   const nearestItems = mapItems.slice(0, 5);
+  const selectedItem = selection ? mapItems.find((item) => item.id === selection.id && item.type === selection.type) ?? null : null;
 
   useEffect(() => {
     const boundaries = items.flatMap((item) => item.host?.programmings.flatMap((event) => [Date.parse(event.startDate), Date.parse(event.endDate)]) ?? [])
@@ -272,10 +306,6 @@ export default function NearMeScreen() {
     const timer = setTimeout(() => setNow(Date.now()), Math.min(2147483647, Math.max(1, Math.min(...boundaries) - Date.now() + 25)));
     return () => clearTimeout(timer);
   }, [items, now]);
-
-  useEffect(() => {
-    setSelectedItem((current) => current ? mapItems.find((item) => item.id === current.id && item.type === current.type) ?? null : null);
-  }, [mapItems]);
 
   const showStateCard = state !== 'ready';
 
@@ -328,12 +358,14 @@ export default function NearMeScreen() {
             <Text style={styles.sectionSubtitle}>Resultados registrados no Perambulando e ordenados pela distância real.</Text>
 
             {categories.length > 0 ? <View style={styles.categoryFilter}>
-              <Pressable accessibilityRole="button" accessibilityState={{ selected: selectedCategoryIds.length === 0 }} onPress={() => { if (selectedCategoryIds.length === 0) return; setSelectedCategoryIds([]); setSelectedItem(null); setMapFocusKey(undefined); if (coordinates) { setState('loading'); setMessage('Exibindo todas as categorias...'); } }} style={[styles.categoryBullet, selectedCategoryIds.length === 0 && styles.categoryBulletActive]}><Text style={[styles.categoryBulletText, selectedCategoryIds.length === 0 && styles.categoryBulletTextActive]}>Todas</Text></Pressable>
+              <Pressable accessibilityRole="button" accessibilityState={{ selected: selectedCategoryIds.length === 0 }} onPress={() => { if (selectedCategoryIds.length === 0) { return; } requestVersion.current += 1; lastLoadedQuery.current = ''; setSelectedCategoryIds([]); setSelectedItem(null); setMapFocusKey(undefined); if (coordinates) { setState('loading'); setMessage('Exibindo todas as categorias...'); } }} style={[styles.categoryBullet, selectedCategoryIds.length === 0 && styles.categoryBulletActive]}><Text style={[styles.categoryBulletText, selectedCategoryIds.length === 0 && styles.categoryBulletTextActive]}>Todas</Text></Pressable>
               {categories.map((category) => {
                 const selected = selectedCategoryIds.includes(category.id);
                 return <Pressable accessibilityRole="button" accessibilityState={{ selected }} key={category.id} onPress={() => toggleCategory(category.id)} style={[styles.categoryBullet, selected && styles.categoryBulletActive]}><Text style={[styles.categoryBulletText, selected && styles.categoryBulletTextActive]}>{category.name}</Text></Pressable>;
               })}
             </View> : null}
+
+            {selectedCategoryIds.length > 0 ? <Text style={styles.sectionSubtitle}>{categories.filter((category) => selectedCategoryIds.includes(category.id)).map((category) => category.name).join(' + ')}{'\n'}Mostrando locais de qualquer uma das categorias selecionadas.</Text> : null}
 
             {showStateCard ? (
               <View accessibilityRole={state === 'error' ? 'alert' : undefined} style={[styles.stateCard, state === 'error' && styles.errorCard]}>

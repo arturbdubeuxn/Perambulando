@@ -1,5 +1,7 @@
 # Carga fictícia do Rosarinho e arredores
 
+> Revisão em 27/11/2026: a carga inicial abaixo é histórica. Os 75 hosts agora usam endereços reais de referência com coordenadas OSM e bairros conferidos; têm pelo menos dois eventos passados e dois futuros cada. O lote passou de 50 para 355 eventos, incluindo cinco em andamento no instante da atualização. Os demais registros foram preservados. Use o [script e relatório atuais](agenda-enderecos-2026-11-27.md); o seed inicial recusa o novo total e não deve ser usado para recriar/atualizar esta agenda.
+
 > Atualização posterior em 25/11/2026: banco alinhado às 29 migrations; CNPJs de demonstração substituídos por identificadores sintéticos normalizados com verificadores. Os formatos inválidos citados no histórico abaixo não são mais o estado atual. O seed foi compatibilizado. Veja [execução e validações](atualizacao-modelo-2026-11-25.md).
 
 Atualização: 25/11/2026. Execução solicitada pelo usuário no banco do container `perambulando-dev-database-1`.

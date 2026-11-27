@@ -6,6 +6,53 @@ type PinEvent = { id: number; name: string; description: string; imageUrl: strin
 type PinHost = { id: number; typeofhost: number; name: string; description: string; logoUrl: string; address: { id: number }; programmings: PinEvent[] };
 type EventDetails = PinEvent & { hostId: number };
 export type EnrichedPin = NearbyPin & { event?: EventDetails; host?: PinHost };
+export type NearbyPlace = { item: NearbyPin; label: string };
+
+export function formatDistance(meters: number) {
+  if (meters < 1000) {
+    return `${Math.round(meters)} m`;
+  }
+  return `${(meters / 1000).toFixed(1).replace('.', ',')} km`;
+}
+
+export async function loadNearbyPlaces(origin: { latitude: number; longitude: number }, request: <T>(path: string) => Promise<T>, exclude: { hostId?: number; programmingId?: number } = {}, signal?: AbortSignal): Promise<NearbyPlace[]> {
+  const selected: NearbyPlace[] = [];
+  const seen = new Set<string>();
+  let skip = 0;
+  let hasMore = true;
+  while (selected.length < 5 && hasMore) {
+    signal?.throwIfAborted();
+    const query = new URLSearchParams({ Latitude: String(origin.latitude), Longitude: String(origin.longitude), MaxDistanceKm: '20', Skip: String(skip) });
+    const response = await request<{ items: NearbyPin[]; skip: number; hasMore: boolean }>(`/api/Nearby/GetNearMe?${query.toString()}`);
+    const candidates = response.items.filter((item) => {
+      const key = `${item.type}-${item.id}`;
+      if (seen.has(key) || (item.type === 'Host' && item.id === exclude.hostId) || (item.type === 'Programming' && item.id === exclude.programmingId)) {
+        return false;
+      }
+      seen.add(key);
+      return true;
+    });
+    const entries = await Promise.all(candidates.map(async (item) => {
+      if (item.type === 'Host') {
+        return { item, label: 'Estabelecimento' };
+      }
+      const details = await request<{ hostId: number; categories: { name: string }[] }>(`/api/Programming/Details/${item.id}`).catch(() => null);
+      if (exclude.hostId != null && (!details || details.hostId === exclude.hostId)) {
+        return null;
+      }
+      return { item, label: details?.categories?.[0]?.name ?? 'Programação' };
+    }));
+    signal?.throwIfAborted();
+    for (const entry of entries) {
+      if (entry && selected.length < 5) {
+        selected.push(entry);
+      }
+    }
+    skip += response.items.length;
+    hasMore = response.hasMore && response.items.length > 0;
+  }
+  return selected.sort((a, b) => a.item.distanceMeters - b.item.distanceMeters);
+}
 
 // Public contracts do not include host IDs or dates in Nearby items.
 // Resolve them without changing the API or treating a future event as ongoing.
@@ -21,14 +68,14 @@ export async function loadNearbyPinDetails(items: NearbyPin[], request: <T>(path
         continue;
       }
       const event = await request<EventDetails>(`/api/Programming/Details/${item.id}`).catch(() => null);
-      if (!event || !Number.isInteger(event.hostId)) {
+      if (!event || !Number.isInteger(event.hostId) || !Number.isInteger(event.address?.id)) {
         continue;
       }
       if (!hosts.has(event.hostId)) {
         hosts.set(event.hostId, request<PinHost>(`/api/Host/Details/${event.hostId}`));
       }
       const host = await hosts.get(event.hostId)!.catch(() => null);
-      if (host) {
+      if (host && Number.isInteger(host.address?.id) && Array.isArray(host.programmings)) {
         results[index] = { ...item, event, host };
       }
     }
@@ -52,7 +99,7 @@ export function resolveNearbyPins(items: EnrichedPin[], now: number, categoryFil
     if (active) {
       occupied.add(host.id);
       resolved.set(`Programming-${active.id}`, { ...item, id: active.id, type: 'Programming', name: active.name, description: active.description, imageUrl: active.imageUrl });
-    } else if (!categoryFiltered) {
+    } else {
       resolved.set(`Host-${host.id}`, { ...item, id: host.id, type: 'Host', name: host.name, description: host.description, imageUrl: host.logoUrl });
     }
   }

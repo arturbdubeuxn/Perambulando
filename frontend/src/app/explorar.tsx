@@ -1,9 +1,10 @@
 import { Fredoka_700Bold } from '@expo-google-fonts/fredoka/700Bold';
 import { useFonts } from 'expo-font';
 import * as Location from 'expo-location';
-import { router, type Href } from 'expo-router';
+import { router, type Href, useFocusEffect } from 'expo-router';
+import { getFavoriteKeys, storeFavoriteKeys, setLocalFavorite, subscribeToFavorites } from '../favorites';
 import { StatusBar } from 'expo-status-bar';
-import { type ComponentRef, useEffect, useRef, useState } from 'react';
+import { type ComponentRef, useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -31,7 +32,7 @@ const colors = {
 
 const apiBaseUrl = (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:5014').replace(/\/$/, '');
 const accessTokenStorageKey = 'perambulando.accessToken';
-const favoritesStorageKey = 'perambulando.exploreFavorites';
+
 
 type Category = {
   id: number;
@@ -134,26 +135,6 @@ function categoryIcon(name: string) {
 function getSessionToken() {
   if (Platform.OS !== 'web') return '';
   return (globalThis as { sessionStorage?: StorageLike }).sessionStorage?.getItem(accessTokenStorageKey) ?? '';
-}
-
-function getFavoriteKeys() {
-  if (Platform.OS !== 'web') return [] as string[];
-  try {
-    const value = (globalThis as { localStorage?: StorageLike }).localStorage?.getItem(favoritesStorageKey);
-    const parsed = value ? JSON.parse(value) : [];
-    return Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === 'string') : [];
-  } catch {
-    return [];
-  }
-}
-
-function storeFavoriteKeys(keys: string[]) {
-  if (Platform.OS !== 'web') return;
-  try {
-    (globalThis as { localStorage?: StorageLike }).localStorage?.setItem?.(favoritesStorageKey, JSON.stringify(keys));
-  } catch {
-    // O favorito continua ativo durante a sessão mesmo se o navegador bloquear armazenamento local.
-  }
 }
 
 async function requestJson<T>(path: string, options: RequestInit = {}) {
@@ -284,13 +265,9 @@ function EventCard({ programming, favorite, onToggleFavorite }: { programming: P
   };
 
   return (
-    <Pressable
-      accessibilityHint="Abre os detalhes desta programação"
-      accessibilityRole="button"
-      onPress={openProgramming}
-      style={({ pressed }) => [styles.eventCard, pressed && styles.eventCardPressed]}
-    >
+    <View style={styles.eventCard}>
       <View style={styles.eventImageFrame}>
+        <Pressable accessibilityRole="button" accessibilityLabel={`Ver programação ${programming.name}`} onPress={openProgramming} style={styles.eventImageLink}>
         {programming.imageUrl && !imageFailed ? (
           <Image
             accessibilityIgnoresInvertColors
@@ -320,10 +297,11 @@ function EventCard({ programming, favorite, onToggleFavorite }: { programming: P
               .toUpperCase()}
           </Text>
         </View>
+        </Pressable>
         <FavoriteButton active={favorite} label={programming.name} onPress={onToggleFavorite} />
       </View>
 
-      <View style={styles.eventContent}>
+      <Pressable accessibilityRole="button" accessibilityLabel={`Detalhes da programação ${programming.name}`} onPress={openProgramming} style={({ pressed }) => [styles.eventContent, pressed && styles.eventCardPressed]}>
         <View style={styles.categoryChips}>
           {categories.length > 0 ? (
             categories.map((category) => (
@@ -343,8 +321,8 @@ function EventCard({ programming, favorite, onToggleFavorite }: { programming: P
         </View>
         <Text numberOfLines={2} style={styles.eventName}>{programming.name}</Text>
         <Text numberOfLines={2} style={styles.eventAddress}>⌖ {addressLabel(programming.address) || 'Local a confirmar'}</Text>
-      </View>
-    </Pressable>
+      </Pressable>
+    </View>
   );
 }
 
@@ -507,7 +485,7 @@ export default function ExploreScreen() {
           const missingIds = localProgrammingIds.filter((id) => !serverIds.has(id));
           await Promise.all(missingIds.map((id) => requestJson(`/api/Favorite/${id}/Create`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } }).then(() => serverIds.add(id)).catch(() => undefined)));
           if (!active) return;
-          const mergedKeys = [...localKeys.filter((key) => key.startsWith('host:')), ...[...serverIds].map((id) => `programming:${id}`)];
+          const mergedKeys = [...new Set([...localKeys, ...[...serverIds].map((id) => `programming:${id}`)])];
           setFavoriteKeys(mergedKeys);
           storeFavoriteKeys(mergedKeys);
           const details = await Promise.all([...serverIds].map((id) => requestJson<Programming>(`/api/Programming/Details/${id}`).catch(() => null)));
@@ -631,13 +609,32 @@ export default function ExploreScreen() {
   }, [searchText, selectedCategoryId]);
 
   const selectedCategory = categories.find((category) => category.id === selectedCategoryId);
+  useFocusEffect(useCallback(() => {
+    let active = true;
+    const refresh = () => {
+      const keys = getFavoriteKeys();
+      setFavoriteKeys(keys);
+      const ids = keys.filter((key) => key.startsWith('programming:')).map((key) => Number(key.split(':')[1]));
+      if (!ids.length) {
+        return;
+      }
+      void Promise.all(ids.map((id) => requestJson<Programming>(`/api/Programming/Details/${id}`).catch(() => null))).then((details) => {
+        if (active) {
+          setKnownProgrammings((current) => {
+            const merged = new Map(current.map((item) => [item.id, item]));
+            details.forEach((item) => { if (item) { merged.set(item.id, item); } });
+            return [...merged.values()];
+          });
+        }
+      });
+    };
+    refresh();
+    const unsubscribe = subscribeToFavorites(refresh);
+    return () => { active = false; unsubscribe(); };
+  }, []));
   const favoriteSet = new Set(favoriteKeys);
   const updateLocalFavorite = (key: string, active: boolean) => {
-    setFavoriteKeys((current) => {
-      const next = active ? [...new Set([...current, key])] : current.filter((item) => item !== key);
-      storeFavoriteKeys(next);
-      return next;
-    });
+    setFavoriteKeys(setLocalFavorite(key, active).keys);
   };
   const toggleFavorite = async (key: string) => {
     if (favoriteBusy.includes(key)) return;
@@ -653,9 +650,8 @@ export default function ExploreScreen() {
         method: wasFavorite ? 'PATCH' : 'POST',
         headers: { Authorization: `Bearer ${token}` },
       });
-    } catch (error) {
-      updateLocalFavorite(key, wasFavorite);
-      setFavoriteMessage(error instanceof Error ? error.message : 'Não foi possível atualizar o favorito.');
+    } catch {
+      setFavoriteMessage('Favorito atualizado neste navegador. Não foi possível sincronizar com a conta agora.');
     } finally {
       setFavoriteBusy((current) => current.filter((item) => item !== key));
     }
@@ -733,6 +729,9 @@ export default function ExploreScreen() {
                 </Pressable>
               ) : null}
             </View>
+            <Pressable accessibilityRole="button" accessibilityLabel="Montar roteiro com IA" onPress={() => router.push('/roteiro' as Href)} style={({ pressed }) => [styles.itineraryButton, pressed && styles.pressedItinerary]}>
+              <View style={styles.itineraryIcon}><Text style={styles.itineraryGlyph}>⌁</Text></View><View style={styles.itineraryCopy}><Text style={styles.itineraryTitle}>Montar roteiro com IA</Text><Text style={styles.itinerarySubtitle}>Um passeio do seu jeito, em poucos passos.</Text></View><Text style={styles.itineraryArrow}>›</Text>
+            </Pressable>
           </View>
 
           <View style={styles.section}>
@@ -879,6 +878,8 @@ export default function ExploreScreen() {
 }
 
 const styles = StyleSheet.create({
+  eventImageLink: { width: '100%', height: '100%' },
+  itineraryButton: { marginTop: 12, minHeight: 78, padding: 13, flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 17, borderWidth: 1, borderColor: '#47607C', backgroundColor: '#1C3D63' }, itineraryIcon: { width: 39, height: 40, borderRadius: 12, backgroundColor: '#D4FF48', alignItems: 'center', justifyContent: 'center' }, itineraryGlyph: { color: '#23350B', fontSize: 25, fontWeight: '700' }, itineraryCopy: { flex: 1 }, itineraryTitle: { color: '#FFFFFF', fontSize: 14, fontWeight: '700' }, itinerarySubtitle: { color: '#CDD8E5', fontSize: 11, lineHeight: 17, marginTop: 3 }, itineraryArrow: { color: '#FFFFFF', fontSize: 25 }, pressedItinerary: { opacity: 0.8 },
   viewport: { flex: 1, alignItems: 'center', backgroundColor: '#E6DED2' },
   appShell: { flex: 1, maxWidth: 430, minWidth: 0, backgroundColor: colors.background, borderLeftWidth: 1, borderRightWidth: 1, borderColor: '#DDD8D2', overflow: 'hidden' },
   header: { minHeight: 70, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: colors.card, borderBottomWidth: 1, borderBottomColor: colors.line },
