@@ -12,7 +12,7 @@ O inventário estático atual identificou 51 endpoints de negócio: 34 têm cham
 
 ## Chat para planejar o passeio — 27/11/2026
 
-`/explorar` oferece Montar roteiro com IA abaixo da busca e abre a rota plana `/roteiro`, cuja interface fica em `TravelChatScreen.tsx`. `travelChat.ts` envia `{ text }` a `POST /api/TravelChat/Messages`, público, com JWT opcional e fallback anônimo único em 401. A resposta existente contém programações e hosts, apresentados em cards de detalhes. Não há histórico enviado ao modelo, sequência definitiva, garantia de horários compatíveis ou persistência de roteiro nesta etapa. As mensagens da sessão permanecem na pilha ao abrir e voltar dos detalhes.
+`/explorar` oferece Montar roteiro com IA abaixo da busca e abre a rota plana `/roteiro_ia`, cuja interface fica em `TravelChatScreen.tsx`. `travelChat.ts` envia `{ text }` a `POST /api/TravelChat/Messages`, público, com JWT opcional e fallback anônimo único em 401. A resposta existente contém programações e hosts, apresentados em cards de detalhes. Não há histórico enviado ao modelo, sequência definitiva, garantia de horários compatíveis ou persistência de roteiro nesta etapa. As mensagens da sessão permanecem na pilha ao abrir e voltar dos detalhes.
 
 A integração depende do serviço de interpretação configurado no backend; URL/chave do provedor permanecem no servidor. Sem configuração/disponibilidade, o chat mostra erro e nova tentativa. Nenhum backend, banco ou pacote alterado. Cinco testes Node e fluxo no Edge com API simulada validados; provedor real e dispositivo físico pendentes. Foi corrigido também o aninhamento do botão de favorito nos cards de programação da entrada. Consulte [contrato, validações e limites](validacoes/chat-roteiro-2026-11-27.md). PDFs preservados.
 

@@ -10,7 +10,7 @@ Auditoria estática do código atual: 51 endpoints de negócio nos controllers, 
 
 ## Montar roteiro com IA — 27/11/2026
 
-Nova entrada abaixo da busca de Explorar abre `/roteiro`, com sugestões rápidas, mensagens e opções clicáveis do catálogo. Usa o endpoint público TravelChat existente, sem login obrigatório nem alteração do backend. Trata consulta, vazio e falha; não simula respostas em produção nem promete roteiro ordenado/sem conflitos. Interface e contrato testados com API simulada; provedor real não chamado. Implementação e dependências de configuração em [chat de roteiro](validacoes/chat-roteiro-2026-11-27.md). PDFs preservados.
+Nova entrada abaixo da busca de Explorar abre `/roteiro_ia`, com sugestões rápidas, mensagens e opções clicáveis do catálogo. Usa o endpoint público TravelChat existente, sem login obrigatório nem alteração do backend. Trata consulta, vazio e falha; não simula respostas em produção nem promete roteiro ordenado/sem conflitos. Interface e contrato testados com API simulada; provedor real não chamado. Implementação e dependências de configuração em [chat de roteiro](validacoes/chat-roteiro-2026-11-27.md). PDFs preservados.
 
 ## Favoritos nos detalhes sem login — 27/11/2026
 

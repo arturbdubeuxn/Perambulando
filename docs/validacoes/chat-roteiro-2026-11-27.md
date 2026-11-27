@@ -1,5 +1,7 @@
 # Entrada e chat de roteiro com IA — 27/11/2026
 
+Atualização posterior na mesma data: o chat passou para `/roteiro_ia`, enquanto `/roteiro` recebe a timeline manual e a gestão dos cinco endpoints Roadmap. Os cards de resultados do assistente agora permitem incluir/retirar paradas do rascunho compartilhado. Consulte [roteiros e timeline](roteiros-timeline-2026-11-27.md) para a integração e suas validações. O histórico abaixo descreve a entrega inicial do chat.
+
 ## Implementação
 
 - Botão **Montar roteiro com IA** abaixo da busca de `/explorar`, mantendo o hero azul existente e a composição de ícone, título, subtítulo e seta da referência.
