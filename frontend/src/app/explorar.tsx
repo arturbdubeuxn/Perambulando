@@ -234,6 +234,22 @@ function FavoriteButton({ active, label, onPress }: { active: boolean; label: st
   );
 }
 
+function EventDateBadge({ startDate }: { startDate: string }) {
+  const date = new Date(startDate);
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+
+  return (
+    <View accessible accessibilityLabel={formatEventDate(startDate)} style={styles.dateBadge}>
+      <Text style={styles.dateBadgeDay}>{date.getDate()}</Text>
+      <Text style={styles.dateBadgeMonth}>
+        {new Intl.DateTimeFormat('pt-BR', { month: 'short' }).format(date).replace('.', '').toUpperCase()}
+      </Text>
+    </View>
+  );
+}
+
 function EventCard({ programming, favorite, onToggleFavorite }: { programming: Programming; favorite: boolean; onToggleFavorite: () => void }) {
   const [imageFailed, setImageFailed] = useState(false);
   const categories = programming.categories.filter((category) => category.isActive).slice(0, 2);
@@ -248,7 +264,7 @@ function EventCard({ programming, favorite, onToggleFavorite }: { programming: P
   };
 
   return (
-    <View style={styles.eventCard}>
+    <View style={[styles.resultCard, styles.eventCard]}>
       <View style={styles.eventImageFrame}>
         <Pressable accessibilityRole="button" accessibilityLabel={`Ver programação ${programming.name}`} onPress={openProgramming} style={styles.eventImageLink}>
         {programming.imageUrl && !imageFailed ? (
@@ -271,15 +287,7 @@ function EventCard({ programming, favorite, onToggleFavorite }: { programming: P
             <Text style={styles.eventFallbackText}>Perambulando</Text>
           </View>
         )}
-        <View style={styles.dateBadge}>
-          <Text style={styles.dateBadgeDay}>{new Date(programming.startDate).getDate() || '--'}</Text>
-          <Text style={styles.dateBadgeMonth}>
-            {new Intl.DateTimeFormat('pt-BR', { month: 'short' })
-              .format(new Date(programming.startDate))
-              .replace('.', '')
-              .toUpperCase()}
-          </Text>
-        </View>
+        <EventDateBadge startDate={programming.startDate} />
         </Pressable>
         <FavoriteButton active={favorite} label={programming.name} onPress={onToggleFavorite} />
       </View>
@@ -315,7 +323,7 @@ function HostCard({ host, favorite, onToggleFavorite }: { host: Host; favorite: 
   const typeLabel = host.typeofhost === 1 ? 'Gastronomia' : 'Comércio';
   const openHost = () => router.push({ pathname: '/estabelecimento', params: { hostId: String(host.id), origin: 'explorar' } } as Href);
   return (
-    <View style={styles.hostCard}>
+    <View style={[styles.resultCard, styles.hostCard]}>
       <View style={styles.hostImageFrame}>
         <Pressable accessibilityRole="button" accessibilityLabel={`Ver estabelecimento ${host.name}`} onPress={openHost}>
         {host.logoUrl && !imageFailed ? (
@@ -339,21 +347,24 @@ function HostCard({ host, favorite, onToggleFavorite }: { host: Host; favorite: 
 function FavoriteCard({ item, onOpen, onRemove }: { item: { key: string; name: string; imageUrl: string; type: string; address: string }; onOpen?: () => void; onRemove: () => void }) {
   const [imageFailed, setImageFailed] = useState(false);
   return (
-    <View style={styles.favoriteCard}><Pressable onPress={onOpen} style={({ pressed }) => [onOpen && pressed && styles.eventCardPressed]}>
-      <View style={styles.favoriteImageFrame}>
-        {item.imageUrl && !imageFailed ? <Image onError={() => setImageFailed(true)} resizeMode="cover" source={{ uri: item.imageUrl }} style={styles.favoriteImage} /> : <View style={styles.favoriteImageFallback}><Text style={styles.favoriteImageFallbackText}>{item.name.charAt(0).toUpperCase()}</Text></View>}
-        <FavoriteButton active label={item.name} onPress={onRemove} />
-      </View>
-      <View style={styles.favoriteCopy}>
-        <Text style={styles.favoriteType}>{item.type}</Text>
-        <Text numberOfLines={2} style={styles.favoriteName}>{item.name}</Text>
-        <Text numberOfLines={2} style={styles.favoriteAddress}>⌖ {item.address}</Text>
-      </View>
-    </Pressable><RoadmapButton kind={item.key.startsWith('host:') ? 'host' : 'programming'} id={Number(item.key.split(':')[1])} name={item.name} /></View>
+    <View style={[styles.resultCard, styles.favoriteCard]}>
+      <Pressable onPress={onOpen} style={({ pressed }) => [styles.cardLink, onOpen && pressed && styles.eventCardPressed]}>
+        <View style={styles.favoriteImageFrame}>
+          {item.imageUrl && !imageFailed ? <Image onError={() => setImageFailed(true)} resizeMode="cover" source={{ uri: item.imageUrl }} style={styles.favoriteImage} /> : <View style={styles.favoriteImageFallback}><Text style={styles.favoriteImageFallbackText}>{item.name.charAt(0).toUpperCase()}</Text></View>}
+          <FavoriteButton active label={item.name} onPress={onRemove} />
+        </View>
+        <View style={styles.favoriteCopy}>
+          <Text style={styles.favoriteType}>{item.type}</Text>
+          <Text numberOfLines={2} style={styles.favoriteName}>{item.name}</Text>
+          <Text numberOfLines={2} style={styles.favoriteAddress}>⌖ {item.address}</Text>
+        </View>
+      </Pressable>
+      <RoadmapButton kind={item.key.startsWith('host:') ? 'host' : 'programming'} id={Number(item.key.split(':')[1])} name={item.name} />
+    </View>
   );
 }
 
-function NearbyCard({ item }: { item: NearbyItem }) {
+function NearbyCard({ item, startDate }: { item: NearbyItem; startDate?: string | null }) {
   const [imageFailed, setImageFailed] = useState(false);
   const openItem = () => {
     if (item.type === 'Programming') {
@@ -363,22 +374,74 @@ function NearbyCard({ item }: { item: NearbyItem }) {
     }
   };
   return (
-    <View><Pressable accessibilityHint="Abre as informações deste local" accessibilityRole="button" onPress={openItem} style={({ pressed }) => [styles.nearbyCard, pressed && styles.eventCardPressed]}>
-      <View style={styles.nearbyImageFrame}>
-        {item.imageUrl && !imageFailed ? <Image onError={() => setImageFailed(true)} resizeMode="cover" source={{ uri: item.imageUrl }} style={styles.nearbyImage} /> : <View style={styles.nearbyImageFallback}><Text style={styles.nearbyImageFallbackText}>{item.name.charAt(0).toUpperCase()}</Text></View>}
-        <View style={styles.nearbyDistanceBadge}><Text style={styles.nearbyDistanceText}>⌖ {formatDistance(item.distanceMeters)}</Text></View>
-      </View>
-      <View style={styles.nearbyCopy}><Text style={styles.nearbyType}>{item.type === 'Programming' ? 'PROGRAMAÇÃO' : 'ESTABELECIMENTO'}</Text><Text numberOfLines={2} style={styles.nearbyName}>{item.name}</Text><Text numberOfLines={2} style={styles.nearbyAddress}>{item.address || 'Endereço não informado'}</Text></View>
-    </Pressable><RoadmapButton kind={item.type === 'Host' ? 'host' : 'programming'} id={item.id} name={item.name} /></View>
+    <View style={[styles.resultCard, styles.nearbyCard]}>
+      <Pressable accessibilityHint="Abre as informações deste local" accessibilityRole="button" onPress={openItem} style={({ pressed }) => [styles.cardLink, pressed && styles.eventCardPressed]}>
+        <View style={styles.nearbyImageFrame}>
+          {item.imageUrl && !imageFailed ? <Image onError={() => setImageFailed(true)} resizeMode="cover" source={{ uri: item.imageUrl }} style={styles.nearbyImage} /> : <View style={styles.nearbyImageFallback}><Text style={styles.nearbyImageFallbackText}>{item.name.charAt(0).toUpperCase()}</Text></View>}
+          {item.type === 'Programming' && startDate ? <EventDateBadge startDate={startDate} /> : null}
+          <View style={styles.nearbyDistanceBadge}><Text style={styles.nearbyDistanceText}>⌖ {formatDistance(item.distanceMeters)}</Text></View>
+        </View>
+        <View style={styles.nearbyCopy}>
+          <Text style={styles.nearbyType}>{item.type === 'Programming' ? 'PROGRAMAÇÃO' : 'ESTABELECIMENTO'}</Text>
+          <Text numberOfLines={2} style={styles.nearbyName}>{item.name}</Text>
+          <Text numberOfLines={2} style={styles.nearbyAddress}>{item.address || 'Endereço não informado'}</Text>
+        </View>
+      </Pressable>
+      <RoadmapButton kind={item.type === 'Host' ? 'host' : 'programming'} id={item.id} name={item.name} />
+    </View>
   );
 }
 
-function ForYouResults({ origin, preferenceIds }: { origin: Coordinates; preferenceIds: number[] }) {
+function ForYouResults({ origin, preferenceIds, token }: { origin: Coordinates; preferenceIds: number[]; token: string }) {
   const [items, setItems] = useState<NearbyItem[]>([]);
   const [hasMore, setHasMore] = useState(false);
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
   const [page, setPage] = useState({ skip: 0 });
+  const [preferenceDates, setPreferenceDates] = useState<Map<number, string> | null>(null);
+  const [detailDates, setDetailDates] = useState(new Map<number, string | null>());
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const { signal } = controller;
+    requestJson<Pick<Programming, 'id' | 'startDate'>[]>('/api/Programming/GetUserProgrammingPreferences', {
+      signal,
+      headers: { Authorization: `Bearer ${token}` },
+    }).then((result) => {
+      if (!signal.aborted) {
+        setPreferenceDates(new Map(result.map(({ id, startDate }) => [id, startDate])));
+      }
+    }).catch(() => {
+      if (!signal.aborted) {
+        setPreferenceDates(new Map());
+      }
+    });
+    return () => controller.abort();
+  }, [token]);
+
+  useEffect(() => {
+    if (!preferenceDates) {
+      return;
+    }
+    const missingIds = [...new Set(items
+      .filter(({ type, id }) => type === 'Programming' && !preferenceDates.get(id) && !detailDates.has(id))
+      .map(({ id }) => id))];
+    if (missingIds.length === 0) {
+      return;
+    }
+    const controller = new AbortController();
+    const { signal } = controller;
+    Promise.all(missingIds.map(async (id) => {
+      const details = await requestJson<Pick<Programming, 'startDate'>>(`/api/Programming/Details/${id}`, { signal })
+        .catch(() => null);
+      return [id, details?.startDate ?? null] as const;
+    })).then((dates) => {
+      if (!signal.aborted) {
+        setDetailDates((current) => new Map([...current, ...dates]));
+      }
+    });
+    return () => controller.abort();
+  }, [detailDates, items, preferenceDates]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -411,7 +474,10 @@ function ForYouResults({ origin, preferenceIds }: { origin: Coordinates; prefere
     <>
       {items.length > 0 && (
         <ScrollView horizontal contentContainerStyle={styles.nearbyList} showsHorizontalScrollIndicator={false}>
-          {items.map((item) => <NearbyCard item={item} key={`${item.type}-${item.id}`} />)}
+          {items.map((item) => (
+            <NearbyCard item={item} key={`${item.type}-${item.id}`}
+              startDate={preferenceDates?.get(item.id) ?? detailDates.get(item.id)} />
+          ))}
         </ScrollView>
       )}
       {loading && <ActivityIndicator color={colors.orange} />}
@@ -432,6 +498,88 @@ function ForYouResults({ origin, preferenceIds }: { origin: Coordinates; prefere
   );
 }
 
+function ProgrammingCatalog({ favoriteKeys, onToggleFavorite, onLoaded }: {
+  favoriteKeys: Set<string>; onToggleFavorite: (key: string) => void;
+  onLoaded: (items: Programming[]) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [items, setItems] = useState<Programming[]>([]);
+  const [requestPage, setRequestPage] = useState({ skip: 0 });
+  const [hasMore, setHasMore] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [failed, setFailed] = useState(false);
+  const pageSize = 10;
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+    const controller = new AbortController();
+    requestJson<Programming[]>(`/api/Programming/GetAllProgrammings?take=${pageSize}&skip=${requestPage.skip}`, {
+      signal: controller.signal,
+    }).then((result) => {
+      if (!controller.signal.aborted) {
+        setItems((current) => requestPage.skip === 0 ? result : [...current, ...result]);
+        setHasMore(result.length === pageSize);
+        onLoaded(result);
+      }
+    }).catch(() => {
+      if (!controller.signal.aborted) {
+        setFailed(true);
+      }
+    }).finally(() => {
+      if (!controller.signal.aborted) {
+        setLoading(false);
+      }
+    });
+    return () => controller.abort();
+  }, [onLoaded, open, requestPage]);
+
+  function loadPage(skip: number) {
+    setRequestPage({ skip });
+    setFailed(false);
+    setLoading(true);
+  }
+
+  return (
+    <View style={styles.catalog}>
+      <Pressable accessibilityRole="button" accessibilityState={{ expanded: open }} style={styles.showMoreNearby} onPress={() => {
+        if (!open) {
+          setItems([]);
+          setHasMore(false);
+          loadPage(0);
+        }
+        setOpen(!open);
+      }}>
+        <Text style={styles.showMoreNearbyText}>{open ? 'Recolher agenda' : 'Ver agenda completa'}</Text>
+      </Pressable>
+      {open && (
+        <>
+          <Text style={styles.sectionSubtitle}>
+            Programações do catálogo, em ordem de data. Inclui datas passadas e futuras.
+          </Text>
+          {items.length > 0 && (
+            <ScrollView horizontal contentContainerStyle={styles.eventList} showsHorizontalScrollIndicator={false}>
+              {items.map((programming) => (
+                <EventCard key={programming.id} programming={programming} favorite={favoriteKeys.has(`programming:${programming.id}`)}
+                  onToggleFavorite={() => onToggleFavorite(`programming:${programming.id}`)} />
+              ))}
+            </ScrollView>
+          )}
+          {loading && <ActivityIndicator color={colors.orange} />}
+          {!loading && !failed && items.length === 0 && <Text style={styles.sectionSubtitle}>Nenhuma programação encontrada.</Text>}
+          {failed && <Text accessibilityRole="alert" style={styles.sectionSubtitle}>Não foi possível carregar a agenda.</Text>}
+          {!loading && (failed || hasMore) && (
+            <Pressable accessibilityRole="button" style={styles.showMoreNearby} onPress={() => loadPage(failed ? requestPage.skip : items.length)}>
+              <Text style={styles.showMoreNearbyText}>{failed ? 'Tentar novamente' : 'Mostrar mais programações'}</Text>
+            </Pressable>
+          )}
+        </>
+      )}
+    </View>
+  );
+}
+
 export default function ExploreScreen() {
   const { width: viewportWidth } = useWindowDimensions();
   const [token] = useState(getSessionToken);
@@ -439,6 +587,13 @@ export default function ExploreScreen() {
   const [programmings, setProgrammings] = useState<Programming[]>([]);
   const [hosts, setHosts] = useState<Host[]>([]);
   const [knownProgrammings, setKnownProgrammings] = useState<Programming[]>([]);
+  const rememberProgrammings = useCallback((items: Programming[]) => {
+    setKnownProgrammings((current) => {
+      const merged = new Map(current.map((item) => [item.id, item]));
+      items.forEach((item) => merged.set(item.id, item));
+      return [...merged.values()];
+    });
+  }, []);
   const [hostsLoading, setHostsLoading] = useState(true);
   const [favoriteKeys, setFavoriteKeys] = useState<string[]>(getFavoriteKeys);
   const [favoriteBusy, setFavoriteBusy] = useState<string[]>([]);
@@ -618,11 +773,7 @@ export default function ExploreScreen() {
         .then((items) => {
           if (programmingRequest.current !== requestId) return;
           setProgrammings(items.filter((item) => item.isActive));
-          setKnownProgrammings((current) => {
-            const merged = new Map(current.map((item) => [item.id, item]));
-            items.filter((item) => item.isActive).forEach((item) => merged.set(item.id, item));
-            return [...merged.values()];
-          });
+          rememberProgrammings(items.filter((item) => item.isActive));
           setState('ready');
           setMessage('');
         })
@@ -641,7 +792,7 @@ export default function ExploreScreen() {
     }, searchText ? 350 : 0);
 
     return () => clearTimeout(timer);
-  }, [searchText, selectedCategoryId]);
+  }, [rememberProgrammings, searchText, selectedCategoryId]);
 
   const selectedCategory = categories.find((category) => category.id === selectedCategoryId);
   useFocusEffect(useCallback(() => {
@@ -838,6 +989,9 @@ export default function ExploreScreen() {
                 {programmings.map((programming) => <EventCard favorite={favoriteSet.has(`programming:${programming.id}`)} key={programming.id} onToggleFavorite={() => void toggleFavorite(`programming:${programming.id}`)} programming={programming} />)}
               </ScrollView>
             ) : null}
+            {selectedCategoryId === null && !searchText.trim() && (
+              <ProgrammingCatalog favoriteKeys={favoriteSet} onToggleFavorite={toggleFavorite} onLoaded={rememberProgrammings} />
+            )}
           </View>
 
           {token && (
@@ -866,6 +1020,7 @@ export default function ExploreScreen() {
                   key={`${preferenceIds.join(',')}:${nearbyCoordinates?.latitude}:${nearbyCoordinates?.longitude}`}
                   origin={nearbyCoordinates ?? recifeCenter}
                   preferenceIds={preferenceIds}
+                  token={token}
                 />
               ) : (
                 <Pressable accessibilityRole="button" onPress={() => router.push('/perfil')}>
@@ -996,12 +1151,14 @@ const styles = StyleSheet.create({
   seeAll: { color: colors.orange, fontSize: 10, fontWeight: '800' },
   eventList: { paddingTop: 16, paddingRight: 20, gap: 16 },
   hostList: { paddingTop: 16, paddingRight: 20, gap: 12 },
-  hostCard: { width: 205, overflow: 'hidden', borderRadius: 18, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card },
+  resultCard: { overflow: 'hidden', borderRadius: 18, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card },
+  cardLink: { flex: 1 },
+  hostCard: { width: 205 },
   hostImageFrame: { position: 'relative', width: '100%', height: 112 },
   hostImage: { width: '100%', height: 112 },
   hostImageFallback: { width: '100%', height: 112, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.hero },
   hostImageText: { color: colors.card, fontSize: 30, fontWeight: '800' },
-  hostCardCopy: { minHeight: 105, padding: 12 },
+  hostCardCopy: { flex: 1, minHeight: 105, padding: 12 },
   hostType: { color: '#9F3909', fontSize: 10, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.7 },
   hostName: { marginTop: 5, color: colors.ink, fontSize: 14, lineHeight: 18, fontWeight: '800' },
   hostAddress: { marginTop: 8, color: colors.muted, fontSize: 9, lineHeight: 13 },
@@ -1010,7 +1167,7 @@ const styles = StyleSheet.create({
   favoriteIcon: { color: '#F25555', fontSize: 22, lineHeight: 24 },
   favoriteIconActive: { color: '#EF4444' },
   favoriteList: { paddingTop: 16, paddingRight: 20, gap: 12 },
-  favoriteCard: { width: 195, overflow: 'hidden', borderRadius: 18, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card },
+  favoriteCard: { width: 195 },
   favoriteImageFrame: { position: 'relative', height: 125, backgroundColor: '#DCE7E9' },
   favoriteImage: { width: '100%', height: '100%' },
   favoriteImageFallback: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.hero },
@@ -1020,7 +1177,7 @@ const styles = StyleSheet.create({
   favoriteName: { marginTop: 5, color: colors.ink, fontSize: 14, lineHeight: 18, fontWeight: '800' },
   favoriteAddress: { marginTop: 7, color: colors.muted, fontSize: 9, lineHeight: 13 },
   nearbyList: { paddingTop: 16, paddingRight: 20, gap: 12 },
-  nearbyCard: { width: 205, overflow: 'hidden', borderRadius: 18, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card },
+  nearbyCard: { width: 205 },
   nearbyImageFrame: { position: 'relative', height: 122, backgroundColor: '#DCE7E9' },
   nearbyImage: { width: '100%', height: '100%' },
   nearbyImageFallback: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.hero },
@@ -1036,8 +1193,9 @@ const styles = StyleSheet.create({
   nearbyLocationButton: { minHeight: 40, paddingHorizontal: 18, alignItems: 'center', justifyContent: 'center', borderRadius: 12, backgroundColor: colors.ink },
   nearbyLocationButtonText: { color: colors.card, fontSize: 10, fontWeight: '800' },
   showMoreNearby: { minHeight: 42, marginTop: 12, alignItems: 'center', justifyContent: 'center', borderRadius: 12, borderWidth: 1, borderColor: colors.ink, backgroundColor: colors.card },
+  catalog: { gap: 8 },
   showMoreNearbyText: { color: colors.ink, fontSize: 10, fontWeight: '800' },
-  eventCard: { width: 284, overflow: 'hidden', borderRadius: 20, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card },
+  eventCard: { width: 284, borderRadius: 20 },
   eventCardPressed: { opacity: 0.82, transform: [{ scale: 0.992 }] },
   eventImageFrame: { height: 190, position: 'relative', backgroundColor: '#DCE7E9' },
   eventImage: { width: '100%', height: '100%' },
@@ -1047,7 +1205,7 @@ const styles = StyleSheet.create({
   dateBadge: { position: 'absolute', top: 12, left: 12, width: 45, height: 50, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.card, ...Platform.select({ web: { boxShadow: '0 4px 12px rgba(0,43,92,0.14)' }, default: { elevation: 3 } }) },
   dateBadgeDay: { color: colors.ink, fontSize: 20, fontWeight: '800', lineHeight: 22 },
   dateBadgeMonth: { color: '#9F3909', fontSize: 9, fontWeight: '800' },
-  eventContent: { padding: 14 },
+  eventContent: { flex: 1, padding: 14 },
   categoryChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   eventCategoryChip: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 9, backgroundColor: colors.orangeSoft },
   eventCategoryText: { color: colors.orange, fontSize: 8, fontWeight: '800' },

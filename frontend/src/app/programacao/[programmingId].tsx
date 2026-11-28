@@ -3,9 +3,11 @@ import { router, type Href, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useMemo, useState } from 'react';
 import AddressMap, { type AddressCoordinates } from '../../AddressMap';
+import NearbyDestinationList from '../../NearbyDestinationList';
+import { NearbyPlaceGrid } from '../../NearbyPlaces';
 import { useFavorite } from '../../useFavorite';
 import { geocodeAddress } from '../../addressLocation';
-import { loadNearbyPlaces, formatDistance, type NearbyPin } from '../../nearbyPins';
+import { loadNearbyPlaces, type NearbyPin } from '../../nearbyPins';
 import referenceAddresses from '../../../assets/enderecos-demonstracao-recife.json';
 import {
   ActivityIndicator,
@@ -338,15 +340,13 @@ export default function ProgrammingDetailsScreen() {
                 {nearbyState === 'error' ? <View style={styles.nearbyState}><Text style={styles.errorTitle}>Proximidade indisponível</Text><Text style={styles.stateText}>Não foi possível calcular os locais próximos agora.</Text></View> : null}
                 {nearbyState === 'ready' ? (
                   <View style={styles.nearbyList}>
-                    {nearby.map(({ item, label }) => (
-                      <View key={`${item.type}-${item.id}`}><Pressable onPress={() => openNearby(item)} style={({ pressed }) => [styles.nearbyCard, pressed && styles.pressed]}>
-                        {item.imageUrl ? <Image resizeMode="cover" source={{ uri: item.imageUrl }} style={styles.nearbyImage} /> : <View style={styles.nearbyImageFallback}><Text style={styles.nearbyImageText}>{item.name.charAt(0).toUpperCase()}</Text></View>}
-                        <View style={styles.nearbyCopy}><Text numberOfLines={1} style={styles.nearbyName}>{item.name}</Text><Text style={styles.nearbyCategory}>{label}</Text><Text style={styles.nearbyDistance}>⌖ {formatDistance(item.distanceMeters)}</Text></View>
-                        <Text style={styles.nearbyArrow}>›</Text>
-                      </Pressable><RoadmapButton kind={item.type === 'Host' ? 'host' : 'programming'} id={item.id} name={item.name} /></View>
-                    ))}
+                    <NearbyPlaceGrid places={nearby} onSelect={openNearby} />
                   </View>
                 ) : null}
+              </View>
+
+              <View style={styles.section}>
+                <NearbyDestinationList key={programming.id} kind="programming" id={programming.id} onSelect={openNearby} />
               </View>
 
               <View style={[styles.section, styles.hostSection]}>
@@ -420,16 +420,7 @@ const styles = StyleSheet.create({
   categoryText: { color: colors.orange, fontSize: 8, fontWeight: '800' },
   nearbyState: { minHeight: 110, marginTop: 14, padding: 16, alignItems: 'center', justifyContent: 'center', gap: 7, borderRadius: 15, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card },
   nearbyTitle: { color: colors.ink, fontSize: 12, fontWeight: '800' },
-  nearbyList: { marginTop: 14, gap: 9 },
-  nearbyCard: { minHeight: 72, padding: 9, flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 15, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card },
-  nearbyImage: { width: 54, height: 54, borderRadius: 12 },
-  nearbyImageFallback: { width: 54, height: 54, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.ink },
-  nearbyImageText: { color: colors.card, fontSize: 18, fontWeight: '800' },
-  nearbyCopy: { flex: 1 },
-  nearbyName: { color: colors.ink, fontSize: 12, fontWeight: '800' },
-  nearbyCategory: { marginTop: 3, color: colors.orange, fontSize: 8, fontWeight: '700' },
-  nearbyDistance: { marginTop: 4, color: colors.muted, fontSize: 9 },
-  nearbyArrow: { color: colors.orange, fontSize: 23 },
+  nearbyList: { marginTop: 14 },
   hostSection: { paddingBottom: 30 },
   hostEyebrow: { color: colors.orange, fontSize: 9, fontWeight: '800', letterSpacing: 1.3 },
   hostCard: { marginTop: 12, padding: 13, flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 17, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card },

@@ -54,17 +54,52 @@ export default function NearbyPlaces({ hostId, origin, locating, onSelect }: {
     {displayState === 'empty' ? <View style={styles.state}><Text style={styles.helper}>Nenhum outro local encontrado nas proximidades.</Text></View> : null}
     {displayState === 'no-location' ? <Text style={styles.helper}>Localize o endereço do estabelecimento para consultar os arredores.</Text> : null}
     {displayState === 'error' ? <View style={styles.state}><Text style={styles.helper}>Não foi possível consultar os locais próximos agora.</Text><Pressable accessibilityRole="button" accessibilityLabel="Tentar novamente os locais próximos" onPress={() => setReload((value) => value + 1)} style={styles.retry}><Text style={styles.retryText}>Tentar novamente</Text></Pressable></View> : null}
-    {displayState === 'ready' ? <View style={styles.list}>{places.map(({ item, label }) => <View key={`${item.type}-${item.id}`}><Pressable accessibilityRole="button" accessibilityLabel={`Ver ${item.type === 'Host' ? 'estabelecimento' : 'evento'} ${item.name}`} key={`${item.type}-${item.id}`} onPress={() => onSelect(item)} style={({ pressed }) => [styles.card, pressed && styles.pressed]}>
-      {item.imageUrl ? <Image source={{ uri: item.imageUrl }} resizeMode="cover" style={styles.image} /> : <View style={[styles.image, styles.fallback]}><Text style={styles.initial}>{item.name.charAt(0).toUpperCase()}</Text></View>}
-      <View style={styles.copy}><Text numberOfLines={2} style={styles.name}>{item.name}</Text><Text style={styles.category}>{label}</Text><Text style={styles.distance}>⌖ {formatDistance(item.distanceMeters)}</Text></View><Text style={styles.arrow}>›</Text>
-    </Pressable><RoadmapButton kind={item.type === 'Host' ? 'host' : 'programming'} id={item.id} name={item.name} /></View>)}</View> : null}
+    {displayState === 'ready' ? <NearbyPlaceGrid places={places} onSelect={onSelect} /> : null}
   </View>;
 }
 
+export function NearbyPlaceGrid({ places, onSelect }: { places: NearbyPlace[]; onSelect: (item: NearbyPin) => void }) {
+  const rows = Array.from({ length: Math.ceil(places.length / 2) }, (_, index) => places.slice(index * 2, index * 2 + 2));
+
+  return (
+    <View style={styles.grid}>
+      {rows.map((row) => (
+        <View key={`${row[0].item.type}-${row[0].item.id}`} style={styles.row}>
+          {row.map(({ item, label }) => (
+            <View key={`${item.type}-${item.id}`} style={styles.card}>
+              <Pressable accessibilityRole="button" accessibilityLabel={`Ver ${item.type === 'Host' ? 'estabelecimento' : 'evento'} ${item.name}`}
+                onPress={() => onSelect(item)} style={({ pressed }) => [styles.cardLink, pressed && styles.pressed]}>
+                {item.imageUrl ? (
+                  <Image source={{ uri: item.imageUrl }} resizeMode="cover" style={styles.image} />
+                ) : (
+                  <View style={[styles.image, styles.fallback]}><Text style={styles.initial}>{item.name.charAt(0).toUpperCase()}</Text></View>
+                )}
+                <View style={styles.copy}>
+                  <Text numberOfLines={2} style={styles.name}>{item.name}</Text>
+                  <Text numberOfLines={1} style={styles.category}>{label}</Text>
+                  <Text style={styles.distance}>⌖ {formatDistance(item.distanceMeters)}</Text>
+                </View>
+              </Pressable>
+              <RoadmapButton kind={item.type === 'Host' ? 'host' : 'programming'} id={item.id} name={item.name} />
+            </View>
+          ))}
+          {row.length === 1 ? <View style={styles.emptyColumn} /> : null}
+        </View>
+      ))}
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
-  section: { gap: 9 }, title: { color: '#002B5C', fontSize: 18, fontWeight: '700' }, helper: { color: '#667085', fontSize: 11, lineHeight: 17 }, list: { gap: 9 },
-  card: { minHeight: 72, padding: 9, flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 15, borderWidth: 1, borderColor: '#E7E0D6', backgroundColor: '#FFFEFC' },
-  image: { width: 54, height: 54, borderRadius: 12 }, fallback: { alignItems: 'center', justifyContent: 'center', backgroundColor: '#002B5C' }, initial: { color: '#FFFEFC', fontSize: 18, fontWeight: '800' }, copy: { flex: 1, minWidth: 0 },
-  name: { color: '#002B5C', fontSize: 12, fontWeight: '800' }, category: { color: '#FF5A0A', fontSize: 9, marginTop: 3, fontWeight: '700' }, distance: { marginTop: 4, color: '#667085', fontSize: 10 }, arrow: { color: '#FF5A0A', fontSize: 23 }, pressed: { opacity: 0.75 },
+  section: { gap: 9 }, title: { color: '#002B5C', fontSize: 18, fontWeight: '700' }, helper: { color: '#667085', fontSize: 11, lineHeight: 17 },
+  grid: { gap: 12 }, row: { flexDirection: 'row', alignItems: 'stretch', gap: 12 },
+  card: { flex: 1, minWidth: 0, overflow: 'hidden', borderRadius: 15, borderWidth: 1, borderColor: '#E7E0D6', backgroundColor: '#FFFEFC' },
+  emptyColumn: { flex: 1 },
+  cardLink: { flex: 1 },
+  image: { width: '100%', aspectRatio: 2.8, minHeight: 60, maxHeight: 120, backgroundColor: '#E9F1EF' },
+  fallback: { alignItems: 'center', justifyContent: 'center', backgroundColor: '#002B5C' },
+  initial: { color: '#FFFEFC', fontSize: 24, fontWeight: '800' },
+  copy: { padding: 10 },
+  name: { color: '#002B5C', fontSize: 12, lineHeight: 16, fontWeight: '800' }, category: { color: '#9F3909', fontSize: 10, marginTop: 4, fontWeight: '700' }, distance: { marginTop: 4, color: '#667085', fontSize: 10 }, pressed: { opacity: 0.75 },
   state: { padding: 18, gap: 12, borderRadius: 15, borderWidth: 1, borderColor: '#E7E0D6', backgroundColor: '#FFFEFC' }, retry: { minHeight: 44, borderWidth: 1, borderColor: '#E7E0D6', borderRadius: 12, alignItems: 'center', justifyContent: 'center' }, retryText: { color: '#002B5C', fontSize: 11, fontWeight: '700' },
 });

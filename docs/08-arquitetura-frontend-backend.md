@@ -1,5 +1,27 @@
 # Arquitetura e separação entre frontend e backend
 
+## Botão de roteiro nos cartões de Explorar — 28/11/2026
+
+Os cartões de Destaques da semana, agenda completa, Para você, Estabelecimentos no Recife, Seus favoritos e Mais próximos de você usam um contorno comum que inclui o botão de roteiro. A área de conteúdo preenche o espaço até o rodapé para manter os botões alinhados dentro de cada carrossel.
+
+TypeScript, ESLint e exportação Expo Web passaram. O Chrome com API simulada confirmou o botão dentro dos 20 cartões renderizados e que adicionar uma programação ao roteiro mantém a página Explorar aberta.
+
+## Locais próximos em grade — 28/11/2026
+
+As páginas de detalhes de programações e estabelecimentos exibem locais próximos em duas colunas, tanto na consulta principal quanto nas consultas complementares. Cada cartão reúne imagem, nome, categoria, distância, acesso aos detalhes e ação de roteiro. A ordem dos resultados permanece por distância e, quando há quantidade ímpar, o último cartão mantém a largura de uma coluna.
+
+TypeScript, ESLint e exportação Expo Web passaram. O Chrome com API simulada confirmou as duas colunas a 360 e 760 px, a largura do último cartão e a presença do botão de roteiro em cada cartão.
+
+## Agendas e consultas de proximidade complementares — 28/11/2026
+
+Em Explorar, **Ver agenda completa** aparece em Destaques da semana quando não há busca ou categoria aplicada. Consulta `GET /api/Programming/GetAllProgrammings` em páginas de dez, inclui datas passadas e futuras e reutiliza favoritos e roteiro. O destaque principal continua com `Programming/Filter`.
+
+No **Para você**, os cartões de programação exibem dia e mês no mesmo selo dos destaques. O carrossel continua usando `Nearby/GetNearMe` para manter a ordem por distância. Para preencher as datas, o frontend cruza os IDs do carrossel com o retorno de `GET /api/Programming/GetUserProgrammingPreferences`, autenticado com JWT, e consulta `Programming/Details/{programmingId}` quando a data de um resultado não vem na lista de preferências.
+
+Nos detalhes da programação, **Explorar somente programações próximas** usa `GET /api/Nearby/GetNearProgramming/{programmingId}` para mostrar outras programações, sem limite de raio, em páginas de cinco. Nos detalhes do estabelecimento, **Ver locais em até 2 km** usa JWT em `GET /api/Nearby/GetNearHost/{hostId}` e oculta os eventos do próprio estabelecimento. Os detalhes continuam mostrando a lista mista existente de até cinco locais, inclusive para visitantes, por `Nearby/GetNearMe`.
+
+Validação em 28/11/2026: exportação Expo Web, TypeScript, ESLint e 11 testes de proximidade e detalhes passaram. A API temporária com PostgreSQL local confirmou os quatro contratos, paginação pública, raio de 2 km e exigência de JWT nas duas rotas protegidas. O Chrome com API simulada verificou a paginação, a exclusão dos eventos do próprio estabelecimento e a proximidade pública. Após o ajuste do Para você, o Chrome também confirmou datas nos cartões, consulta de detalhes quando a data falta na resposta de preferências, ordem do carrossel e remoção do botão de agenda por categorias. A integração foi feita no frontend, sem alteração de backend, contratos, banco ou protótipo externo.
+
 ## Galeria de fotos dos estabelecimentos — 28/11/2026
 
 Os detalhes de Gastronomia e Comércio exibem “Fotos do estabelecimento” entre Sobre o estabelecimento e Dias e horários. A galeria pública lê as fotos ativas, aparece quando há fotos e amplia as miniaturas ao toque. Em Meus estabelecimentos, a interface confirma que o estabelecimento pertence à conta antes de oferecer inclusão por URL com prévia e remoção com confirmação. As alterações atualizam a galeria depois da confirmação da API. A capa, o endereço, os horários, os favoritos e o roteiro mantêm seus fluxos.

@@ -10,6 +10,8 @@ import { responsiveShellWidth } from './theme/responsive';
 import { openingDayLabels, openingDayOrder } from './openingHours';
 import { groupHostEvents, hostEventDate, hostEventStatus, type HostDetails, type HostEvent } from './hostDetails';
 import NearbyPlaces from './NearbyPlaces';
+import NearbyDestinationList from './NearbyDestinationList';
+import type { NearbyPin } from './nearbyPins';
 import HostPhotoGallery from './HostPhotoGallery';
 import AddressMap, { type AddressCoordinates } from './AddressMap';
 import { geocodeAddress } from './addressLocation';
@@ -140,6 +142,9 @@ export default function HostDetailsScreen() {
     router.replace(origin === 'nearby-map' ? '/perto_de_voce' : origin === 'favoritos' ? '/favoritos' : origin === 'comercio' ? '/comercio' : '/explorar');
   };
   const address = host ? [[host.address.street, host.address.number].filter(Boolean).join(', '), host.address.complement, host.address.neighborhood, host.address.city].filter(Boolean).join(' · ') : '';
+  const openNearby = (item: NearbyPin) => router.push(item.type === 'Host'
+    ? { pathname: '/estabelecimento', params: { hostId: String(item.id), origin: 'estabelecimento' } }
+    : { pathname: '/programacao/[programmingId]', params: { programmingId: String(item.id), origin: 'estabelecimento' } } as Href);
 
   return <View style={styles.viewport}><View style={[styles.shell, { width: responsiveShellWidth(viewportWidth) }]}>
     <StatusBar style="dark" />
@@ -178,8 +183,8 @@ export default function HostDetailsScreen() {
         </View>
         <EventRail key={`next-${host.id}`} title="Próximos eventos" description="O que acontece agora e o que vem por aí" events={events.upcoming} now={now} management={management} />
         <EventRail key={`past-${host.id}`} title="Eventos anteriores" description="Programações que já passaram por aqui" events={events.past} now={now} management={management} />
-        <NearbyPlaces key={`nearby-${host.id}`} hostId={host.id} origin={currentLocation?.coordinates ?? null} locating={!currentLocation}
-          onSelect={(item) => router.push(item.type === 'Host' ? { pathname: '/estabelecimento', params: { hostId: String(item.id), origin: 'estabelecimento' } } : { pathname: '/programacao/[programmingId]', params: { programmingId: String(item.id), origin: 'estabelecimento' } } as Href)} />
+        <NearbyPlaces key={`nearby-${host.id}`} hostId={host.id} origin={currentLocation?.coordinates ?? null} locating={!currentLocation} onSelect={openNearby} />
+        <NearbyDestinationList key={`nearby-destination-${host.id}`} kind="host" id={host.id} ownProgrammings={host.programmings} onSelect={openNearby} />
       </>}
     </ScrollView>
     {management

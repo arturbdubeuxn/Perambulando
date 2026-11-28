@@ -1,5 +1,17 @@
 # Documentação do Perambulando
 
+## Botão de roteiro nos cartões de Explorar — 28/11/2026
+
+O botão Adicionar ao roteiro fica dentro de cada cartão de programação ou estabelecimento em Explorar. Consulte [a padronização e as validações](08-arquitetura-frontend-backend.md#botão-de-roteiro-nos-cartões-de-explorar--28112026).
+
+## Locais próximos em grade — 28/11/2026
+
+Os resultados de proximidade nos detalhes de programações e estabelecimentos agora aparecem em [duas colunas](08-arquitetura-frontend-backend.md#locais-próximos-em-grade--28112026).
+
+## Agendas e proximidade — 28/11/2026
+
+A agenda completa e as consultas específicas de proximidade foram integradas aos fluxos existentes. No Para você, as datas das programações aparecem nos cartões do carrossel atual. O frontend usa 46 dos 51 endpoints de negócio. Consulte [comportamento e validações](08-arquitetura-frontend-backend.md#agendas-e-consultas-de-proximidade-complementares--28112026).
+
 ## Galeria de fotos dos estabelecimentos — 28/11/2026
 
 Gastronomia e Comércio ganharam uma galeria pública com gestão por URL em Meus estabelecimentos. Os três endpoints de fotos estão integrados, elevando para 42 de 51 as rotas consumidas pelo frontend. Consulte [implementação e validações](08-arquitetura-frontend-backend.md#galeria-de-fotos-dos-estabelecimentos--28112026).
