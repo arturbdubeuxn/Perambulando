@@ -14,6 +14,7 @@ public class NearbyMapping : INearbyMapping
             DistanceRange = dto.DistanceRange,
             MaxDistanceKm = dto.MaxDistanceKm,
             CategoriesId = dto.CategoriesId?.Distinct().ToList(),
+            IncludePreferredHosts = dto.IncludePreferredHosts,
             Skip = dto.Skip
         };
     }

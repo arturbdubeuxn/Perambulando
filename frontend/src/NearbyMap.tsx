@@ -1,7 +1,12 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { Platform, StyleSheet, Text, View } from 'react-native';
 import type { NearbyPin } from './nearbyPins';
-export default function NearbyMap({ focusKey, origin, items, onSelect, originLabel = 'Sua localização', title = 'Mapa dos locais mais próximos' }: { focusKey?: string; origin: { latitude: number; longitude: number }; items: NearbyPin[]; onSelect?: (item: NearbyPin | null) => void; originLabel?: string; title?: string }) {
+type MapCoordinates = { latitude: number; longitude: number };
+
+export default function NearbyMap({ focusKey, origin, userPosition = origin, items, onSelect, title = 'Mapa dos locais mais próximos' }: {
+  focusKey?: string; origin: MapCoordinates; userPosition?: MapCoordinates | null;
+  items: NearbyPin[]; onSelect?: (item: NearbyPin | null) => void; title?: string;
+}) {
   const mapId = `nearby-map-${useId()}`;
   const frameRef = useRef<HTMLIFrameElement | null>(null);
   const [reloadCount, setReloadCount] = useState(0);
@@ -87,13 +92,23 @@ try{
   basemap.getMaplibreMap().on('error',function(){if(!ready){showMapError()}});
 }catch(error){showMapError()}
 var bounds=L.latLngBounds([[${origin.latitude},${origin.longitude}]]);
-L.marker([${origin.latitude},${origin.longitude}],{icon:L.divIcon({html:'<div class="user-pin"></div>',className:'',iconSize:[26,26],iconAnchor:[13,13]})}).addTo(map).bindTooltip(${JSON.stringify(originLabel)});
+var userPosition=${JSON.stringify(userPosition ? [userPosition.latitude, userPosition.longitude] : null)};
+if(userPosition){
+  L.marker(userPosition,{title:'Sua localização',icon:L.divIcon({html:'<div class="user-pin"></div>',className:'',iconSize:[26,26],iconAnchor:[13,13]})}).addTo(map).bindTooltip('Sua localização');
+  bounds.extend(userPosition);
+}
 function safe(value){return String(value||'').replace(/[&<>"']/g,function(char){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]})}
 items.forEach(function(item){
   var visual=item.imageUrl?'<img src="'+safe(item.imageUrl)+'" alt="">':'<span>'+safe(item.name.charAt(0).toUpperCase())+'</span>';
   var marker='<div class="place-marker'+(item.type==='Host'?' host-marker':'')+'"><div class="pin-rays"><i></i><i></i><i></i></div><div class="pin-body"><div class="pin-photo">'+visual+'</div></div><div class="pin-shadow"></div></div>';
   var icon=L.divIcon({html:marker,className:'',iconSize:[70,88],iconAnchor:[35,82]});
   var placeMarker=L.marker([item.latitude,item.longitude],{icon:icon,title:item.name}).addTo(map).on('click',function(){parent.postMessage({source:'perambulando-nearby-map',mapId:mapId,key:item.key},'*')});
+  var photo=placeMarker.getElement().querySelector('img');
+  if(photo){
+    function showInitial(){var initial=document.createElement('span');initial.textContent=item.name.charAt(0).toUpperCase();photo.replaceWith(initial)}
+    photo.addEventListener('error',showInitial,{once:true});
+    if(photo.complete&&!photo.naturalWidth){showInitial()}
+  }
   markers[item.key]=placeMarker;
   bounds.extend([item.latitude,item.longitude]);
 });

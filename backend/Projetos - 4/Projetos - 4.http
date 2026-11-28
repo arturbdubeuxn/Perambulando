@@ -1044,6 +1044,9 @@ Authorization: Bearer {{login.response.body.$.accessToken}}
 GET {{Projetos___4_HostAddress}}/api/Nearby/GetNearMe?latitude=-8.063&longitude=-34.873&distanceRange=1&skip=10
 Authorization: Bearer {{login.response.body.$.accessToken}}
 
+### NEARBY - Para você (público; IDs de gastronomia e comércio no banco de demonstração)
+GET {{Projetos___4_HostAddress}}/api/Nearby/GetNearMe?latitude=-8.032&longitude=-34.895&maxDistanceKm=20&categoriesId=1&categoriesId=6&includePreferredHosts=true
+
 ### NEARBY - Cinco programações mais próximas (público, sem limite de distância)
 # Exclui a origem; retorna somente programações ativas/futuras, pageSize=5.
 GET {{Projetos___4_HostAddress}}/api/Nearby/GetNearProgramming/{{NearbyProgrammingId}}?skip=0

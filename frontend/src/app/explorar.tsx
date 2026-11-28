@@ -101,6 +101,9 @@ type NearbyResponse = {
   hasMore: boolean;
 };
 
+type Coordinates = { latitude: number; longitude: number };
+const recifeCenter: Coordinates = { latitude: -8.0632, longitude: -34.8711 };
+
 type NearbyState = 'idle' | 'locating' | 'loading' | 'ready' | 'empty' | 'denied' | 'error';
 
 type StorageLike = {
@@ -370,6 +373,65 @@ function NearbyCard({ item }: { item: NearbyItem }) {
   );
 }
 
+function ForYouResults({ origin, preferenceIds }: { origin: Coordinates; preferenceIds: number[] }) {
+  const [items, setItems] = useState<NearbyItem[]>([]);
+  const [hasMore, setHasMore] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [failed, setFailed] = useState(false);
+  const [page, setPage] = useState({ skip: 0 });
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const query = new URLSearchParams({
+      Latitude: String(origin.latitude), Longitude: String(origin.longitude),
+      MaxDistanceKm: '20', IncludePreferredHosts: 'true', Skip: String(page.skip),
+    });
+    preferenceIds.forEach((id) => query.append('CategoriesId', String(id)));
+    requestJson<NearbyResponse>(`/api/Nearby/GetNearMe?${query}`, { signal: controller.signal })
+      .then((response) => {
+        if (!controller.signal.aborted) {
+          setItems((current) => page.skip === 0 ? response.items : [...current, ...response.items]);
+          setHasMore(response.hasMore);
+        }
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) {
+          setFailed(true);
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) {
+          setLoading(false);
+        }
+      });
+    return () => controller.abort();
+  }, [origin, page, preferenceIds]);
+
+  return (
+    <>
+      {items.length > 0 && (
+        <ScrollView horizontal contentContainerStyle={styles.nearbyList} showsHorizontalScrollIndicator={false}>
+          {items.map((item) => <NearbyCard item={item} key={`${item.type}-${item.id}`} />)}
+        </ScrollView>
+      )}
+      {loading && <ActivityIndicator color={colors.orange} />}
+      {failed && <Text accessibilityRole="alert" style={styles.sectionSubtitle}>Não foi possível carregar as recomendações.</Text>}
+      {!loading && !failed && items.length === 0 && (
+        <Text style={styles.sectionSubtitle}>Nenhum resultado das suas categorias em até 20 km.</Text>
+      )}
+      {!loading && (failed || hasMore) && (
+        <Pressable accessibilityRole="button" style={styles.showMoreNearby} onPress={() => {
+          setLoading(true);
+          setFailed(false);
+          setPage({ skip: failed ? page.skip : items.length });
+        }}>
+          <Text style={styles.showMoreNearbyText}>{failed ? 'Tentar novamente' : 'Mostrar mais'}</Text>
+        </Pressable>
+      )}
+    </>
+  );
+}
+
 export default function ExploreScreen() {
   const { width: viewportWidth } = useWindowDimensions();
   const [token] = useState(getSessionToken);
@@ -382,6 +444,7 @@ export default function ExploreScreen() {
   const [favoriteBusy, setFavoriteBusy] = useState<string[]>([]);
   const [favoriteMessage, setFavoriteMessage] = useState('');
   const [preferenceIds, setPreferenceIds] = useState<number[]>([]);
+  const [preferencesState, setPreferencesState] = useState<LoadState>('loading');
   const [preferenceDraft, setPreferenceDraft] = useState<number[]>([]);
   const [preferenceSaving, setPreferenceSaving] = useState(false);
   const [preferenceMessage, setPreferenceMessage] = useState('');
@@ -390,7 +453,7 @@ export default function ExploreScreen() {
   const [nearbyHasMore, setNearbyHasMore] = useState(false);
   const [nearbyState, setNearbyState] = useState<NearbyState>('idle');
   const [nearbyMessage, setNearbyMessage] = useState('Use sua localização para ordenar eventos e estabelecimentos pela distância.');
-  const nearbyCoordinates = useRef<{ latitude: number; longitude: number } | null>(null);
+  const [nearbyCoordinates, setNearbyCoordinates] = useState<Coordinates | null>(null);
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
   const [searchText, setSearchText] = useState('');
   const [state, setState] = useState<LoadState>('loading');
@@ -425,17 +488,6 @@ export default function ExploreScreen() {
       });
 
     if (token) {
-      requestJson<Category[]>('/api/Category/GetUserCategoriesPreferences', { headers: { Authorization: `Bearer ${token}` } })
-        .then((items) => {
-          if (!active) return;
-          const ids = items.filter((item) => item.isActive).map((item) => item.id);
-          setPreferenceIds(ids);
-          setPreferenceDraft(ids);
-        })
-        .catch(() => {
-          if (active) setPreferenceMessage('Não foi possível carregar suas preferências.');
-        });
-
       requestJson<FavoriteResponse[]>('/api/Favorite/GetAllByUserId', { headers: { Authorization: `Bearer ${token}` } })
         .then(async (serverFavorites) => {
           if (!active) return;
@@ -465,6 +517,29 @@ export default function ExploreScreen() {
     };
   }, [token]);
 
+  useFocusEffect(useCallback(() => {
+    if (!token) {
+      return;
+    }
+    const controller = new AbortController();
+    setPreferencesState('loading');
+    requestJson<Category[]>('/api/Category/GetUserCategoriesPreferences', {
+      signal: controller.signal, headers: { Authorization: `Bearer ${token}` },
+    }).then((items) => {
+      if (!controller.signal.aborted) {
+        const ids = items.filter((item) => item.isActive).map((item) => item.id);
+        setPreferenceIds(ids);
+        setPreferenceDraft(ids);
+        setPreferencesState('ready');
+      }
+    }).catch(() => {
+      if (!controller.signal.aborted) {
+        setPreferencesState('error');
+      }
+    });
+    return () => controller.abort();
+  }, [token]));
+
   const loadNearby = async (latitude: number, longitude: number, skip = 0) => {
     const query = new URLSearchParams({ Latitude: String(latitude), Longitude: String(longitude), MaxDistanceKm: '20', Skip: String(skip) });
     return requestJson<NearbyResponse>(`/api/Nearby/GetNearMe?${query.toString()}`, token ? { headers: { Authorization: `Bearer ${token}` } } : {});
@@ -483,7 +558,7 @@ export default function ExploreScreen() {
       }
       const current = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
       const coordinates = { latitude: current.coords.latitude, longitude: current.coords.longitude };
-      nearbyCoordinates.current = coordinates;
+      setNearbyCoordinates(coordinates);
       setNearbyState('loading');
       setNearbyMessage('Ordenando os lugares mais próximos...');
       const response = await loadNearby(coordinates.latitude, coordinates.longitude);
@@ -513,7 +588,7 @@ export default function ExploreScreen() {
       setNearbyVisibleCount((current) => Math.min(current + 5, nearbyItems.length));
       return;
     }
-    const coordinates = nearbyCoordinates.current;
+    const coordinates = nearbyCoordinates;
     if (!coordinates || !nearbyHasMore) return;
     setNearbyState('loading');
     try {
@@ -694,9 +769,9 @@ export default function ExploreScreen() {
             </Pressable>
           </View>
 
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Qual é a sua vibe?</Text>
-            <Text style={styles.sectionSubtitle}>Escolha uma categoria e deixe a cidade te levar.</Text>
+          <View style={[styles.sectionBox, styles.vibeBox]}>
+            <Text accessibilityRole="header" style={styles.sectionTitle}>Qual é a sua vibe?</Text>
+            <Text style={styles.sectionSubtitle}>Escolha uma categoria para explorar agora.</Text>
             {categories.length > 0 ? (
               <View style={styles.categoryGrid}>
                 {categories.slice(0, 6).map((category, index) => (
@@ -714,12 +789,12 @@ export default function ExploreScreen() {
             ) : null}
           </View>
 
-          <View style={styles.section}>
+          <View style={[styles.sectionBox, styles.highlightsBox]}>
             <View style={styles.sectionHeadingRow}>
               <View style={styles.sectionHeadingCopy}>
-                <Text style={styles.sectionTitle}>{selectedCategory ? selectedCategory.name : 'Destaques da semana'}</Text>
+                <Text accessibilityRole="header" style={styles.sectionTitle}>{selectedCategory ? selectedCategory.name : 'Destaques da semana'}</Text>
                 <Text style={styles.sectionSubtitle}>
-                  {selectedCategory ? 'Programações desta categoria.' : 'Eventos publicados pelos estabelecimentos.'}
+                  {selectedCategory ? 'Programações desta categoria.' : 'Confira as datas dos eventos em destaque.'}
                 </Text>
               </View>
               {selectedCategory ? (
@@ -765,10 +840,45 @@ export default function ExploreScreen() {
             ) : null}
           </View>
 
-          <View style={styles.section}>
+          {token && (
+            <View style={[styles.sectionBox, styles.forYouBox]}>
+              <View style={styles.sectionHeadingCopy}>
+                <Text accessibilityRole="header" style={styles.sectionTitle}>Para você</Text>
+                {preferencesState === 'ready' && preferenceIds.length > 0 && (
+                  <>
+                    <Text style={styles.sectionSubtitle}>
+                      {nearbyCoordinates ? 'Das categorias salvas no seu perfil, do mais perto ao mais longe.' : 'Das categorias salvas no seu perfil, por distância ao Marco Zero.'}
+                    </Text>
+                    {!nearbyCoordinates && nearbyState !== 'locating' && (
+                      <Pressable accessibilityRole="button" onPress={() => void requestCurrentLocation(true)}>
+                        <Text style={styles.seeAll}>Usar minha localização</Text>
+                      </Pressable>
+                    )}
+                  </>
+                )}
+              </View>
+              {preferencesState === 'loading' && <ActivityIndicator color={colors.orange} />}
+              {preferencesState === 'error' && (
+                <Text accessibilityRole="alert" style={styles.sectionSubtitle}>Não foi possível carregar suas preferências.</Text>
+              )}
+              {preferencesState === 'ready' && (preferenceIds.length > 0 ? (
+                <ForYouResults
+                  key={`${preferenceIds.join(',')}:${nearbyCoordinates?.latitude}:${nearbyCoordinates?.longitude}`}
+                  origin={nearbyCoordinates ?? recifeCenter}
+                  preferenceIds={preferenceIds}
+                />
+              ) : (
+                <Pressable accessibilityRole="button" onPress={() => router.push('/perfil')}>
+                  <Text style={styles.seeAll}>Escolher categorias no perfil ›</Text>
+                </Pressable>
+              ))}
+            </View>
+          )}
+
+          <View style={[styles.sectionBox, styles.establishmentsBox]}>
             <View style={styles.sectionHeadingRow}>
               <View style={styles.sectionHeadingCopy}>
-                <Text style={styles.sectionTitle}>Estabelecimentos no Recife</Text>
+                <Text accessibilityRole="header" style={styles.sectionTitle}>Estabelecimentos no Recife</Text>
                 <Text style={styles.sectionSubtitle}>Gastronomia e comércio para conhecer durante o passeio.</Text>
               </View>
             </View>
@@ -804,8 +914,8 @@ export default function ExploreScreen() {
 
           {favoriteMessage ? <Text accessibilityRole="alert" style={styles.syncMessage}>{favoriteMessage}</Text> : null}
 
-          <View style={styles.section}>
-            <View style={styles.sectionHeadingRow}><View style={styles.sectionHeadingCopy}><Text style={styles.sectionTitle}>Mais próximos de você</Text><Text style={styles.sectionSubtitle}>Eventos e estabelecimentos ordenados pela distância real.</Text></View></View>
+          <View style={[styles.sectionBox, styles.nearbyBox]}>
+            <View style={styles.sectionHeadingRow}><View style={styles.sectionHeadingCopy}><Text accessibilityRole="header" style={styles.sectionTitle}>Mais próximos de você</Text><Text style={styles.sectionSubtitle}>Eventos e estabelecimentos ordenados pela distância até você.</Text></View></View>
             {(nearbyState === 'idle' || nearbyState === 'denied' || nearbyState === 'error') ? <View style={styles.nearbyStateCard}><Text style={styles.nearbyStateText}>{nearbyMessage}</Text><Pressable onPress={() => void requestCurrentLocation(true)} style={styles.nearbyLocationButton}><Text style={styles.nearbyLocationButtonText}>{nearbyState === 'idle' ? 'Usar minha localização' : 'Tentar novamente'}</Text></Pressable></View> : null}
             {(nearbyState === 'locating' || (nearbyState === 'loading' && nearbyItems.length === 0)) ? <View style={styles.inlineLoading}><ActivityIndicator color={colors.orange} /><Text style={styles.nearbyStateText}>{nearbyMessage}</Text></View> : null}
             {nearbyState === 'empty' ? <View style={styles.nearbyStateCard}><Text style={styles.nearbyStateText}>{nearbyMessage}</Text></View> : null}
@@ -855,10 +965,16 @@ const styles = StyleSheet.create({
   clearSearch: { width: 30, height: 30, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.orangeSoft },
   clearSearchText: { color: colors.orange, fontSize: 20, lineHeight: 22 },
   section: { paddingHorizontal: 16, paddingTop: 26 },
+  sectionBox: { marginHorizontal: 12, marginTop: 18, padding: 14, borderRadius: 22, borderWidth: 1, borderColor: colors.line },
+  vibeBox: { backgroundColor: '#FFF0E7', borderColor: '#F2DCCD' },
+  highlightsBox: { backgroundColor: '#F2ECE1' },
+  forYouBox: { backgroundColor: '#F1EEF9', borderColor: '#DCD3EF' },
+  establishmentsBox: { backgroundColor: '#EAF2F7', borderColor: '#D7E4ED' },
+  nearbyBox: { backgroundColor: '#EDF4ED', borderColor: '#D8E5D8' },
   sectionTitle: { color: colors.ink, fontSize: 22, fontWeight: '700', letterSpacing: -0.6 },
   sectionSubtitle: { marginTop: 4, color: colors.muted, fontSize: 11, lineHeight: 16 },
-  categoryGrid: { marginTop: 16, flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  categoryCard: { width: '31%', minHeight: 94, padding: 10, alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 16, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card },
+  categoryGrid: { marginTop: 16, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 10 },
+  categoryCard: { width: '30%', minHeight: 94, padding: 8, alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 16, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card },
   categoryCardSelected: { borderColor: colors.orange, backgroundColor: colors.orangeSoft },
   categoryIcon: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   categoryIconText: { fontSize: 18, fontWeight: '800' },
@@ -886,7 +1002,7 @@ const styles = StyleSheet.create({
   hostImageFallback: { width: '100%', height: 112, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.hero },
   hostImageText: { color: colors.card, fontSize: 30, fontWeight: '800' },
   hostCardCopy: { minHeight: 105, padding: 12 },
-  hostType: { color: colors.orange, fontSize: 8, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.7 },
+  hostType: { color: '#9F3909', fontSize: 10, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.7 },
   hostName: { marginTop: 5, color: colors.ink, fontSize: 14, lineHeight: 18, fontWeight: '800' },
   hostAddress: { marginTop: 8, color: colors.muted, fontSize: 9, lineHeight: 13 },
   hostEmpty: { marginTop: 14, color: colors.muted, fontSize: 11 },
@@ -910,7 +1026,7 @@ const styles = StyleSheet.create({
   nearbyImageFallback: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.hero },
   nearbyImageFallbackText: { color: colors.card, fontSize: 30, fontWeight: '800' },
   nearbyDistanceBadge: { position: 'absolute', left: 9, bottom: 9, paddingHorizontal: 8, paddingVertical: 5, borderRadius: 10, backgroundColor: colors.orange },
-  nearbyDistanceText: { color: colors.card, fontSize: 8, fontWeight: '800' },
+  nearbyDistanceText: { color: colors.ink, fontSize: 10, fontWeight: '800' },
   nearbyCopy: { minHeight: 98, padding: 12 },
   nearbyType: { color: colors.orange, fontSize: 8, fontWeight: '800', letterSpacing: 0.6 },
   nearbyName: { marginTop: 5, color: colors.ink, fontSize: 14, lineHeight: 18, fontWeight: '800' },
@@ -929,8 +1045,8 @@ const styles = StyleSheet.create({
   eventFallbackMark: { width: 58, height: 58, opacity: 0.75 },
   eventFallbackText: { marginTop: 4, color: colors.ink, fontSize: 12, fontWeight: '800' },
   dateBadge: { position: 'absolute', top: 12, left: 12, width: 45, height: 50, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.card, ...Platform.select({ web: { boxShadow: '0 4px 12px rgba(0,43,92,0.14)' }, default: { elevation: 3 } }) },
-  dateBadgeDay: { color: colors.ink, fontSize: 16, fontWeight: '800', lineHeight: 18 },
-  dateBadgeMonth: { color: colors.orange, fontSize: 8, fontWeight: '800' },
+  dateBadgeDay: { color: colors.ink, fontSize: 20, fontWeight: '800', lineHeight: 22 },
+  dateBadgeMonth: { color: '#9F3909', fontSize: 9, fontWeight: '800' },
   eventContent: { padding: 14 },
   categoryChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   eventCategoryChip: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 9, backgroundColor: colors.orangeSoft },

@@ -1,27 +1,28 @@
 import RoadmapButton from './RoadmapButton';
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Image, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
-import referenceAddresses from '../assets/enderecos-demonstracao-recife.json';
-import { geocodeAddress } from './addressLocation';
-import type { HostDetails } from './hostDetails';
+import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import type { AddressCoordinates } from './AddressMap';
 import { formatDistance, loadNearbyPlaces, type NearbyPin, type NearbyPlace } from './nearbyPins';
 
 const apiBaseUrl = (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:5014').replace(/\/$/, '');
 
-export default function NearbyPlaces({ host, onSelect }: { host: HostDetails; onSelect: (item: NearbyPin) => void }) {
+export default function NearbyPlaces({ hostId, origin, locating, onSelect }: {
+  hostId: number; origin: AddressCoordinates | null; locating: boolean; onSelect: (item: NearbyPin) => void;
+}) {
   const [places, setPlaces] = useState<NearbyPlace[]>([]);
   const [state, setState] = useState<'loading' | 'ready' | 'empty' | 'error'>('loading');
   const [reload, setReload] = useState(0);
 
   useFocusEffect(useCallback(() => {
+    if (!origin) {
+      return;
+    }
     let active = true;
     const controller = new AbortController();
     const load = async () => {
       setState('loading');
       try {
-        const storage = Platform.OS === 'web' ? (globalThis as { sessionStorage?: { getItem: (key: string) => string | null; setItem: (key: string, value: string) => void } }).sessionStorage : null;
-        const origin = await geocodeAddress(host.address, referenceAddresses, storage, controller.signal);
         const request = async <T,>(path: string): Promise<T> => {
           const response = await fetch(`${apiBaseUrl}${path}`, { cache: reload > 0 ? 'no-store' : 'default', headers: { Accept: 'application/json' }, signal: controller.signal });
           if (!response.ok) {
@@ -29,7 +30,7 @@ export default function NearbyPlaces({ host, onSelect }: { host: HostDetails; on
           }
           return response.json() as Promise<T>;
         };
-        const results = await loadNearbyPlaces(origin, request, { hostId: host.id }, controller.signal);
+        const results = await loadNearbyPlaces(origin, request, { hostId }, controller.signal);
         if (active) {
           setPlaces(results);
           setState(results.length ? 'ready' : 'empty');
@@ -42,15 +43,18 @@ export default function NearbyPlaces({ host, onSelect }: { host: HostDetails; on
     };
     void load();
     return () => { active = false; controller.abort(); };
-  }, [host, reload]));
+  }, [hostId, origin, reload]));
+
+  const displayState = origin ? state : locating ? 'loading' : 'no-location';
 
   return <View style={styles.section}>
     <Text accessibilityRole="header" style={styles.title}>Locais mais próximos</Text>
     <Text style={styles.helper}>Até 5 programações ou estabelecimentos, ordenados pela distância até este local, em até 20 km.</Text>
-    {state === 'loading' ? <View style={styles.state}><ActivityIndicator color="#FF5A0A" /><Text style={styles.helper}>Calculando locais próximos...</Text></View> : null}
-    {state === 'empty' ? <View style={styles.state}><Text style={styles.helper}>Nenhum outro local encontrado nas proximidades.</Text></View> : null}
-    {state === 'error' ? <View style={styles.state}><Text style={styles.helper}>Não foi possível consultar os locais próximos agora.</Text><Pressable accessibilityRole="button" accessibilityLabel="Tentar novamente os locais próximos" onPress={() => setReload((value) => value + 1)} style={styles.retry}><Text style={styles.retryText}>Tentar novamente</Text></Pressable></View> : null}
-    {state === 'ready' ? <View style={styles.list}>{places.map(({ item, label }) => <View key={`${item.type}-${item.id}`}><Pressable accessibilityRole="button" accessibilityLabel={`Ver ${item.type === 'Host' ? 'estabelecimento' : 'evento'} ${item.name}`} key={`${item.type}-${item.id}`} onPress={() => onSelect(item)} style={({ pressed }) => [styles.card, pressed && styles.pressed]}>
+    {displayState === 'loading' ? <View style={styles.state}><ActivityIndicator color="#FF5A0A" /><Text style={styles.helper}>Calculando locais próximos...</Text></View> : null}
+    {displayState === 'empty' ? <View style={styles.state}><Text style={styles.helper}>Nenhum outro local encontrado nas proximidades.</Text></View> : null}
+    {displayState === 'no-location' ? <Text style={styles.helper}>Localize o endereço do estabelecimento para consultar os arredores.</Text> : null}
+    {displayState === 'error' ? <View style={styles.state}><Text style={styles.helper}>Não foi possível consultar os locais próximos agora.</Text><Pressable accessibilityRole="button" accessibilityLabel="Tentar novamente os locais próximos" onPress={() => setReload((value) => value + 1)} style={styles.retry}><Text style={styles.retryText}>Tentar novamente</Text></Pressable></View> : null}
+    {displayState === 'ready' ? <View style={styles.list}>{places.map(({ item, label }) => <View key={`${item.type}-${item.id}`}><Pressable accessibilityRole="button" accessibilityLabel={`Ver ${item.type === 'Host' ? 'estabelecimento' : 'evento'} ${item.name}`} key={`${item.type}-${item.id}`} onPress={() => onSelect(item)} style={({ pressed }) => [styles.card, pressed && styles.pressed]}>
       {item.imageUrl ? <Image source={{ uri: item.imageUrl }} resizeMode="cover" style={styles.image} /> : <View style={[styles.image, styles.fallback]}><Text style={styles.initial}>{item.name.charAt(0).toUpperCase()}</Text></View>}
       <View style={styles.copy}><Text numberOfLines={2} style={styles.name}>{item.name}</Text><Text style={styles.category}>{label}</Text><Text style={styles.distance}>⌖ {formatDistance(item.distanceMeters)}</Text></View><Text style={styles.arrow}>›</Text>
     </Pressable><RoadmapButton kind={item.type === 'Host' ? 'host' : 'programming'} id={item.id} name={item.name} /></View>)}</View> : null}

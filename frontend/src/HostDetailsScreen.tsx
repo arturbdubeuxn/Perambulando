@@ -3,13 +3,16 @@ import { Fredoka_700Bold } from '@expo-google-fonts/fredoka/700Bold';
 import { useFonts } from 'expo-font';
 import { router, useFocusEffect, useLocalSearchParams, type Href } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useCallback, useMemo, useRef, useState, type ComponentRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ComponentRef } from 'react';
 import { ActivityIndicator, Image, Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import AppBottomNav from './components/AppBottomNav';
 import { responsiveShellWidth } from './theme/responsive';
 import { openingDayLabels, openingDayOrder } from './openingHours';
 import { groupHostEvents, hostEventDate, hostEventStatus, type HostDetails, type HostEvent } from './hostDetails';
 import NearbyPlaces from './NearbyPlaces';
+import AddressMap, { type AddressCoordinates } from './AddressMap';
+import { geocodeAddress } from './addressLocation';
+import referenceAddresses from '../assets/enderecos-demonstracao-recife.json';
 import { useFavorite } from './useFavorite';
 
 const colors = { ink: '#002B5C', orange: '#FF5A0A', background: '#F8F5EE', card: '#FFFEFC', line: '#E7E0D6', muted: '#667085' };
@@ -59,6 +62,8 @@ export default function HostDetailsScreen() {
   const [message, setMessage] = useState('Carregando estabelecimento...');
   const [reload, setReload] = useState(0);
   const [now, setNow] = useState(Date.now);
+  const [mapAttempt, setMapAttempt] = useState(0);
+  const [location, setLocation] = useState<{ address: HostDetails['address']; attempt: number; coordinates: AddressCoordinates | null; message: string } | null>(null);
   const loadedHostId = useRef<number | null>(null);
   const lastReload = useRef(-1);
 
@@ -100,6 +105,29 @@ export default function HostDetailsScreen() {
     return () => { active = false; controller.abort(); };
   }, [hostId, reload]));
 
+  const hostAddress = host?.address;
+  useEffect(() => {
+    if (!hostAddress) {
+      return;
+    }
+    const controller = new AbortController();
+    const storage = Platform.OS === 'web' ? globalThis.sessionStorage : null;
+    geocodeAddress(hostAddress, referenceAddresses, storage, controller.signal)
+      .then((coordinates) => {
+        if (!controller.signal.aborted) {
+          setLocation({ address: hostAddress, attempt: mapAttempt, coordinates, message: '' });
+        }
+      })
+      .catch((error: unknown) => {
+        if (!controller.signal.aborted) {
+          setLocation({ address: hostAddress, attempt: mapAttempt, coordinates: null, message: error instanceof Error ? error.message : 'Não foi possível localizar o endereço.' });
+        }
+      });
+    return () => controller.abort();
+  }, [hostAddress, mapAttempt]);
+
+  const currentLocation = location?.address === hostAddress && location?.attempt === mapAttempt ? location : null;
+
   const events = useMemo(() => groupHostEvents(host?.programmings ?? [], now), [host, now]);
   const goBack = () => {
     if (router.canGoBack()) {
@@ -133,9 +161,21 @@ export default function HostDetailsScreen() {
             return <View key={dayOfWeek} style={styles.hoursRow}><Text style={styles.dayName}>{openingDayLabels[dayOfWeek]}</Text><View style={styles.periods}>{!day ? <Text style={styles.helper}>Não informado</Text> : day.isClosed ? <Text style={styles.closed}>Fechado</Text> : day.periods.length ? [...day.periods].sort((a, b) => a.openingTime.localeCompare(b.openingTime)).map((period, index) => <Text key={index} style={styles.hours}>{period.openingTime.slice(0, 5)}–{period.closingTime.slice(0, 5)}{period.closesNextDay ? ' (dia seguinte)' : ''}</Text>) : <Text style={styles.helper}>Horário não informado</Text>}</View></View>;
           }) : <Text style={styles.body}>O estabelecimento ainda não informou seus horários de funcionamento.</Text>}
         </View>
+        <View style={styles.card}>
+          <Text accessibilityRole="header" style={styles.sectionTitle}>Onde fica</Text>
+          <AddressMap address={address} coordinates={currentLocation?.coordinates ?? null} loading={!currentLocation}
+            message={currentLocation?.message ?? 'Localizando o endereço cadastrado…'}
+            place={{ id: host.id, type: 'Host', name: host.name, imageUrl: host.logoUrl }} />
+          {currentLocation && !currentLocation.coordinates ? (
+            <Pressable accessibilityRole="button" onPress={() => setMapAttempt((attempt) => attempt + 1)} style={styles.primaryButton}>
+              <Text style={styles.primaryText}>Tentar localizar novamente</Text>
+            </Pressable>
+          ) : null}
+        </View>
         <EventRail key={`next-${host.id}`} title="Próximos eventos" description="O que acontece agora e o que vem por aí" events={events.upcoming} now={now} management={management} />
         <EventRail key={`past-${host.id}`} title="Eventos anteriores" description="Programações que já passaram por aqui" events={events.past} now={now} management={management} />
-        <NearbyPlaces key={`nearby-${host.id}`} host={host} onSelect={(item) => router.push(item.type === 'Host' ? { pathname: '/estabelecimento', params: { hostId: String(item.id), origin: 'estabelecimento' } } : { pathname: '/programacao/[programmingId]', params: { programmingId: String(item.id), origin: 'estabelecimento' } } as Href)} />
+        <NearbyPlaces key={`nearby-${host.id}`} hostId={host.id} origin={currentLocation?.coordinates ?? null} locating={!currentLocation}
+          onSelect={(item) => router.push(item.type === 'Host' ? { pathname: '/estabelecimento', params: { hostId: String(item.id), origin: 'estabelecimento' } } : { pathname: '/programacao/[programmingId]', params: { programmingId: String(item.id), origin: 'estabelecimento' } } as Href)} />
       </>}
     </ScrollView>
     {management

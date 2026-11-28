@@ -1,8 +1,9 @@
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { Fredoka_700Bold } from '@expo-google-fonts/fredoka/700Bold';
 import { useFonts } from 'expo-font';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Image,
   Platform,
@@ -15,6 +16,7 @@ import {
 } from 'react-native';
 
 import AppBottomNav from '../components/AppBottomNav';
+import { apiRequest } from '../lib/api';
 import { responsiveShellWidth } from '../theme/responsive';
 
 const colors = {
@@ -33,6 +35,140 @@ const colors = {
 
 const apiBaseUrl = (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:5014').replace(/\/$/, '');
 const accessTokenStorageKey = 'perambulando.accessToken';
+const preferenceNames = ['Gastronomia', 'Teatro', 'Esportes', 'Infantil', 'Gratuito', 'Comércio'];
+const maxPreferences = 3;
+
+type Category = { id: number; name: string; isActive: boolean };
+
+function normalizeCategoryName(name: string) {
+  return name.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
+function FeedPreferences({ accessToken }: { accessToken: string }) {
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [loadState, setLoadState] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [loadAttempt, setLoadAttempt] = useState(0);
+  const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
+  const [errorMessage, setErrorMessage] = useState('');
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const { signal } = controller;
+    Promise.all([
+      apiRequest<Category[]>('/api/Category/GetallCategories', { signal }),
+      apiRequest<Category[]>('/api/Category/GetUserCategoriesPreferences', {
+        signal,
+        headers: { Authorization: `Bearer ${accessToken}` },
+      }),
+    ]).then(([catalog, preferences]) => {
+      if (signal.aborted) {
+        return;
+      }
+      setCategories(preferenceNames.flatMap((name) => {
+        const category = catalog.find((item) =>
+          item.isActive !== false && normalizeCategoryName(item.name) === normalizeCategoryName(name),
+        );
+        return category ? [{ ...category, name }] : [];
+      }));
+      setSelectedIds(preferences.map(({ id }) => id));
+      setLoadState('ready');
+    }).catch(() => {
+      if (!signal.aborted) {
+        setLoadState('error');
+      }
+    });
+
+    return () => controller.abort();
+  }, [accessToken, loadAttempt]);
+
+  const visibleIds = selectedIds.filter((id) => categories.some((category) => category.id === id));
+
+  async function togglePreference(id: number) {
+    if (savingRef.current) {
+      return;
+    }
+    const nextIds = visibleIds.includes(id)
+      ? visibleIds.filter((selectedId) => selectedId !== id)
+      : [...visibleIds, id];
+    if (nextIds.length > maxPreferences) {
+      setErrorMessage('Selecione até 3 categorias.');
+      return;
+    }
+    savingRef.current = true;
+    setSaving(true);
+    setErrorMessage('');
+    try {
+      await apiRequest('/api/Category/EditCategoryToUser', {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${accessToken}` },
+        body: JSON.stringify(nextIds),
+      });
+      setSelectedIds(nextIds);
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Não foi possível salvar suas preferências.');
+    } finally {
+      savingRef.current = false;
+      setSaving(false);
+    }
+  }
+
+  return (
+    <View style={styles.detailsCard}>
+      <View style={styles.preferenceHeader}>
+        <View style={styles.preferenceIcon}>
+          <Ionicons name="options-outline" size={21} color={colors.orange} />
+        </View>
+        <View style={styles.preferenceHeading}>
+          <Text accessibilityRole="header" style={styles.cardTitle}>Preferências de Feed</Text>
+          <Text style={styles.stateText}>Escolha o que você quer ver mais por aqui.</Text>
+        </View>
+      </View>
+      {loadState === 'loading' && <Text style={styles.stateText}>Carregando preferências…</Text>}
+      {loadState === 'error' && (
+        <>
+          <Text accessibilityRole="alert" style={styles.errorTitle}>Não foi possível carregar suas preferências.</Text>
+          <Pressable accessibilityRole="button" style={styles.primaryButton} onPress={() => {
+            setLoadState('loading');
+            setLoadAttempt((attempt) => attempt + 1);
+          }}>
+            <Text style={styles.primaryButtonText}>Tentar novamente</Text>
+          </Pressable>
+        </>
+      )}
+      {loadState === 'ready' && (categories.length ? (
+        <>
+          <View style={styles.preferenceList}>
+            {categories.map(({ id, name }) => {
+              const selected = visibleIds.includes(id);
+              return (
+                <Pressable
+                  key={id}
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked: selected, disabled: saving }}
+                  disabled={saving}
+                  onPress={() => void togglePreference(id)}
+                  style={({ pressed }) => [styles.preferenceChip, selected && styles.preferenceChipSelected, pressed && styles.pressed]}
+                >
+                  {selected && <Ionicons name="checkmark" size={15} color={colors.ink} />}
+                  <Text style={styles.preferenceChipText}>{name}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+          {selectedIds.length > visibleIds.length && (
+            <Text style={styles.stateText}>Ao alterar sua seleção, as preferências anteriores serão substituídas pelas categorias marcadas aqui.</Text>
+          )}
+          <Text accessibilityLiveRegion="polite" style={styles.stateText}>
+            {saving ? 'Salvando preferências…' : `${visibleIds.length} de ${maxPreferences} selecionadas · salvamento automático`}
+          </Text>
+          {errorMessage ? <Text accessibilityRole="alert" style={styles.errorTitle}>{errorMessage}</Text> : null}
+        </>
+      ) : <Text style={styles.stateText}>Nenhuma categoria de preferência disponível.</Text>)}
+    </View>
+  );
+}
 
 type StorageLike = {
   getItem: (key: string) => string | null;
@@ -243,6 +379,8 @@ export default function ProfileScreen() {
                 </View>
               </View>
 
+              <FeedPreferences accessToken={accessToken} />
+
               <View style={styles.detailsCard}>
                 <Text style={styles.cardEyebrow}>DADOS CADASTRAIS</Text>
                 <Text style={styles.cardTitle}>Informações da conta</Text>
@@ -392,6 +530,19 @@ const styles = StyleSheet.create({
   },
   cardEyebrow: { color: colors.orange, fontSize: 9, fontWeight: '800', letterSpacing: 1.4 },
   cardTitle: { marginBottom: 2, color: colors.ink, fontSize: 19, fontWeight: '800' },
+  preferenceHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  preferenceHeading: { flex: 1 },
+  preferenceIcon: {
+    width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: colors.background,
+  },
+  preferenceList: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  preferenceChip: {
+    minHeight: 40, paddingHorizontal: 14, borderRadius: 20, borderWidth: 1, borderColor: colors.line,
+    backgroundColor: colors.input, flexDirection: 'row', alignItems: 'center', gap: 5,
+  },
+  preferenceChipSelected: { backgroundColor: colors.orange, borderColor: colors.orange },
+  preferenceChipText: { color: colors.ink, fontSize: 12, fontWeight: '700' },
   profileField: {
     minHeight: 62,
     paddingHorizontal: 14,

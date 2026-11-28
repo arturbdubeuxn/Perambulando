@@ -1,5 +1,27 @@
 # Documentação do Perambulando
 
+## Hierarquia visual de Explorar — 27/11/2026
+
+As cinco seções principais de Explorar ganharam fundos suaves distintos e textos que esclarecem a função de cada bloco. Consulte [as mudanças e validações](08-arquitetura-frontend-backend.md#hierarquia-visual-de-explorar--27112026).
+
+## Mapa do estabelecimento — 27/11/2026
+
+Os detalhes do estabelecimento ganharam a seção “Onde fica” com o mapa usado na página de programação. O endereço recebe o pin do estabelecimento com sua imagem e o ponto azul indica a localização autorizada do usuário. Leia sobre a resolução do endereço e as [validações do mapa](08-arquitetura-frontend-backend.md#mapa-do-estabelecimento--27112026).
+
+## Para você em Explorar — 27/11/2026
+
+O carrossel entre Destaques da semana e Estabelecimentos no Recife usa as preferências do perfil para mostrar programações e estabelecimentos em ordem de distância. Consulte [o filtro, a localização e as validações](08-arquitetura-frontend-backend.md#para-você-em-explorar--27112026).
+
+## Carga de 50 hosts e 50 programações no Rosarinho — 27/11/2026
+
+O [script de carga](validacoes/carga-rosarinho-50-2026-11-27.sql) adicionou um host por programação, com 25 produtores de eventos, 13 hosts de gastronomia e 12 de comércio. Os 50 endereços distintos reaproveitam referências OpenStreetMap da [agenda georreferenciada](validacoes/agenda-enderecos-2026-11-27.sql), com cinco em Rosarinho e os demais em Aflitos, Arruda, Encruzilhada, Espinheiro, Jaqueira, Ponto de Parada e Tamarineira. Hosts e eventos são fictícios. Os vínculos usam as seis categorias ativas do catálogo, com Gratuito associado aos 20 eventos sem cobrança.
+
+A carga e sua reexecução foram conferidas no PostgreSQL local em Docker. O banco ficou com 51 hosts e 50 programações no total, incluindo um host preexistente. Os 50 endereços do lote têm coordenadas e as categorias foram conferidas pelo vínculo com as programações. A revisão visual no aplicativo permanece pendente.
+
+## Preferências de Feed — 27/11/2026
+
+O perfil do usuário salva automaticamente até três preferências usando as seis categorias ativas verificadas no banco local e na API. Consulte a [implementação, a carga SQL e as validações](08-arquitetura-frontend-backend.md#preferências-de-feed-no-perfil--27112026).
+
 ## Roteiros com timeline — 27/11/2026
 
 A navegação do visitante agora tem Roteiro no lugar de Buscar. `/roteiro` integra os cinco endpoints de Roadmap e mostra uma timeline de eventos e estabelecimentos, com horários editáveis e seleção por filtros combinados. Cards e mapa compartilham o botão + verde de inclusão/remoção. O chat permanece em `/roteiro_ia`. “Meus roteiros” funciona sem conta: IDs das versões públicas criadas são mantidos no navegador e recarregados por `Details`; com JWT, a listagem, edição e exclusão continuam vinculadas ao proprietário. O visitante não recebe falsa propriedade: alterar um roteiro anônimo salvo cria nova versão. ESLint, TypeScript e 12 testes específicos de roteiro aprovados. Implementação e limitações em [roteiros e timeline](validacoes/roteiros-timeline-2026-11-27.md). A cobertura atual é de 39/51 endpoints, restando 12; a auditoria abaixo representa o momento anterior. Backend e PDFs preservados.

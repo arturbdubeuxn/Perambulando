@@ -12,10 +12,16 @@ public class NearbyRepository : INearbyRepository
     {
         var now = DateTime.UtcNow;
         var categoryIds = filter.CategoriesId ?? new List<int>();
+        var selectedCategories = Db.Categories.Where(category => category.IsActive && categoryIds.Contains(category.Id));
         var hosts = from host in Db.Hosts.AsNoTracking()
-                    where categoryIds.Count == 0
-                        && host.IsActive && (host.Typeofhost == Hosts.TypeofHost.Gastronomy || host.Typeofhost == Hosts.TypeofHost.Business) && (!excludedHostId.HasValue || host.Id != excludedHostId.Value)
-                        && !Db.Programmings.Any(programming => programming.IsActive && programming.EndDate > now && programming.AddressId == host.AddressId)
+                    where host.IsActive && (host.Typeofhost == Hosts.TypeofHost.Gastronomy || host.Typeofhost == Hosts.TypeofHost.Business)
+                        && (!excludedHostId.HasValue || host.Id != excludedHostId.Value)
+                        && ((categoryIds.Count == 0
+                             && !Db.Programmings.Any(programming => programming.IsActive && programming.EndDate > now && programming.AddressId == host.AddressId))
+                            || (filter.IncludePreferredHosts && selectedCategories.Any(category =>
+                                (host.Typeofhost == Hosts.TypeofHost.Gastronomy && category.Name.Trim().ToLower() == "gastronomia")
+                                || (host.Typeofhost == Hosts.TypeofHost.Business
+                                    && (category.Name.Trim().ToLower() == "comércio" || category.Name.Trim().ToLower() == "comercio")))))
                         && host.Address.Location != null && host.Address.Location.IsWithinDistance(origin, maxMeters)
                         && (minMeters == 0 || host.Address.Location.Distance(origin) > minMeters)
                     select new NearbyItem

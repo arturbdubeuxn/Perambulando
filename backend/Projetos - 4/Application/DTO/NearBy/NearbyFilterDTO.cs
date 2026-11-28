@@ -13,6 +13,7 @@ public class NearbyUserFilterDTO
     public double? MaxDistanceKm { get; set; }
     [MaxLength(100)]
     public List<int>? CategoriesId { get; set; }
+    public bool IncludePreferredHosts { get; set; }
     [Range(0, int.MaxValue)]
     public int Skip { get; set; }
 }

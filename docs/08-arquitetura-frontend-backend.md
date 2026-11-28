@@ -1,5 +1,33 @@
 # Arquitetura e separação entre frontend e backend
 
+## Hierarquia visual de Explorar — 27/11/2026
+
+Explorar apresenta caixas arredondadas com fundos suaves: pêssego em Qual é a sua vibe?, areia em Destaques da semana, lavanda em Para você, azul acinzentado em Estabelecimentos no Recife e verde sálvia em Mais próximos de você. Os textos identificam a função de cada seção. Os cartões destacam a data da programação, o tipo do estabelecimento e a distância, conforme o contexto.
+
+TypeScript, ESLint e `git diff --check` passaram. A revisão visual no navegador permanece pendente.
+
+## Mapa do estabelecimento — 27/11/2026
+
+Os detalhes do estabelecimento exibem “Onde fica” depois de Dias e horários e antes dos próximos eventos. A seção compartilha com os detalhes de programação o mapa OpenFreeMap na web, o endereço e o link para Google Maps. Em Android e iOS, o cartão abre o aplicativo de mapas, seguindo o comportamento da página de programação. A localização usa o endereço cadastrado. O mapa e a lista de locais próximos compartilham a coordenada resolvida, e o usuário pode tentar localizar o endereço novamente em caso de falha.
+
+Nos detalhes, o mapa usa os pins do catálogo com a imagem do estabelecimento ou da programação. Se a imagem estiver ausente ou falhar, o pin mostra a inicial. O ponto azul identifica a posição do usuário e aparece quando a localização está autorizada. O botão “Mostrar minha localização” permite solicitar acesso no navegador.
+
+TypeScript, ESLint e 11 testes de endereço e proximidade passaram após o ajuste dos marcadores em 27/11/2026. A revisão visual do mapa e da permissão no navegador permanece pendente.
+
+## Para você em Explorar — 27/11/2026
+
+O carrossel aparece para usuários autenticados entre Destaques da semana e Estabelecimentos no Recife. Explorar relê as preferências da conta ao receber foco e consulta `GET /api/Nearby/GetNearMe` com os IDs das categorias, `IncludePreferredHosts=true` e raio de 20 km. A origem usa a localização autorizada ou o Marco Zero, indicado na interface. A seção oferece acesso ao perfil quando ainda não há preferências.
+
+O parâmetro opcional de busca acrescenta estabelecimentos de Gastronomia ou Comércio quando a categoria correspondente foi selecionada, inclusive se houver uma programação no mesmo endereço. As programações ativas e ainda em andamento ou futuras entram por vínculo com qualquer categoria selecionada. A API ordena os dois tipos juntos por distância antes de paginar. O formato de resposta e o comportamento dos consumidores que omitem o parâmetro foram preservados.
+
+Build do backend, TypeScript e ESLint passaram. A API temporária e o PostgreSQL local confirmaram o filtro de Gastronomia, Comércio e Teatro, a paginação, a ordem crescente e o comportamento sem o parâmetro. A interação no navegador permanece pendente. O protótipo externo está indisponível no caminho configurado nesta máquina; o novo parâmetro tem exemplo no arquivo `Projetos - 4.http`.
+
+## Preferências de Feed no perfil — 27/11/2026
+
+`/perfil` mostra o cartão antes de Dados cadastrais. O frontend consulta `Category/GetallCategories` e carrega as escolhas da conta por `Category/GetUserCategoriesPreferences` com JWT. As opções usam os IDs ativos do catálogo para Gastronomia, Teatro, Esportes, Infantil, Gratuito e Comércio. Cada alteração salva automaticamente a seleção completa por `PUT Category/EditCategoryToUser`, com limite de três opções. Se houver preferências fora da lista exibida, o cartão indica que elas serão substituídas na próxima alteração.
+
+A carga [PreferenciasDeFeed.sql](sql/PreferenciasDeFeed.sql) pode ser repetida em um banco com o schema aplicado. Ela reutiliza registros existentes, reativa uma correspondência se necessário e cria as categorias ausentes. TypeScript e ESLint passaram. As seis categorias ativas foram verificadas no PostgreSQL local e no GET público da API. A revisão visual e a gravação autenticada pelo navegador permanecem pendentes.
+
 ## Gestão de roteiro pelo visitante — 27/11/2026
 
 `RoadmapScreen.tsx`, exposto em `/roteiro`, consome os cinco endpoints de Roadmap para criação, consulta, listagem, edição e desativação. `roadmap.ts` concentra contratos, estado compartilhado do rascunho, persistência no navegador e validações de horário; `RoadmapButton.tsx` é reutilizado nos cards e mapa para inclusão/remoção com feedback verde e animação. A timeline permite alterar horários e adicionar paradas com união de tipos de local e categorias de evento. Respeita os limites de autorização atuais: visitantes criam versões públicas, indexam seus IDs no `localStorage` e as consultam novamente por `Details`; a gestão remota usa JWT de proprietário. Os cards alteram o rascunho e a página Roteiro salva explicitamente.

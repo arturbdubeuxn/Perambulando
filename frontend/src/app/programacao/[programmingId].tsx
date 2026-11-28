@@ -2,7 +2,7 @@ import RoadmapButton from '../../RoadmapButton';
 import { router, type Href, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useMemo, useState } from 'react';
-import NearbyMap from '../../NearbyMap';
+import AddressMap, { type AddressCoordinates } from '../../AddressMap';
 import { useFavorite } from '../../useFavorite';
 import { geocodeAddress } from '../../addressLocation';
 import { loadNearbyPlaces, formatDistance, type NearbyPin } from '../../nearbyPins';
@@ -79,7 +79,6 @@ type ProgrammingDetail = {
 type NearbyItem = NearbyPin;
 
 
-type Coordinates = { latitude: number; longitude: number; displayName: string };
 type LoadState = 'loading' | 'ready' | 'error';
 type NearbyState = 'loading' | 'ready' | 'empty' | 'error';
 
@@ -143,22 +142,6 @@ function fullAddress(address: Address) {
   ].filter(Boolean).join(', ');
 }
 
-function MapView({ coordinates, address }: { coordinates: Coordinates; address: string }) {
-  if (Platform.OS !== 'web') {
-    return (
-      <Pressable
-        accessibilityRole="link"
-        onPress={() => Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`)}
-        style={styles.nativeMapFallback}
-      >
-        <Text style={styles.nativeMapPin}>⌖</Text>
-        <Text style={styles.nativeMapTitle}>Abrir localização no mapa</Text>
-      </Pressable>
-    );
-  }
-
-  return <NearbyMap origin={coordinates} originLabel="Local do evento" title={`Mapa de ${address}`} items={[]} />;
-}
 
 function BottomNav() {
   return <View style={styles.bottomNav}><AppBottomNav mode="user" /></View>;
@@ -180,7 +163,7 @@ export default function ProgrammingDetailsScreen() {
   const [programming, setProgramming] = useState<ProgrammingDetail | null>(null);
   const [nearby, setNearby] = useState<{ item: NearbyItem; label: string }[]>([]);
   const [nearbyState, setNearbyState] = useState<NearbyState>('loading');
-  const [coordinates, setCoordinates] = useState<Coordinates | null>(null);
+  const [coordinates, setCoordinates] = useState<AddressCoordinates | null>(null);
   const [mapState, setMapState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [mapMessage, setMapMessage] = useState('Localizando o endereço cadastrado...');
   const { favorite, busy: favoriteBusy, message: favoriteMessage, toggle: toggleFavorite } = useFavorite(`programming:${programmingId}`);
@@ -251,7 +234,6 @@ export default function ProgrammingDetailsScreen() {
   }, [coordinates, hasValidProgrammingId, programmingId]);
 
   const address = useMemo(() => programming ? fullAddress(programming.address) : '', [programming]);
-  const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
 
   const shareProgramming = async () => {
     if (!programming) return;
@@ -344,15 +326,8 @@ export default function ProgrammingDetailsScreen() {
               <View style={styles.section}>
                 <Text style={styles.sectionTitle}>Onde vai ser</Text>
                 <Text style={styles.sectionSubtitle}>Localização baseada no endereço cadastrado pelo host.</Text>
-                <View style={styles.mapFrame}>
-                  {mapState === 'loading' ? <View style={styles.mapState}><ActivityIndicator color={colors.orange} /><Text style={styles.stateText}>{mapMessage}</Text></View> : null}
-                  {mapState === 'ready' && coordinates ? <MapView address={address} coordinates={coordinates} /> : null}
-                  {mapState === 'error' ? <View style={styles.mapState}><Text style={styles.errorTitle}>Mapa indisponível</Text><Text style={styles.stateText}>{mapMessage}</Text></View> : null}
-                </View>
-                <Text style={styles.addressText}>{address}</Text>
-                {coordinates ? <Text style={styles.mapResolvedText}>{coordinates.displayName}</Text> : null}
-                <Pressable accessibilityRole="link" onPress={() => Linking.openURL(mapsUrl)} style={styles.mapLink}><Text style={styles.mapLinkText}>Abrir no Google Maps ↗</Text></Pressable>
-                <Text style={styles.attribution}>Mapa OpenFreeMap · dados © colaboradores do OpenStreetMap (ODbL)</Text>
+                <AddressMap address={address} coordinates={mapState === 'ready' ? coordinates : null} loading={mapState === 'loading'} message={mapMessage}
+                  place={{ id: programming.id, type: 'Programming', name: programming.name, imageUrl: programming.imageUrl }} />
               </View>
 
               <View style={styles.section}>
@@ -443,16 +418,6 @@ const styles = StyleSheet.create({
   categoryList: { marginTop: 14, flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
   categoryChip: { paddingHorizontal: 9, paddingVertical: 5, borderRadius: 10, backgroundColor: colors.orangeSoft },
   categoryText: { color: colors.orange, fontSize: 8, fontWeight: '800' },
-  mapFrame: { height: 225, marginTop: 14, overflow: 'hidden', borderRadius: 17, borderWidth: 1, borderColor: colors.line, backgroundColor: '#E8EEE9' },
-  mapState: { flex: 1, padding: 18, alignItems: 'center', justifyContent: 'center', gap: 9 },
-  nativeMapFallback: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8 },
-  nativeMapPin: { color: colors.orange, fontSize: 28 },
-  nativeMapTitle: { color: colors.ink, fontSize: 12, fontWeight: '800' },
-  addressText: { marginTop: 11, color: colors.ink, fontSize: 11, lineHeight: 16, fontWeight: '700' },
-  mapResolvedText: { marginTop: 3, color: colors.muted, fontSize: 9, lineHeight: 13 },
-  mapLink: { marginTop: 10, minHeight: 40, alignItems: 'center', justifyContent: 'center', borderRadius: 12, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card },
-  mapLinkText: { color: colors.orange, fontSize: 10, fontWeight: '800' },
-  attribution: { marginTop: 7, color: colors.muted, fontSize: 8, textAlign: 'right' },
   nearbyState: { minHeight: 110, marginTop: 14, padding: 16, alignItems: 'center', justifyContent: 'center', gap: 7, borderRadius: 15, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card },
   nearbyTitle: { color: colors.ink, fontSize: 12, fontWeight: '800' },
   nearbyList: { marginTop: 14, gap: 9 },
