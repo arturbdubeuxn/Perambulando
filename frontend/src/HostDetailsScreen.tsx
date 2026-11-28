@@ -10,6 +10,7 @@ import { responsiveShellWidth } from './theme/responsive';
 import { openingDayLabels, openingDayOrder } from './openingHours';
 import { groupHostEvents, hostEventDate, hostEventStatus, type HostDetails, type HostEvent } from './hostDetails';
 import NearbyPlaces from './NearbyPlaces';
+import HostPhotoGallery from './HostPhotoGallery';
 import AddressMap, { type AddressCoordinates } from './AddressMap';
 import { geocodeAddress } from './addressLocation';
 import referenceAddresses from '../assets/enderecos-demonstracao-recife.json';
@@ -155,6 +156,9 @@ export default function HostDetailsScreen() {
         <View style={styles.heroCard}><View style={styles.heroImageFrame}><Cover key={host.logoUrl} uri={host.logoUrl} name={host.name} hero /><Pressable accessibilityRole="button" accessibilityLabel={favorite ? 'Remover estabelecimento dos favoritos' : 'Adicionar estabelecimento aos favoritos'} accessibilityState={{ selected: favorite, disabled: favoriteBusy || state !== 'ready' }} disabled={favoriteBusy || state !== 'ready'} onPress={toggleFavorite} style={({ pressed }) => [styles.favoriteButton, pressed && styles.pressed]}><Text style={[styles.favoriteIcon, favorite && styles.favoriteIconActive]}>{favorite ? '♥' : '♡'}</Text></Pressable></View><View style={styles.heroCopy}><Text style={styles.eyebrow}>{host.typeofhost === 1 ? 'GASTRONOMIA' : host.typeofhost === 2 ? 'COMÉRCIO' : 'PRODUTOR DE EVENTOS'}</Text><Text accessibilityRole="header" style={styles.title}>{host.name}</Text><Text selectable style={styles.body}>⌖ {address || 'Endereço ainda não informado.'}</Text>{host.phone ? <Text selectable style={styles.body}>Contato: {host.phone}</Text> : null}{host.minPrice != null && host.maxPrice != null ? <Text style={styles.helper}>Estimativa por pessoa: {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(host.minPrice)} a {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(host.maxPrice)}</Text> : null}</View></View>
         {!management ? <RoadmapButton kind="host" id={host.id} name={host.name} /> : null}
         <View style={styles.card}><Text accessibilityRole="header" style={styles.sectionTitle}>Sobre o estabelecimento</Text><Text selectable style={styles.body}>{host.description?.trim() || 'Este estabelecimento ainda não publicou uma descrição.'}</Text></View>
+        {host.typeofhost === 1 || host.typeofhost === 2 ? (
+          <HostPhotoGallery key={host.id} hostId={host.id} hostName={host.name} management={management} />
+        ) : null}
         <View style={styles.card}><Text accessibilityRole="header" style={styles.sectionTitle}>Dias e horários</Text><Text style={styles.helper}>Horários locais de atendimento</Text>
           {host.typeofhost === 0 ? <Text style={styles.body}>Atendimento conforme a programação. Consulte as datas e horários de cada evento.</Text> : host.openingWeek?.days?.length ? openingDayOrder.map((dayOfWeek) => {
             const day = host.openingWeek.days.find((item) => item.dayOfWeek === dayOfWeek);

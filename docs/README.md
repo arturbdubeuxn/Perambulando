@@ -1,5 +1,13 @@
 # Documentação do Perambulando
 
+## Galeria de fotos dos estabelecimentos — 28/11/2026
+
+Gastronomia e Comércio ganharam uma galeria pública com gestão por URL em Meus estabelecimentos. Os três endpoints de fotos estão integrados, elevando para 42 de 51 as rotas consumidas pelo frontend. Consulte [implementação e validações](08-arquitetura-frontend-backend.md#galeria-de-fotos-dos-estabelecimentos--28112026).
+
+## Favoritos em duas colunas — 27/11/2026
+
+Rolês salvos mostra programações e estabelecimentos em uma [grade de duas colunas com filtros de categoria](08-arquitetura-frontend-backend.md#favoritos-em-duas-colunas--27112026).
+
 ## Hierarquia visual de Explorar — 27/11/2026
 
 As cinco seções principais de Explorar ganharam fundos suaves distintos e textos que esclarecem a função de cada bloco. Consulte [as mudanças e validações](08-arquitetura-frontend-backend.md#hierarquia-visual-de-explorar--27112026).

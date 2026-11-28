@@ -1,5 +1,17 @@
 # Arquitetura e separação entre frontend e backend
 
+## Galeria de fotos dos estabelecimentos — 28/11/2026
+
+Os detalhes de Gastronomia e Comércio exibem “Fotos do estabelecimento” entre Sobre o estabelecimento e Dias e horários. A galeria pública lê as fotos ativas, aparece quando há fotos e amplia as miniaturas ao toque. Em Meus estabelecimentos, a interface confirma que o estabelecimento pertence à conta antes de oferecer inclusão por URL com prévia e remoção com confirmação. As alterações atualizam a galeria depois da confirmação da API. A capa, o endereço, os horários, os favoritos e o roteiro mantêm seus fluxos.
+
+O backend usa as três rotas de galeria já existentes. A desativação agora verifica a propriedade antes de alterar a foto. Build, TypeScript e ESLint passaram. A API temporária confirmou a listagem pública e o 401 nas gravações anônimas, sem gravar no PostgreSQL real. Um teste do serviço com dependências simuladas confirmou inclusão, listagem, remoção pelo responsável e recusa sem alteração de estado. A revisão visual no navegador permanece pendente. O protótipo externo não foi encontrado nos caminhos disponíveis. Os exemplos de galeria no arquivo `Projetos - 4.http` foram revisados.
+
+## Favoritos em duas colunas — 27/11/2026
+
+Acima da grade, os filtros exibem as categorias presentes nos favoritos. Programações entram por categoria ativa e pelo indicador de gratuidade. Estabelecimentos entram pelo tipo, então Gastronomia e Comércio podem mostrar os dois tipos de cartão. A seleção múltipla mostra itens de qualquer categoria marcada e “Todas” limpa a seleção. TypeScript e ESLint passaram após o ajuste dos filtros. A revisão visual no navegador permanece pendente.
+
+A tela `/favoritos` exibe programações e estabelecimentos na mesma grade de duas colunas, com rolagem vertical e largura dos cartões calculada pela área disponível. A imagem se ajusta à largura do cartão e o último item de uma coleção ímpar mantém a largura de uma coluna. TypeScript, ESLint e `git diff --check` passaram. A revisão visual no navegador permanece pendente.
+
 ## Hierarquia visual de Explorar — 27/11/2026
 
 Explorar apresenta caixas arredondadas com fundos suaves: pêssego em Qual é a sua vibe?, areia em Destaques da semana, lavanda em Para você, azul acinzentado em Estabelecimentos no Recife e verde sálvia em Mais próximos de você. Os textos identificam a função de cada seção. Os cartões destacam a data da programação, o tipo do estabelecimento e a distância, conforme o contexto.

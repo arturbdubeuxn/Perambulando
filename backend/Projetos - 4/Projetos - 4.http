@@ -1013,10 +1013,9 @@ Authorization: Bearer {{login.response.body.$.accessToken}}
 
 ### HOST PHOTOS - Listar fotos ativas (gastronomia/comércio)
 GET {{Projetos___4_HostAddress}}/api/Host/{{HostId}}/GetAllHostsPhotos
-Authorization: Bearer {{login.response.body.$.accessToken}}
 Accept: application/json
 
-### HOST PHOTOS - Cadastrar URL (dono ou ADMIN)
+### HOST PHOTOS - Cadastrar URL (responsável pelo estabelecimento, com papel HOST ou ADMIN)
 # @name createHostPhoto
 POST {{Projetos___4_HostAddress}}/api/Host/CreateHostPhoto
 Authorization: Bearer {{login.response.body.$.accessToken}}
@@ -1027,7 +1026,7 @@ Content-Type: application/json
   "photoUrl": "https://example.com/foto-estabelecimento.jpg"
 }
 
-### HOST PHOTOS - Desativar foto pelo ID (204 sem corpo)
+### HOST PHOTOS - Desativar foto pelo ID (responsável pelo estabelecimento; 204 sem corpo)
 DELETE {{Projetos___4_HostAddress}}/api/Host/DeleteHostPhoto/{{createHostPhoto.response.body.$.id}}
 Authorization: Bearer {{login.response.body.$.accessToken}}
 

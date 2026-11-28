@@ -1,6 +1,6 @@
 # Cobertura dos endpoints pelo frontend
 
-> Atualização posterior em 27/11/2026: os cinco endpoints de Roadmap foram integrados pela página de timeline. A cobertura atual é **39 consumidos e 12 sem consumo**, de 51 endpoints. Consulte [implementação e validações](roteiros-timeline-2026-11-27.md). Os números e a lista abaixo preservam o inventário realizado antes dessa implementação.
+> Atualização de 28/11/2026: os cinco endpoints de Roadmap e as três rotas da galeria foram integrados. A cobertura atual é **42 consumidos e 9 sem consumo**, de 51 endpoints. Consulte [a timeline de roteiros](roteiros-timeline-2026-11-27.md) e [a galeria de fotos](../08-arquitetura-frontend-backend.md#galeria-de-fotos-dos-estabelecimentos--28112026). Os números e a lista abaixo preservam o inventário original.
 
 Data da análise: 27/11/2026. Escopo: código atual do repositório, comparando os controllers do backend com as chamadas HTTP do aplicativo em `frontend/src/`.
 

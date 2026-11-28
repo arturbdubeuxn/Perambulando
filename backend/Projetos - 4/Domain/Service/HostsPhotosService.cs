@@ -47,10 +47,14 @@ public class HostsPhotosService : IHostsPhotosService
         }
         var photo = await _photosRepository.GetByIdAsync(photoId)
             ?? throw new KeyNotFoundException("Foto não encontrada ou inativa.");
-        photo.IsActive = false;
         var host = await _hostService.HostVerification(photo.HostId, userId);
         if (host == null)
-            await _photosRepository.DeleteAsync(photo);
+        {
+            throw new UnauthorizedAccessException("Você não tem permissão para remover esta foto.");
+        }
+
+        photo.IsActive = false;
+        await _photosRepository.DeleteAsync(photo);
     }
   
 }
