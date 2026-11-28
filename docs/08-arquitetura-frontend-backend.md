@@ -1,5 +1,11 @@
 # Arquitetura e separação entre frontend e backend
 
+## Desativação de estabelecimento pela gestão — 28/11/2026
+
+Em Meus estabelecimentos → Editar estabelecimento e horários, o formulário exibe o botão vermelho **Desativar estabelecimento** quando o perfil ativo consta entre os estabelecimentos da conta. A confirmação informa o impacto nas listagens públicas. O frontend envia `PATCH /api/Host/{hostId}/Delete` com JWT e sem corpo, usando o ID do perfil em edição. Após o `204`, limpa a seleção local se ela apontava para esse perfil e volta para Meus estabelecimentos, que consulta a lista atualizada. Em caso de erro, o formulário e a sessão permanecem disponíveis.
+
+TypeScript, ESLint e exportação Expo Web passaram. No Chrome com API simulada, foram verificados o botão vermelho somente em edição, cancelamento sem requisição, falha 404, bloqueio de clique repetido, JWT, sucesso 204 e retorno à lista com a sessão e o outro estabelecimento preservados. Nenhum cadastro real foi desativado durante a validação.
+
 ## Botão de roteiro nos cartões de Explorar — 28/11/2026
 
 Os cartões de Destaques da semana, agenda completa, Para você, Estabelecimentos no Recife, Seus favoritos e Mais próximos de você usam um contorno comum que inclui o botão de roteiro. A área de conteúdo preenche o espaço até o rodapé para manter os botões alinhados dentro de cada carrossel.

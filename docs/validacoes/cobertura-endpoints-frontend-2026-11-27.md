@@ -1,6 +1,6 @@
 # Cobertura dos endpoints pelo frontend
 
-> Atualização de 28/11/2026: os cinco endpoints de Roadmap, as três rotas da galeria, as duas agendas e as duas consultas específicas de proximidade foram integrados. A cobertura atual é **46 consumidos e 5 sem consumo**, de 51 endpoints. Consulte [a timeline de roteiros](roteiros-timeline-2026-11-27.md), [a galeria de fotos](../08-arquitetura-frontend-backend.md#galeria-de-fotos-dos-estabelecimentos--28112026) e [as agendas e a proximidade](../08-arquitetura-frontend-backend.md#agendas-e-consultas-de-proximidade-complementares--28112026). Os números e a lista abaixo preservam o inventário original.
+> Atualização de 28/11/2026: a cobertura atual é **47 consumidos e 4 sem consumo**, de 51 endpoints. Foram integrados os cinco endpoints de Roadmap, as três rotas da galeria, as duas consultas de programações por agenda e preferências, as duas consultas específicas de proximidade e `PATCH /api/Host/{hostId}/Delete`. Consulte [a timeline de roteiros](roteiros-timeline-2026-11-27.md) e [os fluxos de frontend](../08-arquitetura-frontend-backend.md). Os números e a lista abaixo preservam o inventário original.
 
 Data da análise: 27/11/2026. Escopo: código atual do repositório, comparando os controllers do backend com as chamadas HTTP do aplicativo em `frontend/src/`.
 

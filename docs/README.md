@@ -1,5 +1,9 @@
 # Documentação do Perambulando
 
+## Desativação de estabelecimento — 28/11/2026
+
+A edição de um estabelecimento ativo agora oferece desativação com confirmação e retorno à lista de gestão. O frontend usa 47 dos 51 endpoints. Consulte [o fluxo e as validações](08-arquitetura-frontend-backend.md#desativação-de-estabelecimento-pela-gestão--28112026).
+
 ## Botão de roteiro nos cartões de Explorar — 28/11/2026
 
 O botão Adicionar ao roteiro fica dentro de cada cartão de programação ou estabelecimento em Explorar. Consulte [a padronização e as validações](08-arquitetura-frontend-backend.md#botão-de-roteiro-nos-cartões-de-explorar--28112026).

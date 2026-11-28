@@ -25,7 +25,10 @@ async function loadHosts(type: HostType, search: string, management: boolean, to
   if (type === 'all' || type === 'gastronomy') query.append('Types', '1');
   if (type === 'all' || type === 'commerce') query.append('Types', '2');
   if (search.trim()) query.set('Name', search.trim());
-  const response = await fetch(`${apiBaseUrl}${management ? '/api/Host/GetAllHostsbyUserId' : `/api/Host/HostFilter?${query.toString()}`}`, { headers: { Accept: 'application/json', ...(management ? { Authorization: `Bearer ${token}` } : {}) } });
+  const response = await fetch(`${apiBaseUrl}${management ? '/api/Host/GetAllHostsbyUserId' : `/api/Host/HostFilter?${query.toString()}`}`, {
+    ...(management ? { cache: 'no-store' } : {}),
+    headers: { Accept: 'application/json', ...(management ? { Authorization: `Bearer ${token}` } : {}) },
+  });
   const body = (await response.json().catch(() => null)) as Host[] | { detail?: string; title?: string } | null;
   if (!response.ok) {
     const error = body as { detail?: string; title?: string } | null;
@@ -47,8 +50,9 @@ function addressLabel(address: Address) {
 }
 
 export default function CommerceScreen() {
-  const params = useLocalSearchParams<{ gestao?: string }>();
+  const params = useLocalSearchParams<{ gestao?: string; desativado?: string }>();
   const management = params.gestao === '1';
+  const deactivatedHostId = management ? params.desativado : undefined;
   const [token] = useState(() => Platform.OS === 'web' ? (globalThis as { sessionStorage?: { getItem: (key: string) => string | null } }).sessionStorage?.getItem('perambulando.accessToken') ?? '' : '');
   const { width } = useWindowDimensions();
   const userInitial = useUserInitial();
@@ -80,7 +84,7 @@ export default function CommerceScreen() {
         });
     }, search ? 300 : 0);
     return () => clearTimeout(timer);
-  }, [search, type, management, token]);
+  }, [search, type, management, token, deactivatedHostId]);
 
   const manageHost = (hostId: number, edit: boolean) => {
     if (Platform.OS === 'web') {
@@ -102,6 +106,7 @@ export default function CommerceScreen() {
         <AppHeader avatarLabel={management ? 'Voltar ao painel' : 'Abrir perfil'} initial={userInitial} onAvatarPress={() => router.push(management ? '/painel' : '/perfil' as Href)} />
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           <View><Text style={styles.eyebrow}>{management ? 'GESTÃO DO SEU NEGÓCIO' : 'ESTABELECIMENTOS'}</Text><Text style={styles.title}>{management ? 'Meus estabelecimentos' : 'Comércios para conhecer'}</Text><Text style={styles.subtitle}>{management ? 'Gerencie seus espaços, ajuste o funcionamento e acompanhe suas programações.' : 'Informações reais dos estabelecimentos cadastrados no Perambulando.'}</Text></View>
+          {deactivatedHostId ? <Text accessibilityRole="status" style={styles.successNotice}>Estabelecimento desativado.</Text> : null}
           {management && token && state === 'ready' ? <Pressable accessibilityRole="button" onPress={() => router.push({ pathname: '/cadastro_host', params: { ...(hasProfile ? { novoHost: '1' } : {}), origem: 'comercio' } })} style={styles.managementPrimary}><Text style={styles.managementPrimaryText}>+ Cadastrar estabelecimento</Text></Pressable> : null}
           <View style={styles.searchBox}><Text style={styles.searchIcon}>⌕</Text><TextInput accessibilityLabel="Buscar estabelecimento" onChangeText={setSearch} placeholder="Buscar por nome" placeholderTextColor="#8A93A0" style={styles.searchInput} value={search} /></View>
           <View style={styles.filters}>
@@ -131,6 +136,7 @@ export default function CommerceScreen() {
 }
 
 const styles = StyleSheet.create({
+  successNotice: { padding: 12, borderRadius: 12, backgroundColor: '#EFF9F0', color: '#257A48', fontSize: 12, fontWeight: '700' },
   managementActions: { marginTop: 14, gap: 8 },
   managementPrimary: { minHeight: 44, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.orange }, managementPrimaryText: { color: '#FFFFFF', fontSize: 11, fontWeight: '800', textAlign: 'center' },
   managementSecondary: { minHeight: 42, paddingHorizontal: 12, borderRadius: 12, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' }, managementSecondaryText: { color: colors.ink, fontSize: 11, fontWeight: '700' },

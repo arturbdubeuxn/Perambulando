@@ -9,6 +9,7 @@ import { emptyOpeningWeek, loadedOpeningDays, openingWeekError, openingWeekPaylo
 import {
   Image,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -29,6 +30,7 @@ const colors = {
   input: '#FCFAF6',
   success: '#257A48',
   successBackground: '#EFF9F0',
+  danger: '#B42318',
 };
 
 const apiBaseUrl = (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:5014').replace(/\/$/, '');
@@ -38,6 +40,7 @@ const hostIdStorageKey = 'perambulando.hostId';
 type WritableStorageLike = {
   getItem: (key: string) => string | null;
   setItem: (key: string, value: string) => void;
+  removeItem: (key: string) => void;
 };
 
 function getWebSessionToken() {
@@ -217,6 +220,7 @@ type HostCreateResponse = {
 
 type ExistingHostResponse = {
   id: number;
+  isActive: boolean;
   typeofhost: HostType;
   minPrice: number | null;
   maxPrice: number | null;
@@ -228,10 +232,6 @@ type ExistingHostResponse = {
   description: string;
   addressId: number;
   address: Omit<AddressDraft, 'state'> & { id: number };
-};
-
-type HostEditResponse = ExistingHostResponse & {
-  isActive: boolean;
 };
 
 type ApiErrorBody = {
@@ -411,6 +411,9 @@ export default function HostRegistrationScreen() {
   const [hoursLoadedFor, setHoursLoadedFor] = useState<number | null>(null);
   const [pendingHoursHost, setPendingHoursHost] = useState<{ id: number; name: string; addressId: number } | null>(null);
   const submitting = useRef(false);
+  const [deactivationHost, setDeactivationHost] = useState<ExistingHostResponse | null>(null);
+  const [deactivating, setDeactivating] = useState(false);
+  const [deactivationError, setDeactivationError] = useState('');
   const [submission, setSubmission] = useState<SubmissionState>({
     status: 'idle',
     message: '',
@@ -449,7 +452,8 @@ export default function HostRegistrationScreen() {
     Boolean(existingSessionToken) && params.editarHost === '1' && editingHostId > 0;
   const isAuthenticatedHostFlow = isAddingHostToExistingAccount || isEditingHost;
   const supportsOpeningHours = hostDraft.typeofhost === 1 || hostDraft.typeofhost === 2;
-  const originalHostType = existingHosts.find((host) => host.id === editingHostId)?.typeofhost;
+  const editingHost = existingHosts.find((host) => host.id === editingHostId);
+  const originalHostType = editingHost?.typeofhost;
   const needsExistingHours = isEditingHost && originalHostType !== 0;
   const openingUnavailable = supportsOpeningHours && needsExistingHours && hoursLoadedFor !== editingHostId;
 
@@ -981,6 +985,55 @@ export default function HostRegistrationScreen() {
     }
   };
 
+  const closeDeactivation = () => {
+    if (!deactivating && !submitting.current) {
+      setDeactivationHost(null);
+      setDeactivationError('');
+    }
+  };
+
+  const deactivateHost = async () => {
+    if (submitting.current || !isEditingHost || !editingHost?.isActive || deactivationHost?.id !== editingHost.id) {
+      return;
+    }
+
+    const hostId = editingHost.id;
+    submitting.current = true;
+    setDeactivating(true);
+    setDeactivationError('');
+
+    try {
+      await apiRequest<void>(`/api/Host/${hostId}/Delete`, {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${existingSessionToken}` },
+      });
+    } catch (error) {
+      setDeactivationError(error instanceof ApiRequestError && error.status === 401
+        ? 'Sua sessão expirou. Entre novamente para desativar o estabelecimento.'
+        : error instanceof ApiRequestError && error.status === 403
+          ? 'Sua conta não tem permissão para desativar este estabelecimento.'
+          : error instanceof ApiRequestError && error.status === 404
+            ? 'Este estabelecimento não está mais disponível para desativação.'
+            : 'Não foi possível confirmar a desativação. Tente novamente.');
+      return;
+    } finally {
+      submitting.current = false;
+      setDeactivating(false);
+    }
+
+    setExistingHosts((hosts) => hosts.filter((host) => host.id !== hostId));
+    setDeactivationHost(null);
+    try {
+      const storage = (globalThis as { sessionStorage?: WritableStorageLike }).sessionStorage;
+      if (storage?.getItem(hostIdStorageKey) === String(hostId)) {
+        storage.removeItem(hostIdStorageKey);
+      }
+    } catch {
+      // A desativação já foi confirmada pela API.
+    }
+    router.replace({ pathname: '/comercio', params: { gestao: '1', desativado: String(hostId) } });
+  };
+
   const submitRegistration = async () => {
     if (submitting.current) {
       return;
@@ -1055,7 +1108,7 @@ export default function HostRegistrationScreen() {
       const authorization = { Authorization: `Bearer ${accessToken}` };
 
       if (isEditingHost) {
-        const updated = await apiRequest<HostEditResponse>(`/api/Host/${editingHostId}/Edit`, {
+        const updated = await apiRequest<ExistingHostResponse>(`/api/Host/${editingHostId}/Edit`, {
           method: 'PUT',
           headers: authorization,
           body: JSON.stringify(prepared.host),
@@ -1555,8 +1608,38 @@ export default function HostRegistrationScreen() {
               </View>
             )}
 
+            {isEditingHost && editingHostInitialized && editingHost?.isActive ? (
+              <Pressable
+                accessibilityRole="button"
+                disabled={submission.status === 'submitting' || deactivating}
+                onPress={() => setDeactivationHost(editingHost)}
+                style={[styles.deactivateButton, (submission.status === 'submitting' || deactivating) && styles.buttonDisabled]}
+              >
+                <Text style={styles.primaryButtonText}>Desativar estabelecimento</Text>
+              </Pressable>
+            ) : null}
           </ScrollView>
         </KeyboardAvoidingView>
+        <Modal animationType="fade" transparent visible={deactivationHost !== null} onRequestClose={closeDeactivation}>
+          <View style={styles.modalBackdrop}>
+            <View accessibilityViewIsModal style={styles.deactivationDialog}>
+              <Text accessibilityRole="header" style={styles.deactivationTitle}>Desativar estabelecimento?</Text>
+              <Text style={styles.deactivationText}>
+                {deactivationHost?.name} e suas programações deixarão de aparecer nas buscas e listagens públicas.
+              </Text>
+              {deactivationError ? <Text accessibilityRole="alert" style={styles.errorNoticeText}>{deactivationError}</Text> : null}
+              <View style={styles.deactivationActions}>
+                <Pressable accessibilityRole="button" disabled={deactivating} onPress={closeDeactivation} style={styles.cancelDeactivation}>
+                  <Text style={styles.cancelDeactivationText}>Cancelar</Text>
+                </Pressable>
+                <Pressable accessibilityRole="button" disabled={deactivating} onPress={() => void deactivateHost()}
+                  style={[styles.deactivateButton, deactivating && styles.buttonDisabled]}>
+                  <Text style={styles.primaryButtonText}>{deactivating ? 'Desativando…' : 'Confirmar desativação'}</Text>
+                </Pressable>
+              </View>
+            </View>
+          </View>
+        </Modal>
       </View>
     </View>
   );
@@ -1866,6 +1949,14 @@ const styles = StyleSheet.create({
   buttonDisabled: {
     opacity: 0.62,
   },
+  deactivateButton: { minHeight: 48, paddingHorizontal: 14, alignItems: 'center', justifyContent: 'center', borderRadius: 13, backgroundColor: colors.danger },
+  modalBackdrop: { flex: 1, padding: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0, 43, 92, 0.55)' },
+  deactivationDialog: { width: '100%', maxWidth: 440, padding: 20, gap: 12, borderRadius: 18, backgroundColor: colors.card },
+  deactivationTitle: { color: colors.ink, fontSize: 18, fontWeight: '800' },
+  deactivationText: { color: colors.muted, fontSize: 13, lineHeight: 20 },
+  deactivationActions: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', gap: 8 },
+  cancelDeactivation: { minHeight: 48, paddingHorizontal: 14, alignItems: 'center', justifyContent: 'center', borderRadius: 13, borderWidth: 1, borderColor: colors.line },
+  cancelDeactivationText: { color: colors.ink, fontSize: 13, fontWeight: '700' },
   securityNotice: {
     padding: 15,
     flexDirection: 'row',
